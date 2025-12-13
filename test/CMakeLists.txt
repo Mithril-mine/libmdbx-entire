@@ -218,27 +218,30 @@ else()
   set_tests_properties(smoke PROPERTIES TIMEOUT 600 RUN_SERIAL OFF)
   if(MDBX_BUILD_TOOLS)
     add_test(NAME smoke_chk COMMAND ${MDBX_OUTPUT_DIR}/mdbx_chk -nvv smoke.db)
-    set_tests_properties(
-      smoke_chk
-      PROPERTIES DEPENDS
-                 smoke
-                 TIMEOUT
-                 60
-                 FAIL_REGULAR_EXPRESSION
-                 "cooperative mode"
-                 REQUIRED_FILES
-                 smoke.db)
+    set_tests_properties(smoke_chk PROPERTIES
+      DEPENDS smoke
+      TIMEOUT 60
+      FAIL_REGULAR_EXPRESSION "cooperative mode"
+      REQUIRED_FILES smoke.db)
+
     add_test(NAME smoke_chk_copy COMMAND ${MDBX_OUTPUT_DIR}/mdbx_chk -nvv smoke.db-copy)
-    set_tests_properties(
-      smoke_chk_copy
-      PROPERTIES DEPENDS
-                 smoke
-                 TIMEOUT
-                 60
-                 FAIL_REGULAR_EXPRESSION
-                 "cooperative mode"
-                 REQUIRED_FILES
-                 smoke.db-copy)
+    set_tests_properties(smoke_chk_copy PROPERTIES
+      DEPENDS smoke
+      TIMEOUT 60
+      FAIL_REGULAR_EXPRESSION "cooperative mode"
+      REQUIRED_FILES smoke.db-copy)
+
+    add_test(NAME smoke_copy_asis COMMAND ${MDBX_OUTPUT_DIR}/mdbx_copy smoke.db copy_asis.db)
+    set_tests_properties(smoke_copy_asis PROPERTIES
+      DEPENDS smoke
+      TIMEOUT 60
+      REQUIRED_FILES smoke.db)
+
+    add_test(NAME smoke_copy_compactify COMMAND ${MDBX_OUTPUT_DIR}/mdbx_copy -c smoke.db copy_compactify.db)
+    set_tests_properties(smoke_copy_compactify PROPERTIES
+      DEPENDS smoke
+      TIMEOUT 60
+      REQUIRED_FILES smoke.db)
   endif()
 
   add_test(
@@ -247,21 +250,20 @@ else()
       ${MDBX_OUTPUT_DIR}/mdbx_test --loglevel=notice --prng-seed=${test_seed} --table=+data.fixed --keygen.split=29
       --datalen=rnd --progress --console=no --repeat=2 --pathname=dupsort_writemap.db --dont-cleanup-after basic)
   set_tests_properties(dupsort_writemap PROPERTIES TIMEOUT 3600 RUN_SERIAL OFF)
+
   if(MDBX_BUILD_TOOLS)
     add_test(NAME dupsort_writemap_chk COMMAND ${MDBX_OUTPUT_DIR}/mdbx_chk -nvvwc dupsort_writemap.db)
-    set_tests_properties(dupsort_writemap_chk PROPERTIES DEPENDS dupsort_writemap TIMEOUT 60 REQUIRED_FILES
-                                                         dupsort_writemap.db)
+    set_tests_properties(dupsort_writemap_chk PROPERTIES
+      DEPENDS dupsort_writemap
+      TIMEOUT 60
+      REQUIRED_FILES dupsort_writemap.db)
+
     add_test(NAME dupsort_writemap_chk_copy COMMAND ${MDBX_OUTPUT_DIR}/mdbx_chk -nvvc dupsort_writemap.db-copy)
-    set_tests_properties(
-      dupsort_writemap_chk_copy
-      PROPERTIES DEPENDS
-                 dupsort_writemap
-                 TIMEOUT
-                 60
-                 FAIL_REGULAR_EXPRESSION
-                 "monopolistic mode"
-                 REQUIRED_FILES
-                 dupsort_writemap.db-copy)
+    set_tests_properties(dupsort_writemap_chk_copy PROPERTIES
+      DEPENDS dupsort_writemap
+      TIMEOUT 60
+      FAIL_REGULAR_EXPRESSION "monopolistic mode"
+      REQUIRED_FILES dupsort_writemap.db-copy)
   endif()
 
   add_test(NAME uniq_nested
@@ -270,27 +272,24 @@ else()
   set_tests_properties(uniq_nested PROPERTIES TIMEOUT 1800 RUN_SERIAL OFF)
   if(MDBX_BUILD_TOOLS)
     add_test(NAME uniq_nested_chk COMMAND ${MDBX_OUTPUT_DIR}/mdbx_chk -nvvw uniq_nested.db)
-    set_tests_properties(
-      uniq_nested_chk
-      PROPERTIES DEPENDS
-                 uniq_nested
-                 TIMEOUT
-                 60
-                 FAIL_REGULAR_EXPRESSION
-                 "cooperative mode"
-                 REQUIRED_FILES
-                 uniq_nested.db)
+    set_tests_properties(uniq_nested_chk PROPERTIES
+      DEPENDS uniq_nested
+      TIMEOUT 60
+      FAIL_REGULAR_EXPRESSION "cooperative mode"
+      REQUIRED_FILES uniq_nested.db)
+
     add_test(NAME uniq_nested_chk_copy COMMAND ${MDBX_OUTPUT_DIR}/mdbx_chk -nvv uniq_nested.db-copy)
-    set_tests_properties(
-      uniq_nested_chk_copy
-      PROPERTIES DEPENDS
-                 uniq_nested
-                 TIMEOUT
-                 60
-                 FAIL_REGULAR_EXPRESSION
-                 "cooperative mode"
-                 REQUIRED_FILES
-                 uniq_nested.db-copy)
+    set_tests_properties(uniq_nested_chk_copy PROPERTIES
+      DEPENDS uniq_nested
+      TIMEOUT 60
+      FAIL_REGULAR_EXPRESSION "cooperative mode"
+      REQUIRED_FILES uniq_nested.db-copy)
+  endif()
+
+  if(WIN32 AND MDBX_BUILD_TOOLS)
+    set_tests_properties(smoke_chk PROPERTIES RESOURCE_LOCK smoke.db)
+    set_tests_properties(smoke_copy_asis PROPERTIES RESOURCE_LOCK smoke.db)
+    set_tests_properties(smoke_copy_compactify PROPERTIES RESOURCE_LOCK smoke.db)
   endif()
 
   if(NOT SUBPROJECT)
