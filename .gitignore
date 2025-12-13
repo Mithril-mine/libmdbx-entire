@@ -39,7 +39,8 @@ mdbx_test
 *.orig
 *.rej
 *.so
-src/config.h
+src/config-gnumake.h
+src/config-cmake.h
 src/version.c
 *.tar*
 test/cmake_install.cmake

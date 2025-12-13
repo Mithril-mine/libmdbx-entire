@@ -770,7 +770,7 @@ endif()
 
 # sources list
 set(LIBMDBX_PUBLIC_HEADERS mdbx.h)
-set(LIBMDBX_SOURCES mdbx.h "${CMAKE_CURRENT_BINARY_DIR}/config.h")
+set(LIBMDBX_SOURCES mdbx.h "${CMAKE_CURRENT_BINARY_DIR}/config-cmake.h")
 if(MDBX_AMALGAMATED_SOURCE)
   list(APPEND LIBMDBX_SOURCES mdbx.c)
 else()
@@ -1258,10 +1258,10 @@ foreach(item IN LISTS options)
   message(STATUS "${item}: ${value}")
 endforeach(item)
 
-# provide config.h for library build info
-file(REMOVE "${MDBX_SOURCE_DIR}/config.h")
-configure_file("${MDBX_SOURCE_DIR}/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/config.h" ESCAPE_QUOTES)
-add_definitions(-DMDBX_CONFIG_H="${CMAKE_CURRENT_BINARY_DIR}/config.h")
+# provide config-cmake.h for library build info
+file(REMOVE "${MDBX_SOURCE_DIR}/config-cmake.h")
+configure_file("${MDBX_SOURCE_DIR}/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/config-cmake.h" ESCAPE_QUOTES)
+add_definitions(-DMDBX_CONFIG_H="${CMAKE_CURRENT_BINARY_DIR}/config-cmake.h")
 
 # ######################################################################################################################
 
