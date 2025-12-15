@@ -3,8 +3,8 @@
 #
 # Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`. Всё будет хорошо!
 
-# libmdbx = { Revised and extended descendant of Symas LMDB. } Please see README.md at
-# https://gitflic.ru/project/erthink/libmdbx
+# libmdbx = { Revised and extended descendant of Symas LMDB. }
+# Please see README.md at https://sourcecraft.dev/dqdkfa/libmdbx
 #
 # Libmdbx is superior to LMDB in terms of features and reliability, not inferior in performance. libmdbx works on Linux,
 # FreeBSD, MacOS X and other systems compliant with POSIX.1-2008, but also support Windows as a complementary platform.

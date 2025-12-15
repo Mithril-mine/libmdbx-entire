@@ -40,7 +40,7 @@ class libmdbx(ConanFile):
     license = 'Apache-2.0'
     author = 'Leo Yuriev <leo@yuriev.ru>'
     homepage = 'https://libmdbx.dqdkfa.ru'
-    url = 'https://gitflic.ru/project/erthink/libmdbx.git'
+    url = 'https://git@git.sourcecraft.dev/dqdkfa/libmdbx.git'
     topics = ('embedded-database', 'key-value', 'btree', 'LMDB', 'storage-engine',
               'data-storage', 'nosql', 'ACID', 'MVCC', 'MDBX')
     no_copy_source = True

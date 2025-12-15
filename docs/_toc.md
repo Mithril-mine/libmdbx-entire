@@ -6,7 +6,7 @@ Please use the `stable` branch or the latest release for production environment 
 > Questions, feedback and suggestions are welcome to the [Telegram' group](https://t.me/libmdbx) (archive [1](https://libmdbx.dqdkfa.ru/tg-archive/messages1.html),
 > [2](https://libmdbx.dqdkfa.ru/tg-archive/messages2.html), [3](https://libmdbx.dqdkfa.ru/tg-archive/messages3.html), [4](https://libmdbx.dqdkfa.ru/tg-archive/messages4.html),
 > [5](https://libmdbx.dqdkfa.ru/tg-archive/messages5.html), [6](https://libmdbx.dqdkfa.ru/tg-archive/messages6.html), [7](https://libmdbx.dqdkfa.ru/tg-archive/messages7.html)).
-> See the [ChangeLog](https://gitflic.ru/project/erthink/libmdbx/blob?file=ChangeLog.md) for `NEWS` and latest updates.
+> See the [ChangeLog](https://sourcecraft.dev/dqdkfa/libmdbx/browse/ChangeLog.md) for `NEWS` and latest updates.
 
 \section toc Table of Contents
 
@@ -31,7 +31,7 @@ each of which is divided into several sections.
   - The \ref mdbx.h++ header file reference
 
 Please do not hesitate to point out errors in the documentation,
-including creating [merge-request](https://gitflic.ru/project/erthink/libmdbx/merge-request) with corrections and improvements.
+including creating [pull-request](https://sourcecraft.dev/dqdkfa/libmdbx/pr) with corrections and improvements.
 
 ---
 
