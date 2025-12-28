@@ -30,15 +30,20 @@ Historically, _libmdbx_ is a deeply revised and extended descendant of the legen
 
 Telegram Group archive: [1](https://libmdbx.dqdkfa.ru/tg-archive/messages1.html), [2](https://libmdbx.dqdkfa.ru/tg-archive/messages2.html), [3](https://libmdbx.dqdkfa.ru/tg-archive/messages3.html), [4](https://libmdbx.dqdkfa.ru/tg-archive/messages4.html), [5](https://libmdbx.dqdkfa.ru/tg-archive/messages5.html), [6](https://libmdbx.dqdkfa.ru/tg-archive/messages6.html), [7](https://libmdbx.dqdkfa.ru/tg-archive/messages7.html).
 
-## Github
+
+## The Turnpoint
 
 ### in English
+
+> **To get acquainted with important changes and plans, we recommend reading the compact [presentation "libmdbx: successes, obstacles, goals and roadmap"](https://libmdbx.dqdkfa.ru/release/libmdbx-roadmap-HNY2026-english.pdf), which contains important explanations in the form of embedded comments.**
 
 For ease of use and to eliminate potential limitations in both distribution and obstacles in technology development, _libmdbx_ is distributed as an amalgamated source code starting at the end of 2025. The source code of the tests, as well as the internal documentation, will be available only to the team directly involved in the development. A little later, a new _libmdbx_ development strategy will be published, the essence of which is the continuous movement towards the _MithrilDB_. In this regard, some of the information provided below and in other parts of the documentation may be inaccurate or inapplicable. We will try to resolve all discrepancies as quickly as possible.
 
 The _libmdbx_ code will forever remain open and with high-quality free support, as far as the life circumstances of the project participants allow. However, support will be provided only for officially published versions of the code. As an identity criterion, the `git tree hash` must match the signed commit in the _libmdbx_ public repository. For all other cases, paid support will be offered. We will also insist and enforce that all derivative versions comply with the license requirements, including the explicit presence of a notice stating that such derivative modified code originates from _libdmbx_, but is no longer original and supported, and is not subject to any quality guarantees from _libmdbx_.
 
 ### на Русском (мой родной язык)
+
+> **Для знакомства с важными изменениями и планами рекомендуем ознакомится с компактной [презентацией "libmdbx: успехи, премятствия, цели и план развития"](https://libmdbx.dqdkfa.ru/release/libmdbx-roadmap-HNY2026-russian.pdf), в которой важные пояснения даны в виде встроенных комментариев.**
 
 Для удобства использования и устранения потенциальных ограничений как в распространении, так и препятствий в разработке технологий, начиная с конца 2025 года _libmdbx_ распространяется в виде амальгамированного исходного кода. Исходный код тестов, как и внутренняя документация будет доступна только команде непосредственно занимающейся разработкой. Чуть позже будет опубликована новая стратегия развития _libmdbx_, суть которой в непрерывном движении к _MithrilDB_. В связи с этим часть информации изложенной ниже и в других частях документации может быть неточной или неприменимой. Мы постараемся устранить все несоответствия по-быстрее.
 
@@ -48,7 +53,7 @@ The _libmdbx_ code will forever remain open and with high-quality free support, 
 
 <!-- section-begin mithril -->
 
-The next version is under non-public development from scratch and will be released as **MithrilDB** and `libmithrildb` for libraries & packages. Admittedly mythical [Mithril](https://en.wikipedia.org/wiki/Mithril) is resembling silver but being stronger and lighter than steel. Therefore _MithrilDB_ is a rightly relevant name.
+The next version is under non-public development and will be released as **MithrilDB** and `libmithrildb` for libraries & packages. Admittedly mythical [Mithril](https://en.wikipedia.org/wiki/Mithril) is resembling silver but being stronger and lighter than steel. Therefore _MithrilDB_ is a rightly relevant name.
 
 _MithrilDB_ is radically different from _libmdbx_ by the new database format and API based on C++20. The goal of this revolution is to provide a clearer and robust API, add more features and new valuable properties of the database. All fundamental architectural problems of libmdbx/LMDB have been solved there, but now the active development has been suspended for top-three reasons:
 
