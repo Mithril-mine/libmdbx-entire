@@ -8,6 +8,8 @@ Please use the `stable` branch or the latest release for production environment 
 > [5](https://libmdbx.dqdkfa.ru/tg-archive/messages5.html), [6](https://libmdbx.dqdkfa.ru/tg-archive/messages6.html), [7](https://libmdbx.dqdkfa.ru/tg-archive/messages7.html)).
 > See the [ChangeLog](https://sourcecraft.dev/dqdkfa/libmdbx/browse/ChangeLog.md) for `NEWS` and latest updates.
 
+[![Turnpoint'HNY2026](https://libmdbx.dqdkfa.ru/img/Turnpoint-HNY2026.webp)](https://libmdbx.dqdkfa.ru/release/libmdbx-roadmap-HNY2026-english.pdf)
+
 \section toc Table of Contents
 
 This manual is divided into parts,
