@@ -779,7 +779,7 @@ $(foreach file,$(TOOLS),$(eval $(call dist-tool-rule,$(file))))
 define dist-extra-rule
 $(DIST_DIR)/$(1): $(1) src/version.c $(lastword $(MAKEFILE_LIST))
 	@echo '  REFINE $$@'
-	$(QUIET)mkdir -p $$(dir $$@) && $(SED) -e '/^#> dist-cutoff-begin/,/^#< dist-cutoff-end/d' $$< | cat -s >$$@
+	$(QUIET)mkdir -p $$(dir $$@) && $(SED) -e '/^\s*#> dist-cutoff-begin/,/^\s*#< dist-cutoff-end/d' $$< | cat -s >$$@
 
 endef
 $(foreach file,mdbx.h mdbx.h++ $(filter-out man1/% VERSION.json .clang-format-ignore %.in ntdll.def,$(DIST_EXTRA)),$(eval $(call dist-extra-rule,$(file))))
