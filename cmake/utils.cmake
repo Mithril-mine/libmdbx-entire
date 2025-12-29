@@ -121,11 +121,15 @@ macro(semver_parse str)
       set(_semver_ok TRUE)
     else()
       set(_semver_err
-          "Поля prerelease и/или buildmetadata (строка `-foo+bar` в составе `0.0.0[.0][-foo][+bar]`) не соответствуют SemVer-спецификации"
+          # "Поля prerelease и/или buildmetadata (подстрока `-foo+bar` в составе `0.0.0[.0][-foo][+bar]`) не соответствуют SemVer-спецификации"
+          "The prerelease and/or buildmetadata fields (substring `-foo+bar` as part of `0.0.0[.0][-foo][+bar]`) do not comply with the SemVer specification"
       )
     endif()
   else()
-    set(_semver_err "Версионная отметка в целом не соответствует шаблону `0.0.0[.0][-foo][+bar]` SemVer-спецификации")
+    set(_semver_err
+      # "Версионная отметка в целом не соответствует шаблону `0.0.0[.0][-foo][+bar]` SemVer-спецификации"
+      "The version mark as a whole does not match the pattern `0.0.0[.0][-foo][+bar]` of the SemVer specification"
+    )
   endif()
 endmacro(semver_parse)
 
@@ -215,6 +219,7 @@ function(semver_parse_selfcheck)
     FALSE)
 endfunction()
 
+#> dist-cutoff-begin
 macro(git_get_versioninfo source_root_directory)
   set(_git_describe "")
   set(_git_timestamp "")
@@ -346,6 +351,7 @@ macro(git_get_versioninfo source_root_directory)
     endif()
   endif()
 endmacro(git_get_versioninfo)
+#< dist-cutoff-end
 
 macro(semver_provide name source_root_directory build_directory_for_json_output build_metadata parent_scope)
   set(_semver "")
@@ -354,8 +360,9 @@ macro(semver_provide name source_root_directory build_directory_for_json_output 
   set(_git_tree "")
   set(_git_commit "")
   set(_version_from "")
-  set(_git_root FALSE)
 
+  #> dist-cutoff-begin
+  set(_git_root FALSE)
   find_program(GIT git)
   if(GIT)
     execute_process(
@@ -380,17 +387,22 @@ macro(semver_provide name source_root_directory build_directory_for_json_output 
       if(_source_root STREQUAL _git_root AND EXISTS "${_git_root}/VERSION.json")
         message(
           FATAL_ERROR
-            "Несколько источников информации о версии, допустим только один из: репозиторий git, либо файл VERSION.json"
+            # "Несколько источников информации о версии, допустим только один из: репозиторий git, либо файл `VERSION.json`"
+            "There are several sources of version information, but must be the single of ones: the git repository, or the `VERSION.json` file"
         )
       endif()
     endif()
   endif()
+  #< dist-cutoff-end
 
   if(EXISTS "${source_root_directory}/VERSION.json")
     set(_version_from "${source_root_directory}/VERSION.json")
 
     if(CMAKE_VERSION VERSION_LESS 3.19)
-      message(FATAL_ERROR "Требуется CMake версии >= 3.19 для чтения VERSION.json")
+      message(FATAL_ERROR
+        # "Требуется CMake версии >= 3.19 для чтения VERSION.json"
+        "Requires CMake version >= 3.19 to parse VERSION.json"
+      )
     endif()
     file(
       STRINGS "${_version_from}" _versioninfo_json NEWLINE_CONSUME
@@ -410,6 +422,7 @@ macro(semver_provide name source_root_directory build_directory_for_json_output 
     if(NOT _semver_ok)
       message(FATAL_ERROR "SemVer `${_semver}` from ${_version_from}: ${_semver_err}")
     endif()
+  #> dist-cutoff-begin
   elseif(_git_root AND _source_root STREQUAL _git_root)
     set(_version_from git)
     git_get_versioninfo(${source_root_directory})
@@ -420,14 +433,18 @@ macro(semver_provide name source_root_directory build_directory_for_json_output 
     if(_git_trailing_commits GREATER 0 AND "${_semver_tweak}" STREQUAL "")
       set(_semver_tweak ${_git_trailing_commits})
     endif()
-
   elseif(GIT)
     message(
       FATAL_ERROR
-        "Нет источника информации о версии (${source_root_directory}), требуется один из: репозиторий git, либо VERSION.json"
+        # "Нет источника информации о версии (${source_root_directory}), требуется один из: репозиторий git, либо `VERSION.json`"
+        "There is no source of version information (${source_root_directory}), one of the following is required: git repository, or `VERSION.json`"
     )
+  #< dist-cutoff-end
   else()
-    message(FATAL_ERROR "Требуется git для получения информации о версии")
+    message(FATAL_ERROR
+      # "Отсутствует `VERSION.json` с информацией о версии"
+      "The `VERSION.json` with version information is missing"
+    )
   endif()
 
   if(NOT _git_describe
@@ -506,6 +523,7 @@ macro(semver_provide name source_root_directory build_directory_for_json_output 
         PARENT_SCOPE)
   endif()
 
+  #> dist-cutoff-begin
   if(_version_from STREQUAL "git")
     string(
       CONFIGURE
@@ -519,6 +537,7 @@ macro(semver_provide name source_root_directory build_directory_for_json_output 
       @ONLY ESCAPE_QUOTES)
     file(WRITE "${build_directory_for_json_output}/VERSION.json" "${_versioninfo_json}")
   endif()
+  #< dist-cutoff-end
 endmacro(semver_provide)
 
 cmake_policy(POP)
