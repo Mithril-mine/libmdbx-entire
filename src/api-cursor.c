@@ -753,3 +753,97 @@ __cold int mdbx_cursor_ignord(MDBX_cursor *mc) {
 
   return MDBX_SUCCESS;
 }
+
+/*----------------------------------------------------------------------------*/
+
+/* FIXME: This naive implementation should be replaced by handling special cases
+ * and dropping with entire branches inside the B+tree. */
+int mdbx_cursor_bunch_delete(MDBX_cursor *mc, MDBX_bunch_action_t action, uint64_t *number_of_affected) {
+  int rc = cursor_check_rw(mc);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  if (unlikely(action < MDBX_DELETE_CURRENT_VALUE || action > MDBX_DELETE_WHOLE))
+    return LOG_IFERR(MDBX_EINVAL);
+
+  const uint64_t save_items = mc->tree->items;
+  switch (action) {
+  default:
+    rc = MDBX_EINVAL;
+    break;
+  case MDBX_DELETE_CURRENT_VALUE:
+    rc = cursor_del(mc, 0);
+    break;
+  case MDBX_DELETE_CURRENT_MULTIVAL_ALL:
+    rc = cursor_del(mc, MDBX_ALLDUPS);
+    break;
+  case MDBX_DELETE_WHOLE:
+    rc = tbl_purge(mc);
+    break;
+
+  case MDBX_DELETE_CURRENT_MULTIVAL_BEFORE_INCLUDING:
+    rc = cursor_del(mc, 0);
+    __fallthrough /* fall through */;
+  case MDBX_DELETE_CURRENT_MULTIVAL_BEFORE_EXCLUDING:
+    while (rc == MDBX_SUCCESS) {
+      rc = outer_prev(mc, nullptr, nullptr, MDBX_PREV_DUP);
+      if (rc != MDBX_SUCCESS) {
+        rc = (rc == MDBX_NOTFOUND) ? MDBX_SUCCESS : rc;
+        break;
+      }
+      rc = cursor_del(mc, 0);
+    }
+    break;
+
+  case MDBX_DELETE_CURRENT_MULTIVAL_AFTER_INCLUDING:
+    rc = cursor_del(mc, 0);
+    __fallthrough /* fall through */;
+  case MDBX_DELETE_CURRENT_MULTIVAL_AFTER_EXCLUDING:
+    while (rc == MDBX_SUCCESS) {
+      rc = outer_next(mc, nullptr, nullptr, MDBX_NEXT_DUP);
+      mc->flags &= ~z_eof_hard;
+      ((cursor_couple_t *)mc)->inner.cursor.flags &= ~z_eof_hard;
+      if (rc != MDBX_SUCCESS) {
+        rc = (rc == MDBX_NOTFOUND) ? MDBX_SUCCESS : rc;
+        break;
+      }
+      rc = cursor_del(mc, 0);
+    }
+    break;
+
+  case MDBX_DELETE_BEFORE_INCLUDING:
+    rc = cursor_del(mc, 0);
+    __fallthrough /* fall through */;
+  case MDBX_DELETE_BEFORE_EXCLUDING:
+    while (rc == MDBX_SUCCESS) {
+      rc = outer_prev(mc, nullptr, nullptr, MDBX_PREV);
+      if (rc != MDBX_SUCCESS) {
+        rc = (rc == MDBX_NOTFOUND) ? MDBX_SUCCESS : rc;
+        break;
+      }
+      rc = cursor_del(mc, 0);
+    }
+    break;
+
+  case MDBX_DELETE_AFTER_INCLUDING:
+    rc = cursor_del(mc, 0);
+    __fallthrough /* fall through */;
+  case MDBX_DELETE_AFTER_EXCLUDING:
+    while (rc == MDBX_SUCCESS) {
+      rc = outer_next(mc, nullptr, nullptr, MDBX_NEXT);
+      mc->flags &= ~z_eof_hard;
+      ((cursor_couple_t *)mc)->inner.cursor.flags &= ~z_eof_hard;
+      if (rc != MDBX_SUCCESS) {
+        rc = (rc == MDBX_NOTFOUND) ? MDBX_SUCCESS : rc;
+        break;
+      }
+      rc = cursor_del(mc, 0);
+    }
+    break;
+  }
+
+  if (number_of_affected)
+    *number_of_affected = save_items - mc->tree->items;
+
+  return LOG_IFERR(rc);
+}
