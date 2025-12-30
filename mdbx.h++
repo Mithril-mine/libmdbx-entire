@@ -2930,7 +2930,7 @@ MDBX_CXX01_CONSTEXPR_ENUM bool is_msgpack(value_mode mode) noexcept { return mod
 /// \brief A handle for an individual table (aka key-value space, maps or sub-database) in the environment.
 /// \see txn::open_map() \see txn::create_map()
 /// \see txn::clear_map() \see txn::drop_map()
-/// \see txn::get_handle_info() \see txn::get_map_stat()
+/// \see txn::get_map_flags() \see txn::get_map_stat()
 /// \see env::close_map()
 /// \see cursor::map()
 struct LIBMDBX_API_TYPE map_handle {
@@ -3913,7 +3913,7 @@ public:
   /// B+trees for given table.
   inline uint32_t get_tree_deepmask(map_handle map) const;
   /// \brief Returns information about key-value map (aka table) handle.
-  inline map_handle::info get_handle_info(map_handle map) const;
+  inline map_handle::info get_map_flags(map_handle map) const;
 
   using canary = ::MDBX_canary;
   /// \brief Set integers markers (aka "canary") associated with the environment.
@@ -5701,7 +5701,7 @@ inline uint32_t txn::get_tree_deepmask(map_handle map) const {
   return r;
 }
 
-inline map_handle::info txn::get_handle_info(map_handle map) const {
+inline map_handle::info txn::get_map_flags(map_handle map) const {
   unsigned flags, state;
   error::success_or_throw(::mdbx_dbi_flags_ex(handle_, map.dbi, &flags, &state));
   return map_handle::info(MDBX_db_flags_t(flags), MDBX_dbi_state_t(state));
