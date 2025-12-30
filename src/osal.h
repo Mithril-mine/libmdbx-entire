@@ -206,6 +206,8 @@ typedef struct osal_mmap {
 
 #define MDBX_HAVE_PWRITEV 0
 
+MDBX_INTERNAL int osal_ntstatus2errcode(NTSTATUS status);
+
 static inline int osal_waitstatus2errcode(DWORD result) {
   switch (result) {
   case WAIT_OBJECT_0:
@@ -219,7 +221,7 @@ static inline int osal_waitstatus2errcode(DWORD result) {
   case WAIT_TIMEOUT:
     return ERROR_TIMEOUT;
   default:
-    return ERROR_UNHANDLED_ERROR;
+    return osal_ntstatus2errcode(result);
   }
 }
 
