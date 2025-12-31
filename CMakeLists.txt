@@ -53,10 +53,32 @@ endif()
 
 cmake_policy(SET CMP0054 NEW)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git"
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.json"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/COPYRIGHT"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/GNUmakefile"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c++"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.h"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.h++"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_chk.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_copy.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_dump.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_load.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_stat.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_drop.c"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ntdll.def"
+  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.h.in")
+  set(MDBX_AMALGAMATED_SOURCE TRUE)
+  set(MDBX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+#> dist-cutoff-begin
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git"
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/COPYRIGHT"
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
+   AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/GNUmakefile"
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.h"
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.h++"
@@ -170,31 +192,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git"
     message(SEND_ERROR "Git command-line tool not found")
   endif()
   set(MDBX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-elseif(
-  EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.json"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/COPYRIGHT"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c++"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.h"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.h++"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_chk.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_copy.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_dump.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_load.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_stat.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_drop.c"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ntdll.def"
-  AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.h.in")
-  set(MDBX_AMALGAMATED_SOURCE TRUE)
-  set(MDBX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+#< dist-cutoff-end
 else()
   message(
     FATAL_ERROR
-      "\nThe set of libmdbx source code files is incomplete!  "
-      "Instead just follow the https://libmdbx.dqdkfa.ru/usage.html  " "PLEASE, AVOID USING ANY OTHER TECHNIQUES.")
+      "\nThe set of libmdbx source code files is incomplete!"
+      "  Instead just follow the https://libmdbx.dqdkfa.ru/usage.html"
+      "  PLEASE, AVOID USING ANY OTHER TECHNIQUES.")
 endif()
 
 # Provide version
@@ -771,7 +775,8 @@ set(LIBMDBX_PUBLIC_HEADERS mdbx.h)
 set(LIBMDBX_SOURCES mdbx.h "${CMAKE_CURRENT_BINARY_DIR}/config-cmake.h")
 if(MDBX_AMALGAMATED_SOURCE)
   list(APPEND LIBMDBX_SOURCES mdbx.c)
-else()
+#> dist-cutoff-begin
+elseif(TRUE)
   # generate version file
   file(REMOVE "${MDBX_SOURCE_DIR}/version.c")
   configure_file("${MDBX_SOURCE_DIR}/version.c.in" "${CMAKE_CURRENT_BINARY_DIR}/version.c" ESCAPE_QUOTES)
@@ -875,6 +880,12 @@ else()
     include_directories("${MDBX_SOURCE_DIR}")
   endif()
   add_custom_target(doc-files SOURCES README.md TODO.md ChangeLog.md LICENSE NOTICE COPYRIGHT)
+#< dist-cutoff-end
+else()
+  if(NOT CMAKE_CURRENT_LIST_FILE)
+    set(CMAKE_CURRENT_LIST_FILE "CMakeLists.txt")
+  endif()
+  message(FATAL_ERROR "This \"${CMAKE_CURRENT_LIST_FILE}\" has been trimmed and is therefore intended only for build from an amalgamated form of the source code.")
 endif(MDBX_AMALGAMATED_SOURCE)
 if(MDBX_BUILD_CXX)
   message(STATUS "Use C${MDBX_C_STANDARD} and C++${MDBX_CXX_STANDARD} for libmdbx")
@@ -1269,7 +1280,9 @@ if(NOT MDBX_AMALGAMATED_SOURCE AND MDBX_ENABLE_TESTS)
   if(NOT CMAKE_CXX_COMPILER_LOADED)
     message(FATAL_ERROR "MDBX_ENABLE_TESTS=${MDBX_ENABLE_TESTS}: The C++ compiler is required to build the tests.")
   endif()
+  #> dist-cutoff-begin
   add_subdirectory(test)
+  #< dist-cutoff-end
 endif()
 
 # ######################################################################################################################
