@@ -930,6 +930,9 @@ int txn_end(MDBX_txn *txn, unsigned mode) {
       eASSERT(env, pnl_check_allocated(txn->tw.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
       eASSERT(env, memcmp(&txn->tw.troika, &parent->tw.troika, sizeof(troika_t)) == 0);
 
+      if ((mode & TXN_END_UPDATE) == 0)
+        dbi_update(txn, false);
+
       txn->owner = 0;
       if (txn->tw.gc.retxl) {
         eASSERT(env, MDBX_PNL_GETSIZE(txn->tw.gc.retxl) >= (uintptr_t)parent->tw.gc.retxl);
