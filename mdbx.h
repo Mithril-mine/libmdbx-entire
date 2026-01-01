@@ -28,7 +28,7 @@ and https://sourcecraft.dev/dqdkfa/libmdbx for the source code.
 \section copyright LICENSE & COPYRIGHT
 \copyright SPDX-License-Identifier: Apache-2.0
 \note Please refer to the COPYRIGHT file for explanations license change, credits and acknowledgments.
-\author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2025
+\author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 
 *******************************************************************************/
 

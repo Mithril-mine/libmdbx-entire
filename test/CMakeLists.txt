@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2025 Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> ###############################################
+# Copyright (c) 2020-2026 Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> ###############################################
 # SPDX-License-Identifier: Apache-2.0
 
 if(NOT CMAKE_CXX_COMPILER_LOADED)
