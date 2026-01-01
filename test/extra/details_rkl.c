@@ -1,5 +1,5 @@
 /// \copyright SPDX-License-Identifier: Apache-2.0
-/// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2025
+/// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2025-2026
 
 #define debug_log debug_log_sub
 
