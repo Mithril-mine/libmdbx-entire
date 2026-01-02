@@ -12,10 +12,8 @@
 # The next version is under active non-public development and will be released as MithrilDB and libmithrildb for
 # libraries & packages. Admittedly mythical Mithril is resembling silver but being stronger and lighter than steel.
 # Therefore MithrilDB is rightly relevant name.
-#
-# MithrilDB will be radically different from libmdbx by the new database format and API based on C++17, as well as the
-# Apache 2.0 License. The goal of this revolution is to provide a clearer and robust API, add more features and new
-# valuable properties of database.
+# MithrilDB will be radically different from libmdbx by the new database format and API based on C++20.
+# The goal of this revolution is to provide a clearer and robust API, add more features and new valuable properties.
 
 if(CMAKE_VERSION VERSION_LESS 3.8.2)
   cmake_minimum_required(VERSION 3.0.2)

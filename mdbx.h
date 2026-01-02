@@ -2540,8 +2540,7 @@ typedef enum MDBX_env_delete_mode {
   /** \brief Make sure that the environment is not being used by other
    * processes, or return an error otherwise. */
   MDBX_ENV_ENSURE_UNUSED = 1,
-  /** \brief Wait until other processes closes the environment before deletion.
-   */
+  /** \brief Wait until other processes closes the environment before deletion. */
   MDBX_ENV_WAIT_FOR_UNUSED = 2,
 } MDBX_env_delete_mode_t;
 
