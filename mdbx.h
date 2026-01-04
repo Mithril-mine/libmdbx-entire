@@ -4860,6 +4860,8 @@ LIBMDBX_API int mdbx_drop(MDBX_txn *txn, MDBX_dbi dbi, bool del);
  * \note Values returned from the table are valid only until a
  * subsequent update operation, or the end of the transaction.
  *
+ * \see mdbx_cache_get()
+ *
  * \param [in] txn       A transaction handle returned by \ref mdbx_txn_begin().
  * \param [in] dbi       A table handle returned by \ref mdbx_dbi_open().
  * \param [in] key       The key to search for in the table.
@@ -5045,27 +5047,67 @@ typedef enum MDBX_cache_status {
 } MDBX_cache_status_t;
 
 /** \brief Pair of error code and cache status as a result of \ref mdbx_cache_get().
- * \ingroup c_crud */
+ * \ingroup c_crud
+ * \see mdbx_cache_get()
+ * \see mdbx_cache_get_SingleThreaded() */
 typedef struct MDBX_cache_result {
+  /** The error code of getting data same as from \ref mdbx_get(). */
   MDBX_error_t errcode;
+  /** The result of cache operation as the value of \ref MDBX_cache_status_t. */
   MDBX_cache_status_t status;
 } MDBX_cache_result_t;
 
-/** \brief Get items from a table using cache.
+/** \brief Gets items from a table using cache including multithreaded cases.
  * \ingroup c_crud
+ * \details The essence of this "caching" is using a cached information to check as quickly as possible whether the data
+ * has changed or not, with early exit when searching though a DB. For this a petty version information is stored in
+ * a \ref MDBX_cache_entry_t structure, along with the offset to the "cached" data inside the memory-mapped database
+ * file. Instead of a full B-tree search it stops when reaches a DB page that has not been modified after the last
+ * check. Thus a minimum number of steps are performed which provides dramatic acceleration in many cases.
+ *
+ * \note This function is supports multi-threaded cases and automatically resolves collisions using lockfree approach,
+ * nonetheless \ref MDBX_NOSTICKYTHREADS mode is required to use it within a different threads.
+ *
  * \see mdbx_cache_get_SingleThreaded()
- * \see MDBX_cache_entry
+ * \see MDBX_cache_entry_t
  * \see mdbx_cache_init()
- */
+ * \see mdbx_get()
+ *
+ * \param [in] txn        A transaction handle returned by \ref mdbx_txn_begin().
+ * \param [in] dbi        A table handle returned by \ref mdbx_dbi_open().
+ * \param [in] key        The key to search for in the table.
+ * \param [in,out] data   The data corresponding to the key.
+ * \param [in,out] entry  The cache entry corresponding to the key.
+ *
+ * \returns The \ref MDBX_cache_result_t with a pair of the error codes for getting a data
+ * and the cache entry processing both. */
 LIBMDBX_API MDBX_cache_result_t mdbx_cache_get(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *key, MDBX_val *data,
                                                volatile MDBX_cache_entry_t *entry);
 
-/** \brief FIXME
+/** \brief Gets items from a table using cache within single-thread cases only.
  * \ingroup c_crud
+ * \details The essence of this "caching" is using a cached information to check as quickly as possible whether the data
+ * has changed or not, with early exit when searching though a DB. For this a petty version information is stored in
+ * a \ref MDBX_cache_entry_t structure, along with the offset to the "cached" data inside the memory-mapped database
+ * file. Instead of a full B-tree search it stops when reaches a DB page that has not been modified after the last
+ * check. Thus a minimum number of steps are performed which provides dramatic acceleration in many cases.
+ *
+ * \note This function is intended to be used with a given cache entry only in single-threaded cases, otherwise
+ * behaviour is undefined.
+ *
  * \see mdbx_cache_get()
- * \see MDBX_cache_entry
+ * \see MDBX_cache_entry_t
  * \see mdbx_cache_init()
- */
+ * \see mdbx_get()
+ *
+ * \param [in] txn        A transaction handle returned by \ref mdbx_txn_begin().
+ * \param [in] dbi        A table handle returned by \ref mdbx_dbi_open().
+ * \param [in] key        The key to search for in the table.
+ * \param [in,out] data   The data corresponding to the key.
+ * \param [in,out] entry  The cache entry corresponding to the key.
+ *
+ * \returns The \ref MDBX_cache_result_t with a pair of the error codes for getting a data
+ * and the cache entry processing both. */
 LIBMDBX_API MDBX_cache_result_t mdbx_cache_get_SingleThreaded(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *key,
                                                               MDBX_val *data, MDBX_cache_entry_t *entry);
 
