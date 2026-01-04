@@ -281,7 +281,7 @@ int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
   if (commit_txnid > txn->txnid)
     VERBOSE("use @%" PRIaTXN " (+%zu) for committing bigfoot-txn", commit_txnid, (size_t)(commit_txnid - txn->txnid));
   else
-    VERBOSE("committing @%" PRIaTXN "txn", commit_txnid);
+    VERBOSE("committing @%" PRIaTXN " txn", commit_txnid);
   gc_put_destroy(&gcu_ctx);
 
   if (ts)
