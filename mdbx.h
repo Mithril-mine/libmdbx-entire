@@ -1,6 +1,9 @@
 /**
 
-_libmdbx_ (aka MDBX) is an extremely fast, compact, powerful, embeddable,
+\file mdbx.h
+\brief The libmdbx C API header file.
+
+\details _libmdbx_ (aka MDBX) is an extremely fast, compact, powerful, embeddable,
 transactional [key-value
 store](https://en.wikipedia.org/wiki/Key-value_database), with [Apache 2.0
 license](./LICENSE). _MDBX_ has a specific set of properties and capabilities,
@@ -21,18 +24,32 @@ https://t.me/libmdbx.
 Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`.
 Всё будет хорошо!
 
-\note The libmdbx project has been completely relocated to the jurisdiction of the Russian Federation.
-It is still open and provided with first-class free support. Please refer to https://libmdbx.dqdkfa.ru for documentation
-and https://sourcecraft.dev/dqdkfa/libmdbx for the source code.
+The _libmdbx_ project has been completely relocated to the jurisdiction of the Russian Federation.
+\note _libmdbx_ is still open and provided with first-class free support.
 
 \section copyright LICENSE & COPYRIGHT
 \copyright SPDX-License-Identifier: Apache-2.0
-\note Please refer to the COPYRIGHT file for explanations license change, credits and acknowledgments.
+Please refer to the COPYRIGHT file for explanations license change, credits and acknowledgments.
 \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 
 *******************************************************************************/
 
 #pragma once
+/*
+ * Tested with, since 2026:
+ *  - Elbrus LCC >= 1.28 (http://www.mcst.ru/lcc);
+ *  - GNU C >= 11.3;
+ *  - CLANG >= 14.0;
+ *  - MSVC >= 19.44 (Visual Studio 2022 toolchain v143),
+ * before 2026:
+ *  - Elbrus LCC >= 1.23 (http://www.mcst.ru/lcc);
+ *  - GNU C >= 4.8;
+ *  - CLANG >= 3.9;
+ *  - MSVC >= 14.0 (Visual Studio 2015),
+ *    but 19.2x could hang due optimizer bug;
+ *  - AppleClang.
+ */
+
 #ifndef LIBMDBX_H
 #define LIBMDBX_H
 
