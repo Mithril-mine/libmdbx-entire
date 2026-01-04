@@ -872,7 +872,10 @@ elseif(TRUE)
     endif()
     include_directories("${MDBX_SOURCE_DIR}")
   endif()
-  add_custom_target(dist-files SOURCES README.md TODO.md ChangeLog.md LICENSE NOTICE COPYRIGHT GNUmakefile Makefile conanfile.py ut_and_examples/README.md)
+  add_custom_target(dist-files SOURCES README.md TODO.md ChangeLog.md
+    docs/Doxyfile.in docs/header.html docs/ld+json docs/manifest.webmanifest docs/_preface.md docs/_restrictions.md docs/sitemap.add docs/_starting.md docs/title docs/_toc.md
+    LICENSE NOTICE COPYRIGHT GNUmakefile Makefile conanfile.py
+    ut_and_examples/README.md)
 #< dist-cutoff-end
 else()
   if(NOT CMAKE_CURRENT_LIST_FILE)
