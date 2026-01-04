@@ -12,6 +12,10 @@
 /// Questions, feedback and suggestions are welcome to the Telegram' group
 /// https://t.me/libmdbx.
 ///
+/// Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`,
+/// BTC `bc1qzvl9uegf2ea6cwlytnanrscyv8snwsvrc0xfsu`, SOL `FTCTgbHajoLVZGr8aEFWMzx3NDMyS5wXJgfeMTmJznRi`.
+/// Всё будет хорошо!
+///
 /// The libmdbx project has been completely relocated to the jurisdiction of the Russian Federation.
 /// \note _libmdbx_ is still open and provided with first-class free support.
 ///
