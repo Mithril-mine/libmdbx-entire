@@ -388,7 +388,7 @@ static bool proble_cloning(const mdbx::txn_managed &txn, const mdbx::map_handle 
         auto clone_txn_info = clone_of_clone.get_info();
         if (mdbx::memcmp(&clone_txn_info, &txn_info, sizeof(txn_info)))
           ok = false;
-        auto clone_handle_info = clone_of_clone.get_handle_info(table);
+        auto clone_handle_info = clone_of_clone.get_map_flags(table);
         if (clone_handle_info.state != MDBX_DBI_STALE ||
             mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)) == 0)
           ok = false;
@@ -396,7 +396,7 @@ static bool proble_cloning(const mdbx::txn_managed &txn, const mdbx::map_handle 
         auto clone_map_stat = clone_of_clone.get_map_stat(table);
         if (mdbx::memcmp(&clone_map_stat, &map_stat, sizeof(map_stat)))
           ok = false;
-        clone_handle_info = clone_of_clone.get_handle_info(table);
+        clone_handle_info = clone_of_clone.get_map_flags(table);
         if (mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)))
           ok = false;
         clone_of_clone.reset_reading();
@@ -409,7 +409,7 @@ static bool proble_cloning(const mdbx::txn_managed &txn, const mdbx::map_handle 
       auto clone_map_stat = clone.get_map_stat(table);
       if (mdbx::memcmp(&clone_map_stat, &map_stat, sizeof(map_stat)))
         ok = false;
-      auto clone_handle_info = clone.get_handle_info(table);
+      auto clone_handle_info = clone.get_map_flags(table);
       if (mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)))
         ok = false;
       clone_txn_info = clone.get_info();
@@ -440,7 +440,7 @@ bool case4_clone(const mdbx::path &path, bool no_sticky_threads) {
 
   const auto txn_info = txn.get_info();
   const auto map_stat = txn.get_map_stat(table);
-  const auto handle_info = txn.get_handle_info(table);
+  const auto handle_info = txn.get_map_flags(table);
 
   bool ok = proble_cloning(txn, table, txn_info, map_stat, handle_info);
   txn.reset_reading();
