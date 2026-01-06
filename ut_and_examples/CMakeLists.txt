@@ -16,3 +16,8 @@ if(CMAKE_CROSSCOMPILING AND NOT CMAKE_CROSSCOMPILING_EMULATOR)
 else()
   add_test(NAME example_c_api COMMAND mdbx_example)
 endif()
+
+if(UNIX)
+  add_executable(pcrf_simulator pcrf/pcrf_simulator.c)
+  target_link_libraries(pcrf_simulator ${MDBX_LIBRARY})
+endif()

@@ -1,23 +1,10 @@
 /*
- * Copyright 2016-2026 Leonid Yuriev <leo@yuriev.ru>.
  * Copyright 2015 Vladimir Romanov
  * <https://www.linkedin.com/in/vladimirromanov>, Yota Lab.
- *
- * This file is part of libmdbx.
- *
- * ReOpenMDBX is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * ReOpenMDBX is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * SPDX-License-Identifier: AGPL-3.0
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -223,7 +210,7 @@ static void get_db_stat(const char *db, int64_t *ms_branch_pages, int64_t *ms_le
   MDBX_dbi dbi;
 
   MDBX_CHECK(mdbx_txn_begin(env, NULL, MDBX_TXN_RDONLY, &txn));
-  MDBX_CHECK(mdbx_dbi_open(txn, db, MDBX_CREATE, &dbi));
+  MDBX_CHECK(mdbx_dbi_open(txn, db, MDBX_DB_ACCEDE, &dbi));
   MDBX_CHECK(mdbx_dbi_stat(txn, dbi, &stat, sizeof(stat)));
   mdbx_txn_abort(txn);
   printf("%15s | %15" PRIu64 " | %5u | %10" PRIu64 " | %10" PRIu64 " | %11" PRIu64 " |\n", db, stat.ms_branch_pages,

@@ -207,14 +207,6 @@ if(WIN32)
   target_link_libraries(mdbx_test winmm.lib)
 endif()
 
-if(NOT SUBPROJECT)
-  if(UNIX)
-    add_executable(test_extra_pcrf extra/pcrf/pcrf_test.c)
-    target_include_directories(test_extra_pcrf PRIVATE "${PROJECT_SOURCE_DIR}")
-    target_link_libraries(test_extra_pcrf ${TOOL_MDBX_LIB})
-  endif()
-endif()
-
 # ######################################################################################################################
 
 if(CMAKE_CROSSCOMPILING AND NOT CMAKE_CROSSCOMPILING_EMULATOR)
