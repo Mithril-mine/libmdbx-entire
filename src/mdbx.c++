@@ -1639,13 +1639,13 @@ __cold ::std::ostream &operator<<(::std::ostream &out, const slice &it) {
   else if (it.empty())
     out << "EMPTY->" << it.data();
   else {
-    const slice root(it.head(std::min(it.length(), size_t(64))));
+    const slice head(it.head(std::min(it.length(), size_t(64))));
     out << it.length() << ".";
-    if (root.is_printable())
-      (out << "\"").write(root.char_ptr(), root.length()) << "\"";
+    if (head.is_printable())
+      (out << "\"").write(head.char_ptr(), head.length()) << "\"";
     else
-      out << root.encode_base58();
-    if (root.length() < it.length())
+      out << to_hex(head);
+    if (head.length() < it.length())
       out << "...";
   }
   return out << "}";
