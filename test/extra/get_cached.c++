@@ -911,7 +911,7 @@ bool case2_multithread(mdbx::env env, prng &rnd, get_cached_t get_cached) {
       }
       txn.commit_embark_read();
       threads.push_back(std::thread(case2_thread, std::ref(context), std::ref(latch), std::move(txn), std::ref(entry)));
-      if (0 && threads.size() < n_threads) {
+      if (threads.size() < n_threads) {
         txn = env.start_read();
         threads.push_back(std::thread(case2_thread, std::ref(context), std::ref(latch), std::move(txn),
                                       std::ref(entries[rnd() % entries.size()])));
