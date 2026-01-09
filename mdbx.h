@@ -376,7 +376,7 @@ typedef mode_t mdbx_mode_t;
 #else
 #define __dll_export
 #endif
-#elif defined(__GNUC__) || __has_attribute(__visibility__)
+#elif defined(__GNUC__) || defined(__clang__) || __has_attribute(__visibility__)
 #define __dll_export __attribute__((__visibility__("default")))
 #else
 #define __dll_export
