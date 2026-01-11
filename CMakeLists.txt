@@ -879,10 +879,11 @@ elseif(TRUE)
     include_directories("${MDBX_SOURCE_DIR}")
   endif()
   add_custom_target(
-    dist-files
+    extra-files
     SOURCES README.md
             TODO.md
             ChangeLog.md
+            src/bits.md
             docs/Doxyfile.in
             docs/header.html
             docs/ld+json
