@@ -517,7 +517,7 @@ int txn_nested_abort(MDBX_txn *nested) {
   return rc;
 }
 
-int txn_nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
+static int nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
   MDBX_env *const env = nested->env;
   MDBX_txn *const parent = nested->parent;
   tASSERT(nested, audit_ex(nested, 0, false) == 0);
@@ -528,8 +528,9 @@ int txn_nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
   tASSERT(nested, pnl_check_allocated(nested->wr.repnl, nested->geo.first_unallocated - MDBX_ENABLE_REFUND));
   tASSERT(nested, memcmp(&nested->wr.troika, &parent->wr.troika, sizeof(troika_t)) == 0);
 
-  /* Preserve space for spill list to avoid parent's state corruption
-   * if allocation fails. */
+  //-------------------------------------------------------------------------
+  // Preserve space for page lists in the parent transaction.
+
   const size_t parent_retired_len = (uintptr_t)parent->wr.retired_pages;
   tASSERT(nested, parent_retired_len <= pnl_size(nested->wr.retired_pages));
   const size_t retired_delta = pnl_size(nested->wr.retired_pages) - parent_retired_len;
@@ -554,6 +555,7 @@ int txn_nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
   }
 
   //-------------------------------------------------------------------------
+  // No further failures should be allowed.
 
   if (nested->flags & txn_may_have_cursors)
     /* Merge our cursors into parent's and close them */
@@ -586,13 +588,8 @@ int txn_nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
     }
   }
 
-  if (ts) {
+  if (ts)
     ts->prep = osal_monotime();
-    ts->gc = /* no gc-update */ ts->prep;
-    ts->audit = /* no audit */ ts->gc;
-    ts->write = /* no write */ ts->audit;
-    ts->sync = /* no sync */ ts->write;
-  }
 
   if (nested->flags & MDBX_TXN_DIRTY) {
     parent->geo = nested->geo;
@@ -631,6 +628,16 @@ int txn_nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
     tASSERT(nested, nested->wr.loose_count == 0);
   }
 
-  nested_free(nested);
+  nested->flags = MDBX_TXN_FINISHED;
+  tASSERT(parent, audit_ex(parent, 0, false) == 0);
   return MDBX_SUCCESS;
+}
+
+int txn_nested_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
+  int rc = nested_join(txn, ts);
+  if (unlikely(rc != MDBX_SUCCESS))
+    nested_undo(txn);
+
+  nested_free(txn);
+  return rc;
 }
