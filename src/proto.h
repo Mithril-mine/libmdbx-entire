@@ -70,6 +70,9 @@ MDBX_INTERNAL MDBX_txn *txn_alloc(const MDBX_txn_flags_t flags, MDBX_env *env);
 MDBX_INTERNAL int txn_abort(MDBX_txn *txn);
 MDBX_INTERNAL int txn_renew(MDBX_txn *txn, unsigned flags);
 MDBX_INTERNAL int txn_end(MDBX_txn *txn, unsigned mode);
+#if !(defined(_WIN32) || defined(_WIN64))
+MDBX_INTERNAL void txn_abort_after_resurrect(MDBX_txn *txn);
+#endif /* Windows */
 
 MDBX_INTERNAL int txn_nested_create(MDBX_txn *parent, const MDBX_txn_flags_t flags);
 MDBX_INTERNAL int txn_nested_abort(MDBX_txn *nested);

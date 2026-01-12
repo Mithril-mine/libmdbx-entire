@@ -106,6 +106,12 @@ int mdbx_txn_abort(MDBX_txn *txn) {
   }
 #endif /* MDBX_TXN_CHECKOWNER */
 
+  if (txn->nested) {
+    /* more checks for middle-point abortion case */
+    mdbx_txn_abort(txn->nested);
+    tASSERT(txn, !txn->nested);
+  }
+
   return LOG_IFERR(txn_abort(txn));
 }
 

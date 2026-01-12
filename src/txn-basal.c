@@ -185,6 +185,7 @@ int txn_basal_start(MDBX_txn *txn, unsigned flags) {
 
 int txn_basal_end(MDBX_txn *txn, unsigned mode) {
   MDBX_env *const env = txn->env;
+  tASSERT(txn, !txn->parent && !(txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_FINISHED)) && txn->owner);
   tASSERT(txn, (txn->flags & (MDBX_TXN_FINISHED | txn_may_have_cursors)) == 0 && txn->owner);
   ENSURE(env, txn->txnid >= /* paranoia is appropriate here */ env->lck->cached_oldest.weak);
   dxb_sanitize_tail(env, nullptr);

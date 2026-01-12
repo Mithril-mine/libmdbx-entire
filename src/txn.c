@@ -58,20 +58,43 @@ int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
   return MDBX_SUCCESS;
 }
 
+#if !(defined(_WIN32) || defined(_WIN64))
+void txn_abort_after_resurrect(MDBX_txn *txn) {
+  if (likely(txn->signature == txn_signature)) {
+    if (txn->nested) {
+      txn_abort_after_resurrect(txn->nested);
+      tASSERT(txn, !txn->nested);
+    }
+    txn_abort(txn);
+  }
+}
+#endif /* Windows */
+
 int txn_abort(MDBX_txn *txn) {
-  if (txn->flags & MDBX_TXN_RDONLY)
-    /* LY: don't close DBI-handles */
-    return txn_end(txn, TXN_END_ABORT | TXN_END_UPDATE | TXN_END_SLOT | TXN_END_FREE);
+  DEBUG("txn %" PRIaTXN "%c-0x%X %p  on env %p, root page %" PRIaPGNO "/%" PRIaPGNO, txn->txnid,
+        (txn->flags & MDBX_TXN_RDONLY) ? 'r' : 'w', txn->flags, (void *)txn, (void *)txn->env, txn->dbs[MAIN_DBI].root,
+        txn->dbs[FREE_DBI].root);
 
-  if (unlikely(txn->flags & MDBX_TXN_FINISHED))
-    return MDBX_BAD_TXN;
-
-  if (txn->nested)
-    txn_abort(txn->nested);
-
-  tASSERT(txn, (txn->flags & MDBX_TXN_ERROR) || dpl_check(txn));
+  tASSERT(txn, !txn->nested);
+  tASSERT(txn, (txn->flags & (MDBX_TXN_ERROR | MDBX_TXN_RDONLY)) || dpl_check(txn));
   txn->flags |= /* avoid merge cursors' state */ MDBX_TXN_ERROR;
-  return txn_end(txn, TXN_END_ABORT | TXN_END_SLOT | TXN_END_FREE);
+
+  tASSERT(txn, /* txn->signature == txn_signature && */ !txn->nested && !(txn->flags & MDBX_TXN_HAS_CHILD));
+  if (txn->flags & txn_may_have_cursors)
+    txn_done_cursors(txn);
+
+  MDBX_env *const env = txn->env;
+  MDBX_txn *const parent = txn->parent;
+  if (txn == env->basal_txn) {
+    tASSERT(txn, !parent && !(txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_FINISHED)) && txn->owner);
+    return txn_basal_end(txn, TXN_END_ABORT);
+  }
+
+  if (txn->parent)
+    return txn_nested_abort(txn);
+
+  tASSERT(txn, (txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_DIRTY)) == MDBX_TXN_RDONLY);
+  return txn_ro_end(txn, TXN_END_ABORT | /* don't close DBI-handles */ TXN_END_UPDATE | TXN_END_SLOT | TXN_END_FREE);
 }
 
 typedef struct seq_latch_result {
