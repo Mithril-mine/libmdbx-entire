@@ -529,8 +529,8 @@ smoke-singleprocess: build-stochastic
 smoke-fault: build-stochastic
 	@echo '  SMOKE `mdbx_test --inject-writefault=42 basic`...'
 	$(QUIET)rm -f $(TEST_DB) $(TEST_LOG).gz && (set -o pipefail; ./mdbx_test --progress --console=no --pathname=$(TEST_DB) --inject-writefault=42 --dump-config --dont-cleanup-after $(MDBX_SMOKE_EXTRA) basic \
-		| tee >(gzip --stdout >$(TEST_LOG).gz) | tail -n 42) \
-	; ./mdbx_chk -vvnw $(TEST_DB) && ([ ! -e $(TEST_DB)-copy ] || ./mdbx_chk -vvn $(TEST_DB)-copy)
+		| tee >(gzip --stdout >$(TEST_LOG).gz) | tail -n 42) || echo "Expect fault" \
+	; ./mdbx_chk -vvnw $(TEST_DB) && ([ ! -e $(TEST_DB)-copy ] || ./mdbx_chk -vvn $(TEST_DB)-copy || echo "May fault due invalid-database-signature")
 
 test-stochastic: build-stochastic
 	@echo '  RUNNING `test/stochastic.sh --loops 2`...'
