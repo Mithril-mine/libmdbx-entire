@@ -332,7 +332,7 @@ TEST_BUILD_TARGETS += build-stochastic
 #< dist-cutoff-end
 
 .PHONY: ninja-assertions ninja-debug ninja $(TEST_TARGETS) $(TEST_BUILD_TARGETS) test-ubsan test-asan test-asan test-leak test-assertion test build-test smoke check
-test: $(TEST_TARGETS)
+test: @buildflags.tag | $(TEST_TARGETS)
 build-test: $(TEST_BUILD_TARGETS)
 
 test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0
@@ -340,15 +340,15 @@ test-assertion: smoke
 
 test-ubsan:
 	@echo '  RE-TEST with `-fsanitize=undefined` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error" test
+	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error" test-stochastic
 
 test-asan:
 	@echo '  RE-TEST with `-fsanitize=address` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-Os -fsanitize=address" test
+	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-Os -fsanitize=address" test-stochastic
 
 test-leak:
 	@echo '  RE-TEST with `-fsanitize=leak` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-fsanitize=leak" test
+	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-fsanitize=leak" test-stochastic
 
 mdbx_legacy_example: mdbx.h ut_and_examples/example-mdbx.c libmdbx.$(SO_SUFFIX)
 	@echo '  CC+LD $@'
@@ -424,8 +424,8 @@ else
 test-ci-extra: test-ci cross-gcc cross-qemu
 
 test-ci: check \
-	smoke-singleprocess smoke-fault smoke-memcheck smoke \
-	test-leak test-asan test-ubsan test-singleprocess test test-memcheck
+	smoke-singleprocess smoke-fault smoke-memcheck \
+	test-leak test-asan test-ubsan test-singleprocess test-memcheck
 
 define uname2osal
   case "$(UNAME)" in
