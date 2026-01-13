@@ -345,8 +345,8 @@ int txn_ro_clone(const MDBX_txn *const origin, MDBX_txn *const clone) {
     VALGRIND_MAKE_MEM_UNDEFINED(clone->dbi_state, env->max_dbi);
 #if MDBX_ENABLE_DBI_SPARSE
     clone->n_dbi = CORE_DBS;
-    VALGRIND_MAKE_MEM_UNDEFINED(txn->dbi_sparse,
-                                ceil_powerof2(env->max_dbi, CHAR_BIT * sizeof(txn->dbi_sparse[0])) / CHAR_BIT);
+    VALGRIND_MAKE_MEM_UNDEFINED(clone->dbi_sparse,
+                                ceil_powerof2(env->max_dbi, CHAR_BIT * sizeof(clone->dbi_sparse[0])) / CHAR_BIT);
     clone->dbi_sparse[0] = (1u << CORE_DBS) - 1;
 #else
     clone->n_dbi = (env->n_dbi < 8) ? env->n_dbi : 8;
