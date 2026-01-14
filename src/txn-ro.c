@@ -160,6 +160,16 @@ bailout:
   return err;
 }
 
+int txn_ro_reset(MDBX_txn *txn) {
+  tASSERT(txn, txn->flags & MDBX_TXN_RDONLY);
+  int rc = txn_end(txn, TXN_END_RESET | /* don't close DBI-handles */ TXN_END_UPDATE);
+  if (rc == MDBX_SUCCESS) {
+    tASSERT(txn, txn->signature == txn_signature);
+    tASSERT(txn, txn->owner == 0);
+  }
+  return rc;
+}
+
 int txn_ro_end(MDBX_txn *txn, unsigned mode) {
   MDBX_env *const env = txn->env;
   tASSERT(txn, (txn->flags & txn_may_have_cursors) == 0);

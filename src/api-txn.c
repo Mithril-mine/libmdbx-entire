@@ -74,12 +74,7 @@ int mdbx_txn_reset(MDBX_txn *txn) {
   if (unlikely((txn->flags & MDBX_TXN_RDONLY) == 0))
     return LOG_IFERR(MDBX_EINVAL);
 
-  /* LY: don't close DBI-handles */
-  rc = txn_end(txn, TXN_END_RESET | TXN_END_UPDATE);
-  if (rc == MDBX_SUCCESS) {
-    tASSERT(txn, txn->signature == txn_signature);
-    tASSERT(txn, txn->owner == 0);
-  }
+  rc = txn_ro_reset(txn);
   return LOG_IFERR(rc);
 }
 
@@ -128,7 +123,7 @@ int mdbx_txn_park(MDBX_txn *txn, bool autounpark) {
     return LOG_IFERR(MDBX_TXN_INVALID);
 
   if (unlikely((txn->flags & MDBX_TXN_ERROR))) {
-    rc = txn_end(txn, TXN_END_RESET | TXN_END_UPDATE);
+    rc = txn_ro_reset(txn);
     return LOG_IFERR(rc ? rc : MDBX_OUSTED);
   }
 
@@ -170,7 +165,7 @@ int mdbx_txn_renew(MDBX_txn *txn) {
     return LOG_IFERR(MDBX_EINVAL);
 
   if (unlikely(txn->owner != 0 || !(txn->flags & MDBX_TXN_FINISHED))) {
-    rc = mdbx_txn_reset(txn);
+    rc = txn_ro_reset(txn);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
   }
@@ -578,7 +573,7 @@ retry:
       clone_context = clone->userctx;
 
     if (unlikely(clone->owner != 0 || !(clone->flags & MDBX_TXN_FINISHED))) {
-      rc = mdbx_txn_reset(clone);
+      rc = txn_ro_reset(clone);
       if (unlikely(rc != MDBX_SUCCESS))
         goto bailout;
       goto retry;
