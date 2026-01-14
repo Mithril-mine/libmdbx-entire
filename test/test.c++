@@ -218,8 +218,11 @@ void testcase::txn_begin(bool readonly, MDBX_txn_flags_t flags) {
     log_trace("== counter %u, env_warmup(flags %u), rc %d", counter, warmup_flags, err);
   }
 
-  if (readonly && flipcoin())
+  if (readonly && flipcoin_x2())
     txn_probe_parking();
+
+  if (readonly && flipcoin_x2())
+    txn_refresh();
 }
 
 int testcase::breakable_commit() {
@@ -1566,4 +1569,36 @@ bool testcase::txn_probe_parking() {
   if (state != MDBX_TXN_RDONLY)
     failure("unexpected txn-state 0x%x", state);
   return state == MDBX_TXN_RDONLY;
+}
+
+bool testcase::txn_refresh() {
+  const MDBX_txn_flags_t state = mdbx_txn_flags(txn_guard.get());
+  if ((state & MDBX_TXN_RDONLY) == 0)
+    return false;
+
+  const auto txnid = mdbx_txn_id(txn_guard.get());
+  while (true) {
+    int err = mdbx_txn_refresh(txn_guard.get());
+    if (MDBX_IS_ERROR(err))
+      failure("mdbx_txn_refresh(), err %d", err);
+
+    if (err == MDBX_SUCCESS) {
+      const auto new_txnid = mdbx_txn_id(txn_guard.get());
+      if (mdbx_txn_id(txn_guard.get()) <= txnid)
+        failure("unexpected txnid !(%" PRIu64 " > %" PRIu64 ") after txn-refresh", txnid, new_txnid);
+      log_verbose("txn-refresh %" PRIu64 " -> %" PRIu64, txnid, new_txnid);
+
+      const auto new_state = mdbx_txn_flags(txn_guard.get());
+      const auto diff = (state ^ new_state) & (MDBX_TXN_RDONLY | MDBX_TXN_AUTOUNPARK);
+      if (diff)
+        failure("unexpected txn-state 0x%x -> 0x%x (diff 0x%x)", state, new_state, diff);
+
+      return true;
+    }
+    if (!osal_multiactor_mode() || mode_readonly() || !flipcoin())
+      break;
+    osal_udelay(4242);
+  }
+
+  return false;
 }

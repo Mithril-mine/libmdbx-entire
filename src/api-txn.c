@@ -152,6 +152,30 @@ int mdbx_txn_unpark(MDBX_txn *txn, bool restart_if_ousted) {
   return (rc == MDBX_SUCCESS) ? MDBX_RESULT_TRUE : LOG_IFERR(rc);
 }
 
+int mdbx_txn_refresh(MDBX_txn *txn) {
+  int rc = check_txn(txn, 0);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  rc = check_env(txn->env, true);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  if (unlikely((txn->flags & MDBX_TXN_RDONLY) == 0))
+    return LOG_IFERR(MDBX_EINVAL);
+
+  if ((txn->flags & MDBX_TXN_FINISHED) == 0) {
+    if (recent_committed_txnid(txn->env) == txn->txnid)
+      return MDBX_RESULT_TRUE;
+    rc = txn_ro_reset(txn);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+  }
+
+  rc = txn_renew(txn, MDBX_TXN_RDONLY);
+  return LOG_IFERR(rc);
+}
+
 int mdbx_txn_renew(MDBX_txn *txn) {
   int rc = check_txn(txn, 0);
   if (unlikely(rc != MDBX_SUCCESS))

@@ -244,6 +244,7 @@ protected:
   void txn_inject_writefault(void);
   void txn_inject_writefault(MDBX_txn *txn);
   bool txn_probe_parking();
+  bool txn_refresh();
 
   void fetch_canary();
   void update_canary(uint64_t increment);
