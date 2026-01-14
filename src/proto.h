@@ -72,7 +72,7 @@ MDBX_INTERNAL int txn_renew(MDBX_txn *txn, unsigned flags);
 MDBX_INTERNAL int txn_end(MDBX_txn *txn, unsigned mode);
 
 MDBX_INTERNAL int txn_nested_create(MDBX_txn *parent, const MDBX_txn_flags_t flags);
-MDBX_INTERNAL void txn_nested_abort(MDBX_txn *nested);
+MDBX_INTERNAL int txn_nested_abort(MDBX_txn *nested);
 MDBX_INTERNAL int txn_nested_join(MDBX_txn *txn, struct commit_timestamp *ts);
 
 MDBX_INTERNAL MDBX_txn *txn_basal_create(const size_t max_dbi);

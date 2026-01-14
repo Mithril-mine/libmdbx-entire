@@ -321,35 +321,7 @@ int txn_end(MDBX_txn *txn, unsigned mode) {
   tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
   tASSERT(txn, memcmp(&txn->wr.troika, &parent->wr.troika, sizeof(troika_t)) == 0);
   tASSERT(txn, mode & TXN_END_FREE);
-  tASSERT(parent, parent->flags & MDBX_TXN_HAS_CHILD);
-  env->txn = parent;
-  parent->nested = nullptr;
-  parent->flags -= MDBX_TXN_HAS_CHILD;
-  const pgno_t nested_now = txn->geo.now, nested_upper = txn->geo.upper;
-  txn_nested_abort(txn);
-
-  if (unlikely(parent->geo.upper != nested_upper || parent->geo.now != nested_now) &&
-      !(parent->flags & MDBX_TXN_ERROR) && !(env->flags & ENV_FATAL_ERROR)) {
-    /* undo resize performed by nested txn */
-    int err = dxb_resize(env, parent->geo.first_unallocated, parent->geo.now, parent->geo.upper, impilict_shrink);
-    if (err == MDBX_EPERM) {
-      /* unable undo resize (it is regular for Windows),
-       * therefore promote size changes from nested to the parent txn */
-      WARNING("unable undo resize performed by nested txn, promote to "
-              "the parent (%u->%u, %u->%u)",
-              nested_now, parent->geo.now, nested_upper, parent->geo.upper);
-      parent->geo.now = nested_now;
-      parent->flags |= MDBX_TXN_DIRTY;
-    } else if (unlikely(err != MDBX_SUCCESS)) {
-      ERROR("error %d while undo resize performed by nested txn, fail the parent", err);
-      mdbx_txn_break(env->basal_txn);
-      parent->flags |= MDBX_TXN_ERROR;
-      if (!env->dxb_mmap.base)
-        env->flags |= ENV_FATAL_ERROR;
-      return err;
-    }
-  }
-  return MDBX_SUCCESS;
+  return txn_nested_abort(txn);
 }
 
 int txn_check_badbits_parked(const MDBX_txn *txn, int bad_bits) {
