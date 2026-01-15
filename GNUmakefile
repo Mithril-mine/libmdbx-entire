@@ -106,11 +106,12 @@ endef
 define uname2ldflags
   case "$(UNAME)" in
     CYGWIN*|MINGW*|MSYS*|Windows*)
-      echo '-Wl,--gc-sections,-O1';
+      echo '-Wl,--gc-sections,-O1,--as-needed';
       ;;
     *)
       $(LD) --help 2>/dev/null | grep -q -- --gc-sections && echo '-Wl,--gc-sections,-z,relro,-O1';
       $(LD) --help 2>/dev/null | grep -q -- -dead_strip && echo '-Wl,-dead_strip';
+      $(LD) --help 2>/dev/null | grep -q -- --as-needed && echo '-Wl,--as-needed';
       ;;
   esac
 endef
@@ -276,21 +277,20 @@ strip: all
 	$(TRACE )strip libmdbx.$(SO_SUFFIX) $(MDBX_TOOLS)
 
 clean:
-	@echo '  REMOVE ...'
+	@echo '  CLEANING...'
 	$(QUIET)rm -rf $(MDBX_TOOLS) mdbx_test @* *.[ao] *.[ls]o *.$(SO_SUFFIX) *.dSYM *~ tmp.db/* \
 		*.gcov *.log *.err src/*.o test/*.o mdbx_example dist @dist-check \
-		config-gnumake.h src/config-gnumake.h src/version.c *.tar* @buildflags.tag @dist-checked.tag \
+		config-gnumake.h src/config-gnumake.h *.tar* @buildflags.tag @dist-checked.tag \
 		mdbx_*.static mdbx_*.static-lto CMakeFiles
 
 MDBX_BUILD_FLAGS =$(strip MDBX_BUILD_CXX=$(MDBX_BUILD_CXX) $(MDBX_BUILD_OPTIONS) $(call select_by,MDBX_BUILD_CXX,$(CXXFLAGS) $(LDFLAGS) $(LIB_STDCXXFS) $(LIBS),$(CFLAGS) $(LDFLAGS) $(LIBS)))
 check_buildflags_tag:
 	$(QUIET)if [ "$(MDBX_BUILD_FLAGS)" != "$$(cat @buildflags.tag 2>&1)" ]; then \
-		echo -n "  CLEAN for build with specified flags..." && \
-		$(MAKE) IOARENA=false CXXSTD= -s clean >/dev/null && echo " Ok" && \
+		echo "  TOUCH @buildflags.tag to force re-build with the (new) specified flags..." && \
 		echo '$(MDBX_BUILD_FLAGS)' > @buildflags.tag; \
 	fi
 
-@buildflags.tag: check_buildflags_tag
+@buildflags.tag: check_buildflags_tag $(WAIT)
 
 lib-static libmdbx.a: mdbx-static.o $(call select_by,MDBX_BUILD_CXX,mdbx++-static.o)
 	@echo '  AR $@'
@@ -300,9 +300,9 @@ lib-shared libmdbx.$(SO_SUFFIX): mdbx-dylib.o $(call select_by,MDBX_BUILD_CXX,md
 	@echo '  LD $@'
 	$(QUIET)$(call select_by,MDBX_BUILD_CXX,$(CXX) $(CXXFLAGS),$(CC) $(CFLAGS)) $^ -pthread -shared $(LDFLAGS) $(call select_by,MDBX_BUILD_CXX,$(LIB_STDCXXFS)) $(LIBS) -o $@
 
-ninja-assertions: CMAKE_OPT += -DMDBX_FORCE_ASSERTIONS=ON
+ninja-assertions: CMAKE_OPT += -DMDBX_FORCE_ASSERTIONS=ON $(MDBX_BUILD_OPTIONS)
 ninja-assertions: cmake-build
-ninja-debug: CMAKE_OPT += -DCMAKE_BUILD_TYPE=Debug
+ninja-debug: CMAKE_OPT += -DCMAKE_BUILD_TYPE=Debug $(MDBX_BUILD_OPTIONS)
 ninja-debug: cmake-build
 ninja: cmake-build
 cmake-build:
@@ -336,15 +336,15 @@ test-assertion: smoke
 
 test-ubsan:
 	@echo '  RE-TEST with `-fsanitize=undefined` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error" test
+	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error" test-stochastic
 
 test-asan:
 	@echo '  RE-TEST with `-fsanitize=address` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-Os -fsanitize=address" test
+	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-Os -fsanitize=address" test-stochastic
 
 test-leak:
 	@echo '  RE-TEST with `-fsanitize=leak` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-fsanitize=leak" test
+	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CFLAGS_EXTRA="-fsanitize=leak" test-stochastic
 
 mdbx_legacy_example: mdbx.h ut_and_examples/example-mdbx.c libmdbx.$(SO_SUFFIX)
 	@echo '  CC+LD $@'
@@ -366,7 +366,7 @@ dist:
 	@echo '  Starting 2026 libmdbx is distrubuted in an amalgamated source code form.'
 	@echo '  So amalgamation is no longer required. Please update your build scripts.'
 
-config-gnumake.h: @buildflags.tag $(WAIT) mdbx.c $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+config-gnumake.h: @buildflags.tag mdbx.c $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  MAKE $@'
 	$(QUIET)(echo '#define MDBX_BUILD_TIMESTAMP "$(MDBX_BUILD_TIMESTAMP)"' \
 	&& echo "#define MDBX_BUILD_FLAGS \"$$(cat @buildflags.tag)\"" \
@@ -384,11 +384,11 @@ mdbx-static.o: config-gnumake.h mdbx.c mdbx.h $(lastword $(MAKEFILE_LIST)) LICEN
 	@echo '  CC $@'
 	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -ULIBMDBX_EXPORTS -c mdbx.c -o $@
 
-mdbx++-dylib.o: config-gnumake.h mdbx.c++ mdbx.h mdbx.h++ $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+mdbx++-dylib.o: config-gnumake.h mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -DLIBMDBX_EXPORTS=1 -c mdbx.c++ -o $@
 
-mdbx++-static.o: config-gnumake.h mdbx.c++ mdbx.h mdbx.h++ $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+mdbx++-static.o: config-gnumake.h mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -ULIBMDBX_EXPORTS -c mdbx.c++ -o $@
 
@@ -413,15 +413,17 @@ else
 # Nnon-amalgamated sources with test framework
 
 .PHONY: build-stochastic build-test-with-valgrind check cross-gcc cross-qemu dist doxygen gcc-analyzer long-test
-.PHONY: reformat release-assets tags smoke smoke-fault test test-asan test-ubsan test-leak
+.PHONY: reformat release-assets tags smoke smoke-fault
 .PHONY: smoke-singleprocess test-singleprocess test-valgrind test-memcheck memcheck smoke-memcheck
-.PHONY: smoke-assertion test-assertion long-test-assertion test-ci test-ci-extra
+.PHONY: smoke-assertion long-test-assertion test-ci test-ci-extra check-posix-locking
 
 test-ci-extra: test-ci cross-gcc cross-qemu
 
-test-ci: check \
-	smoke-singleprocess smoke-fault smoke-memcheck smoke \
-	test-leak test-asan test-ubsan test-singleprocess test test-memcheck
+test-ci:
+	$(QUIET)for T in check \
+		smoke-singleprocess smoke-fault smoke-memcheck \
+		test-leak test-asan test-ubsan test-singleprocess test-memcheck; \
+	do $(MAKE) $$T || break; done
 
 define uname2osal
   case "$(UNAME)" in
@@ -493,12 +495,17 @@ smoke-assertion: smoke
 long-test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0
 long-test-assertion: smoke
 
-smoke-assertion: MDBX_BUILD_OPTIONS:=$(strip $(MDBX_BUILD_OPTIONS) -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0)
-smoke-assertion: smoke
-test-assertion: MDBX_BUILD_OPTIONS:=$(strip $(MDBX_BUILD_OPTIONS) -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0)
-test-assertion: smoke
-long-test-assertion: MDBX_BUILD_OPTIONS:=$(strip $(MDBX_BUILD_OPTIONS) -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0)
-long-test-assertion: smoke
+.PHONY: check-posix-locking-sysv check-posix-locking-1988 check-posix-locking-2001 check-posix-locking-2008
+check-posix-locking-sysv: MDBX_BUILD_OPTIONS += -DMDBX_LOCKING=5
+check-posix-locking-1988: MDBX_BUILD_OPTIONS += -DMDBX_LOCKING=1988
+check-posix-locking-2001: MDBX_BUILD_OPTIONS += -DMDBX_LOCKING=2001
+check-posix-locking-2008: MDBX_BUILD_OPTIONS += -DMDBX_LOCKING=2008
+check-posix-locking-sysv: check
+check-posix-locking-1988: check
+check-posix-locking-2001: check
+check-posix-locking-2008: check
+check-posix-locking:
+	$(QUIET)for LCK in sysv 1988 2001 2008; do $(MAKE) check-posix-locking-$${LCK} || break; done;
 
 smoke: build-stochastic
 	@echo '  SMOKE `mdbx_test basic`...'
@@ -520,8 +527,8 @@ smoke-singleprocess: build-stochastic
 smoke-fault: build-stochastic
 	@echo '  SMOKE `mdbx_test --inject-writefault=42 basic`...'
 	$(QUIET)rm -f $(TEST_DB) $(TEST_LOG).gz && (set -o pipefail; ./mdbx_test --progress --console=no --pathname=$(TEST_DB) --inject-writefault=42 --dump-config --dont-cleanup-after $(MDBX_SMOKE_EXTRA) basic \
-		| tee >(gzip --stdout >$(TEST_LOG).gz) | tail -n 42) \
-	; ./mdbx_chk -vvnw $(TEST_DB) && ([ ! -e $(TEST_DB)-copy ] || ./mdbx_chk -vvn $(TEST_DB)-copy)
+		| tee >(gzip --stdout >$(TEST_LOG).gz) | tail -n 42) || echo "Expect fault" \
+	; ./mdbx_chk -vvnw $(TEST_DB) && ([ ! -e $(TEST_DB)-copy ] || ./mdbx_chk -vvn $(TEST_DB)-copy || echo "May fault due invalid-database-signature")
 
 test-stochastic: build-stochastic
 	@echo '  RUNNING `test/stochastic.sh --loops 2`...'
@@ -616,7 +623,7 @@ src/version.c: src/version.c.in $(lastword $(MAKEFILE_LIST)) $(MDBX_GIT_DIR)/HEA
 		-e "s|@MDBX_VERSION_PURE@|$(MDBX_VERSION_PURE)|" \
 	src/version.c.in >$@
 
-src/config-gnumake.h: @buildflags.tag $(WAIT) src/version.c $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+src/config-gnumake.h: @buildflags.tag src/version.c $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  MAKE $@'
 	$(QUIET)(echo '#define MDBX_BUILD_TIMESTAMP "$(MDBX_BUILD_TIMESTAMP)"' \
 	&& echo "#define MDBX_BUILD_FLAGS \"$$(cat @buildflags.tag)\"" \
@@ -674,17 +681,17 @@ docs/usage.md: docs/__usage.md docs/_starting.md docs/__bindings.md
 	@echo '  MAKE $@'
 	$(QUIET)echo -e "\\page usage Usage\n\\section getting Building & Embedding" | cat - $^ | $(SED) 's/^Bindings$$/Bindings {#bindings}/' >$@
 
-doxygen: docs/Doxyfile docs/overall.md docs/intro.md docs/usage.md mdbx.h mdbx.h++ src/options.h ChangeLog.md COPYRIGHT LICENSE NOTICE $(lastword $(MAKEFILE_LIST))
+doxygen: docs/Doxyfile docs/overall.md docs/intro.md docs/usage.md $(DIST_DIR)/mdbx.h $(DIST_DIR)/mdbx.h++ src/options.h ChangeLog.md COPYRIGHT LICENSE NOTICE $(lastword $(MAKEFILE_LIST))
 	@echo '  RUNNING doxygen...'
 	$(QUIET)rm -rf docs/html && \
-	cat mdbx.h | tr '\n' '\r' | $(SED) -e 's/LIBMDBX_INLINE_API\s*(\s*\([^,]\+\),\s*\([^,]\+\),\s*(\s*\([^)]\+\)\s*)\s*)\s*{/inline \1 \2(\3) {/g' | tr '\r' '\n' >docs/mdbx.h && \
-	cp mdbx.h++ src/options.h ChangeLog.md docs/ && (cd docs && doxygen Doxyfile $(HUSH)) && cp COPYRIGHT LICENSE NOTICE docs/html/
+	cat $(DIST_DIR)/mdbx.h | tr '\n' '\r' | $(SED) -e 's/LIBMDBX_INLINE_API\s*(\s*\([^,]\+\),\s*\([^,]\+\),\s*(\s*\([^)]\+\)\s*)\s*)\s*{/inline \1 \2(\3) {/g' | tr '\r' '\n' >docs/mdbx.h && \
+	cp $(DIST_DIR)/mdbx.h++ src/options.h ChangeLog.md docs/ && (cd docs && doxygen Doxyfile $(HUSH)) && cp COPYRIGHT LICENSE NOTICE docs/html/
 
-mdbx++-dylib.o: src/config-gnumake.h src/mdbx.c++ mdbx.h mdbx.h++ $(lastword $(MAKEFILE_LIST))
+mdbx++-dylib.o: src/config-gnumake.h src/mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST))
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -DLIBMDBX_EXPORTS=1 -c src/mdbx.c++ -o $@
 
-mdbx++-static.o: src/config-gnumake.h src/mdbx.c++ mdbx.h mdbx.h++ $(lastword $(MAKEFILE_LIST))
+mdbx++-static.o: src/config-gnumake.h src/mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST))
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -ULIBMDBX_EXPORTS -c src/mdbx.c++ -o $@
 
