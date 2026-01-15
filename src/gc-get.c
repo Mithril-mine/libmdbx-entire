@@ -1213,7 +1213,7 @@ depleted_gc:
       env->lck->pgops.gc_prof.flushes += 1;
 #endif /* MDBX_ENABLE_PROFGC */
       meta_t meta = *recent.ptr_c;
-      ret.err = dxb_sync_locked(env, env->flags & MDBX_WRITEMAP, &meta, &txn->wr.troika);
+      ret.err = dxb_sync_locked(env, env->flags & (MDBX_WRITEMAP | MDBX_NOMETASYNC), &meta, &txn->wr.troika);
       DEBUG("gc-make-steady, rc %d", ret.err);
       eASSERT(env, ret.err != MDBX_RESULT_TRUE);
       if (unlikely(ret.err != MDBX_SUCCESS))
