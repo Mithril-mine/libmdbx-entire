@@ -272,7 +272,7 @@ int meta_sync(const MDBX_env *env, const meta_ptr_t head) {
       env->lck->pgops.msync.weak += 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
     } else {
-#if MDBX_ENABLE_PGOP_ST
+#if MDBX_ENABLE_PGOP_STAT
       env->lck->pgops.wops.weak += 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
       const page_t *page = payload2page(head.ptr_c);
