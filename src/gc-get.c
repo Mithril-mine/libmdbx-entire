@@ -1174,7 +1174,8 @@ depleted_gc:
   /* Does reclaiming stopped at the last steady point? */
   const meta_ptr_t recent = meta_recent(env, &txn->wr.troika);
   const meta_ptr_t prefer_steady = meta_prefer_steady(env, &txn->wr.troika);
-  if (recent.ptr_c != prefer_steady.ptr_c && prefer_steady.is_steady && txn->env->gc.detent == prefer_steady.txnid) {
+  if ((flags & ALLOC_UNIMPORTANT) == 0 && recent.ptr_c != prefer_steady.ptr_c && prefer_steady.is_steady &&
+      txn->env->gc.detent == prefer_steady.txnid) {
     DEBUG("gc-kick-steady: recent %" PRIaTXN "-%s, steady %" PRIaTXN "-%s", recent.txnid, durable_caption(recent.ptr_c),
           prefer_steady.txnid, durable_caption(prefer_steady.ptr_c));
     const pgno_t autosync_threshold = atomic_load32(&env->lck->autosync_threshold, mo_Relaxed);
