@@ -505,7 +505,7 @@ typedef struct {
 MDBX_INTERNAL int osal_suspend_threads_before_remap(MDBX_env *env, mdbx_handle_array_t **array);
 MDBX_INTERNAL int osal_resume_threads_after_remap(mdbx_handle_array_t *array);
 #endif /* Windows */
-MDBX_INTERNAL int osal_msync(const osal_mmap_t *map, size_t offset, size_t length, enum osal_syncmode_bits mode_bits);
+MDBX_INTERNAL int osal_msync(const osal_mmap_t *map, size_t length, enum osal_syncmode_bits mode_bits);
 MDBX_INTERNAL int osal_check_fs_rdonly(mdbx_filehandle_t handle, const pathchar_t *pathname, int err);
 MDBX_INTERNAL int osal_check_fs_incore(mdbx_filehandle_t handle);
 MDBX_INTERNAL int osal_check_fs_local(mdbx_filehandle_t handle, int flags);

@@ -234,17 +234,10 @@ __cold int meta_wipe_steady(MDBX_env *env, txnid_t inclusive_upto) {
 
   if (err == MDBX_RESULT_TRUE) {
     err = MDBX_SUCCESS;
-    if (!MDBX_AVOID_MSYNC && (env->flags & MDBX_WRITEMAP)) {
-      err = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, NUM_METAS), MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.msync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-    } else if (env->fd4meta == env->lazy_fd) {
-      err = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.fsync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-    }
+    if (!MDBX_AVOID_MSYNC && (env->flags & MDBX_WRITEMAP))
+      err = dxb_msync(env, NUM_METAS, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
+    else if (env->fd4meta == env->lazy_fd)
+      err = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
   }
 
   osal_flush_incoherent_mmap(env->dxb_mmap.base, pgno2bytes(env, NUM_METAS), globals.sys_pagesize);
@@ -265,31 +258,19 @@ int meta_sync(const MDBX_env *env, const meta_ptr_t head) {
 
   int rc = MDBX_RESULT_TRUE;
   if (env->flags & MDBX_WRITEMAP) {
-    if (!MDBX_AVOID_MSYNC) {
-      rc = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, NUM_METAS), MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.msync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-    } else {
+    if (!MDBX_AVOID_MSYNC)
+      rc = dxb_msync(env, NUM_METAS, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
+    else {
 #if MDBX_ENABLE_PGOP_STAT
       env->lck->pgops.wops.weak += 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
       const page_t *page = payload2page(head.ptr_c);
       rc = osal_pwrite(env->fd4meta, page, env->ps, ptr_dist(page, env->dxb_mmap.base));
-
-      if (likely(rc == MDBX_SUCCESS) && env->fd4meta == env->lazy_fd) {
-        rc = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-#if MDBX_ENABLE_PGOP_STAT
-        env->lck->pgops.fsync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-      }
+      if (likely(rc == MDBX_SUCCESS) && env->fd4meta == env->lazy_fd)
+        rc = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
     }
-  } else {
-    rc = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-#if MDBX_ENABLE_PGOP_STAT
-    env->lck->pgops.fsync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-  }
+  } else
+    rc = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
 
   if (likely(rc == MDBX_SUCCESS))
     env->lck->meta_sync_txnid.weak = (uint32_t)head.txnid;
@@ -404,8 +385,7 @@ __cold int __must_check_result meta_override(MDBX_env *env, size_t target, txnid
 #if MDBX_ENABLE_PGOP_STAT
     env->lck->pgops.msync.weak += 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
-    rc = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, model->geometry.first_unallocated),
-                    MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
+    rc = dxb_msync(env, model->geometry.first_unallocated, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
     /* meta_override() called only while current process have exclusive
@@ -413,21 +393,14 @@ __cold int __must_check_result meta_override(MDBX_env *env, size_t target, txnid
      * clearing consistency flag by mdbx_meta_update_begin() */
     memcpy(pgno2page(env, target), page, env->ps);
     osal_flush_incoherent_cpu_writeback();
-#if MDBX_ENABLE_PGOP_STAT
-    env->lck->pgops.msync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-    rc = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, target + 1), MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
+    rc = dxb_msync(env, target + 1, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
   } else {
 #if MDBX_ENABLE_PGOP_STAT
     env->lck->pgops.wops.weak += 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
     rc = osal_pwrite(env->fd4meta, page, env->ps, pgno2bytes(env, target));
-    if (rc == MDBX_SUCCESS && env->fd4meta == env->lazy_fd) {
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.fsync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-      rc = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-    }
+    if (rc == MDBX_SUCCESS && env->fd4meta == env->lazy_fd)
+      rc = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
     osal_flush_incoherent_mmap(env->dxb_mmap.base, pgno2bytes(env, NUM_METAS), globals.sys_pagesize);
   }
   eASSERT(env, (!env->txn && (env->flags & ENV_ACTIVE) == 0) ||

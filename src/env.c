@@ -128,8 +128,7 @@ retry:;
           if (unlikely(err != MDBX_SUCCESS))
             return err;
 #endif
-          const size_t usedbytes = pgno_ceil2sp_bytes(env, head.ptr_c->geometry.first_unallocated);
-          err = osal_msync(&env->dxb_mmap, 0, usedbytes, MDBX_SYNC_DATA);
+          err = dxb_msync(env, head.ptr_c->geometry.first_unallocated, MDBX_SYNC_DATA);
 #if defined(_WIN32) || defined(_WIN64)
           imports.srwl_ReleaseShared(&env->remap_guard);
 #else
@@ -138,7 +137,7 @@ retry:;
             err = unlock_err;
 #endif
         } else
-          err = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA);
+          err = dxb_fsync(env, MDBX_SYNC_DATA);
 
         if (unlikely(err != MDBX_SUCCESS))
           return err;

@@ -95,7 +95,7 @@ __cold static int lck_setup_locked(MDBX_env *env) {
 #if MDBX_ENABLE_PGOP_STAT
     lck->pgops.wops.weak = 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
-    err = osal_msync(&env->lck_mmap, 0, (size_t)size, MDBX_SYNC_DATA | MDBX_SYNC_SIZE);
+    err = osal_msync(&env->lck_mmap, (size_t)size, MDBX_SYNC_DATA | MDBX_SYNC_SIZE);
     if (unlikely(err != MDBX_SUCCESS)) {
       ERROR("initial-%s for lck-file failed, err %d", "msync/fsync", err);
       eASSERT(env, MDBX_IS_ERROR(err));

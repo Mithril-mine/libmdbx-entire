@@ -27,7 +27,7 @@ static int uniq_peek(const osal_mmap_t *pending, osal_mmap_t *scan) {
     rc = MDBX_SUCCESS;
   } else {
     bait = 0 /* hush MSVC warning */;
-    rc = osal_msync(scan, 0, sizeof(lck_t), MDBX_SYNC_DATA);
+    rc = osal_msync(scan, sizeof(lck_t), MDBX_SYNC_DATA);
     if (rc == MDBX_SUCCESS)
       rc = osal_pread(pending->fd, &bait, sizeof(scan_lck->bait_uniqueness), offsetof(lck_t, bait_uniqueness));
   }
@@ -75,7 +75,7 @@ __cold int rthc_uniq_check(const osal_mmap_t *pending, MDBX_env **found) {
     if (err == MDBX_RESULT_TRUE)
       err = uniq_poke(pending, &scan->lck_mmap, &salt);
     if (err == MDBX_RESULT_TRUE) {
-      (void)osal_msync(&scan->lck_mmap, 0, sizeof(lck_t), MDBX_SYNC_KICK);
+      (void)osal_msync(&scan->lck_mmap, sizeof(lck_t), MDBX_SYNC_KICK);
       err = uniq_poke(pending, &scan->lck_mmap, &salt);
     }
     if (err == MDBX_RESULT_TRUE) {

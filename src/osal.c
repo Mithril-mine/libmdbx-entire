@@ -1709,13 +1709,12 @@ int osal_thread_join(osal_thread_t thread) {
 
 /*----------------------------------------------------------------------------*/
 
-int osal_msync(const osal_mmap_t *map, size_t offset, size_t length, enum osal_syncmode_bits mode_bits) {
+int osal_msync(const osal_mmap_t *map, size_t length, enum osal_syncmode_bits mode_bits) {
   if (!MDBX_MMAP_NEEDS_JOLT && mode_bits == MDBX_SYNC_NONE)
     return MDBX_SUCCESS;
 
-  void *ptr = ptr_disp(map->base, offset);
 #if defined(_WIN32) || defined(_WIN64)
-  if (!FlushViewOfFile(ptr, length))
+  if (!FlushViewOfFile(map->base, length))
     return (int)GetLastError();
   if ((mode_bits & (MDBX_SYNC_DATA | MDBX_SYNC_IODQ)) && !FlushFileBuffers(map->fd))
     return (int)GetLastError();
@@ -1732,7 +1731,7 @@ int osal_msync(const osal_mmap_t *map, size_t offset, size_t length, enum osal_s
   // if (mode_bits <= MDBX_SYNC_KICK)
   //   return MDBX_SUCCESS;
 #endif /* Linux */
-  if (msync(ptr, length, (mode_bits & MDBX_SYNC_DATA) ? MS_SYNC : MS_ASYNC))
+  if (msync(map->base, length, (mode_bits & MDBX_SYNC_DATA) ? MS_SYNC : MS_ASYNC))
     return errno;
   if ((mode_bits & MDBX_SYNC_SIZE) && fsync(map->fd))
     return errno;

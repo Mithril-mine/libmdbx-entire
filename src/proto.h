@@ -26,6 +26,8 @@ enum resize_mode { implicit_grow, impilict_shrink, explicit_resize };
 MDBX_INTERNAL int __must_check_result dxb_resize(MDBX_env *const env, const pgno_t used_pgno, const pgno_t size_pgno,
                                                  pgno_t limit_pgno, const enum resize_mode mode);
 MDBX_INTERNAL int dxb_set_readahead(const MDBX_env *env, const pgno_t edge, const bool enable, const bool force_whole);
+MDBX_INTERNAL int dxb_msync(const MDBX_env *env, size_t length_pages, enum osal_syncmode_bits mode_bits);
+MDBX_INTERNAL int dxb_fsync(const MDBX_env *env, enum osal_syncmode_bits mode_bits);
 MDBX_INTERNAL int __must_check_result dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending,
                                                       troika_t *const troika);
 #if defined(ENABLE_MEMCHECK) || defined(__SANITIZE_ADDRESS__)

@@ -3,6 +3,20 @@
 
 #include "internals.h"
 
+int dxb_msync(const MDBX_env *env, size_t length_pages, enum osal_syncmode_bits mode_bits) {
+#if MDBX_ENABLE_PGOP_STAT
+  env->lck->pgops.msync.weak += (MDBX_MMAP_NEEDS_JOLT || mode_bits > MDBX_SYNC_NONE);
+#endif /* MDBX_ENABLE_PGOP_STAT */
+  return osal_msync(&env->dxb_mmap, pgno_ceil2sp_bytes(env, length_pages), mode_bits);
+}
+
+int dxb_fsync(const MDBX_env *env, enum osal_syncmode_bits mode_bits) {
+#if MDBX_ENABLE_PGOP_STAT
+  env->lck->pgops.fsync.weak += (mode_bits > MDBX_SYNC_NONE);
+#endif /* MDBX_ENABLE_PGOP_STAT */
+  return osal_fsync(env->lazy_fd, mode_bits);
+}
+
 __cold int dxb_read_header(MDBX_env *env, meta_t *dest, const int lck_exclusive, const mdbx_mode_t mode_bits) {
   memset(dest, 0, sizeof(meta_t));
   int rc = osal_filesize(env->lazy_fd, &env->dxb_mmap.filesize);
@@ -217,10 +231,7 @@ __cold int dxb_resize(MDBX_env *const env, const pgno_t used_pgno, const pgno_t 
   if (mresize_flags & (MDBX_MRESIZE_MAY_UNMAP | MDBX_MRESIZE_MAY_MOVE)) {
     mincore_clean_cache(env);
     if ((env->flags & MDBX_WRITEMAP) && env->lck->unsynced_pages.weak) {
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.msync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-      rc = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, used_pgno), MDBX_SYNC_NONE);
+      rc = dxb_msync(env, used_pgno, MDBX_SYNC_KICK);
       if (unlikely(rc != MDBX_SUCCESS))
         goto bailout;
     }
@@ -1117,17 +1128,10 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
     } else if (unlikely(env->incore))
       goto skip_incore_sync;
 
-    if (flags & MDBX_WRITEMAP) {
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.msync.weak += (mode_bits > MDBX_SYNC_NONE);
-#endif /* MDBX_ENABLE_PGOP_STAT */
-      rc = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, pending->geometry.first_unallocated), mode_bits);
-    } else {
-#if MDBX_ENABLE_PGOP_STAT
-      env->lck->pgops.fsync.weak += (mode_bits > MDBX_SYNC_NONE);
-#endif /* MDBX_ENABLE_PGOP_STAT */
-      rc = osal_fsync(env->lazy_fd, mode_bits);
-    }
+    if (flags & MDBX_WRITEMAP)
+      rc = dxb_msync(env, pending->geometry.first_unallocated, mode_bits);
+    else
+      rc = dxb_fsync(env, mode_bits);
     if (unlikely(rc != MDBX_SUCCESS))
       goto fail;
     rc = (flags & MDBX_SAFE_NOSYNC) ? MDBX_RESULT_TRUE /* carry non-steady */
@@ -1238,14 +1242,10 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
     osal_flush_incoherent_cpu_writeback();
     jitter4testing(true);
     if (!env->incore) {
-      if (!MDBX_AVOID_MSYNC) {
+      if (!MDBX_AVOID_MSYNC)
         /* sync meta-pages */
-#if MDBX_ENABLE_PGOP_STAT
-        env->lck->pgops.msync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-        rc = osal_msync(&env->dxb_mmap, 0, pgno_ceil2sp_bytes(env, NUM_METAS),
-                        (flags & MDBX_NOMETASYNC) ? MDBX_SYNC_NONE : MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-      } else {
+        rc = dxb_msync(env, NUM_METAS, (flags & MDBX_NOMETASYNC) ? MDBX_SYNC_NONE : MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
+      else {
 #if MDBX_ENABLE_PGOP_STAT
         env->lck->pgops.wops.weak += 1;
 #endif /* MDBX_ENABLE_PGOP_STAT */
@@ -1253,12 +1253,8 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
         rc = osal_pwrite(env->fd4meta, page, env->ps, ptr_dist(page, env->dxb_mmap.base));
         if (likely(rc == MDBX_SUCCESS)) {
           osal_flush_incoherent_mmap(target, sizeof(meta_t), globals.sys_pagesize);
-          if ((flags & MDBX_NOMETASYNC) == 0 && env->fd4meta == env->lazy_fd) {
-#if MDBX_ENABLE_PGOP_STAT
-            env->lck->pgops.fsync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-            rc = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
-          }
+          if ((flags & MDBX_NOMETASYNC) == 0 && env->fd4meta == env->lazy_fd)
+            rc = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
         }
       }
       if (unlikely(rc != MDBX_SUCCESS))
@@ -1286,10 +1282,7 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
       if (flags & MDBX_NOMETASYNC)
         env->lck->unsynced_pages.weak += 1;
       else {
-#if MDBX_ENABLE_PGOP_STAT
-        env->lck->pgops.fsync.weak += 1;
-#endif /* MDBX_ENABLE_PGOP_STAT */
-        rc = osal_fsync(env->lazy_fd, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
+        rc = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
         if (rc != MDBX_SUCCESS)
           goto undo;
       }
