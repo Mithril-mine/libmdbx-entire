@@ -259,10 +259,8 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
     flags |= parent->flags & (txn_rw_begin_flags | MDBX_TXN_SPILLS | MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP);
     rc = txn_nested_create(parent, flags);
     txn = parent->nested;
-    if (unlikely(rc != MDBX_SUCCESS)) {
-      int err = txn_end(txn, TXN_END_FAIL_BEGIN_NESTED);
-      return err ? err : rc;
-    }
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(MDBX_BAD_TXN);
     if (AUDIT_ENABLED() && ASSERT_ENABLED()) {
       txn->signature = txn_signature;
       tASSERT(txn, audit_ex(txn, 0, false) == 0);
