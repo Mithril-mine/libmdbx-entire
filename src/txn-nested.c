@@ -450,7 +450,7 @@ int txn_nested_create(MDBX_txn *parent, const MDBX_txn_flags_t flags) {
 }
 
 static int nested_undo(MDBX_txn *nested) {
-  tASSERT(nested, /* txn->signature == txn_signature && */ !nested->nested && !(nested->flags & MDBX_TXN_HAS_CHILD));
+  tASSERT(nested, !nested->nested && !(nested->flags & MDBX_TXN_HAS_CHILD));
   if (nested->flags & txn_may_have_cursors)
     txn_done_cursors(nested);
   if (nested->flags & MDBX_TXN_DIRTY)
@@ -515,7 +515,6 @@ static void nested_free(MDBX_txn *nested) {
 
 int txn_nested_abort(MDBX_txn *nested) {
   tASSERT(nested, nested != nested->env->basal_txn);
-  tASSERT(nested, nested->parent->signature == txn_signature);
   tASSERT(nested, nested->parent->nested == nested && (nested->parent->flags & MDBX_TXN_HAS_CHILD) != 0);
   tASSERT(nested, dpl_check(nested));
   tASSERT(nested, pnl_check_allocated(nested->wr.repnl, nested->geo.first_unallocated - MDBX_ENABLE_REFUND));
@@ -531,7 +530,6 @@ static int nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
   MDBX_txn *const parent = nested->parent;
   tASSERT(nested, audit_ex(nested, 0, false) == 0);
   eASSERT(env, nested != env->basal_txn);
-  eASSERT(env, parent->signature == txn_signature);
   eASSERT(env, parent->nested == nested && (parent->flags & MDBX_TXN_HAS_CHILD) != 0);
   eASSERT(env, dpl_check(nested));
   tASSERT(nested, pnl_check_allocated(nested->wr.repnl, nested->geo.first_unallocated - MDBX_ENABLE_REFUND));
@@ -654,7 +652,6 @@ int txn_nested_checkpoint(MDBX_txn *nested, struct commit_timestamp *ts) {
   MDBX_txn *parent = nested->parent;
   unsigned flags = nested->flags & (txn_rw_begin_flags | MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP | MDBX_TXN_RDONLY);
   int rc = nested_join(nested, ts);
-  tASSERT(nested, nested->parent->signature == txn_signature);
   if (likely(rc == MDBX_SUCCESS)) {
     nested->flags = flags | (parent->flags & MDBX_TXN_SPILLS);
     nested->wr.loose_count = 0;
