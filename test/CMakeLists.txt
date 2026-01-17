@@ -250,6 +250,13 @@ else()
       REQUIRED_FILES smoke.db)
   endif()
 
+  if(NOT CMAKE_VERSION VERSION_LESS 3.7)
+    add_test(NAME remove_copy_destinations COMMAND ${CMAKE_COMMAND} -E rm -f copy_compactify.db copy_asis.db)
+    set_tests_properties(remove_copy_destinations PROPERTIES FIXTURES_SETUP cleanup_copies)
+    set_tests_properties(smoke_copy_asis PROPERTIES FIXTURES_REQUIRED cleanup_copies)
+    set_tests_properties(smoke_copy_compactify PROPERTIES FIXTURES_REQUIRED cleanup_copies)
+  endif()
+
   add_test(
     NAME dupsort_writemap
     COMMAND
