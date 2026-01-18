@@ -1578,8 +1578,7 @@ bool testcase::txn_probe_parking() {
     err = mdbx_env_info_ex(db_guard.get(), txn_guard.get(), &env_info, sizeof(env_info));
     if (!autounpark) {
       if (err != MDBX_BAD_TXN)
-        failure("mdbx_env_info_ex(autounpark=%s), flags 0x%x, unexpected err "
-                "%d, must %d",
+        failure("mdbx_env_info_ex(autounpark=%s), flags 0x%x, unexpected err %d, must %d",
                 autounpark ? "true" : "false", state, err, MDBX_BAD_TXN);
     } else if (err != MDBX_SUCCESS) {
       if (err != MDBX_OUSTED || ((state = mdbx_txn_flags(txn_guard.get())) & MDBX_TXN_OUSTED) == 0)
