@@ -60,9 +60,11 @@ int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
 
 int txn_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
   tASSERT(txn, !txn->nested);
-  int rc = MDBX_SUCCESS, err = rc;
+  if (unlikely(txn->flags & MDBX_TXN_ERROR)) {
+    int err = txn_abort(txn);
+    return (err == MDBX_SUCCESS) ? MDBX_RESULT_TRUE : err;
+  }
 
-  int mode = TXN_END_COMMITTED | TXN_END_UPDATE | TXN_END_FREE;
   MDBX_env *const env = txn->env;
   if (txn != env->txn) {
     if (unlikely(txn->flags & MDBX_TXN_RDONLY) == 0) {
@@ -73,37 +75,26 @@ int txn_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
       ERROR("attempt to commit %s txn %p", "strange read-only", __Wpedantic_format_voidptr(txn));
       return MDBX_PROBLEM;
     }
-    rc = (txn->flags & MDBX_TXN_ERROR) ? MDBX_RESULT_TRUE : MDBX_SUCCESS;
-    mode = TXN_END_PURE_COMMIT | TXN_END_UPDATE | TXN_END_SLOT | TXN_END_FREE;
-  } else {
-    if (unlikely(txn->flags & MDBX_TXN_ERROR)) {
-      rc = MDBX_RESULT_TRUE;
-      err = txn_abort(txn);
-      return (err == MDBX_SUCCESS) ? rc : err;
-    }
-
-    if (txn == env->basal_txn) {
-      rc = txn_basal_commit(txn, ts);
-      mode = TXN_END_COMMITTED | TXN_END_UPDATE | TXN_END_LOCK;
-      if (unlikely(rc != MDBX_SUCCESS)) {
-        mode = TXN_END_ABORT | TXN_END_LOCK;
-        if (rc == MDBX_RESULT_TRUE) {
-          mode = TXN_END_PURE_COMMIT | TXN_END_UPDATE | TXN_END_LOCK;
-          rc = MDBX_NOSUCCESS_PURE_COMMIT ? MDBX_RESULT_TRUE : MDBX_SUCCESS;
-        }
-      }
-    } else {
-      if (unlikely(!txn->parent || txn->parent->nested != txn || txn->parent->env != env)) {
-        ERROR("attempt to commit %s txn %p", "strange nested", __Wpedantic_format_voidptr(txn));
-        return MDBX_PROBLEM;
-      }
-      rc = txn_nested_commit(txn, ts);
-      return rc;
-    }
+    txn_ro_free(txn);
+    return MDBX_SUCCESS;
   }
 
-  err = txn_end(txn, mode);
-  return (rc == MDBX_SUCCESS) ? err : rc;
+  if (txn == env->basal_txn) {
+    int rc = txn_basal_commit(txn, ts);
+    if (unlikely(rc != MDBX_SUCCESS)) {
+      txn->flags |= MDBX_TXN_ERROR;
+      if (rc == MDBX_RESULT_TRUE)
+        rc = MDBX_NOSUCCESS_PURE_COMMIT ? MDBX_RESULT_TRUE : MDBX_SUCCESS;
+    }
+    int err = txn_basal_end(txn, true);
+    return (err == MDBX_SUCCESS) ? rc : err;
+  }
+
+  if (unlikely(!txn->parent || txn->parent->nested != txn || txn->parent->env != env)) {
+    ERROR("attempt to commit %s txn %p", "strange nested", __Wpedantic_format_voidptr(txn));
+    return MDBX_PROBLEM;
+  }
+  return txn_nested_commit(txn, ts);
 }
 
 #if !(defined(_WIN32) || defined(_WIN64))
