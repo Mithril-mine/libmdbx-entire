@@ -141,8 +141,10 @@ int txn_abort(MDBX_txn *txn) {
   if (txn->parent)
     return txn_nested_abort(txn);
 
-  tASSERT(txn, (txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_DIRTY)) == MDBX_TXN_RDONLY);
-  return txn_ro_end(txn, TXN_END_ABORT | /* don't close DBI-handles */ TXN_END_UPDATE | TXN_END_SLOT | TXN_END_FREE);
+  tASSERT(txn,
+          (txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_DIRTY | MDBX_TXN_SPILLS | MDBX_TXN_HAS_CHILD)) == MDBX_TXN_RDONLY);
+  txn_ro_free(txn);
+  return MDBX_SUCCESS;
 }
 
 typedef struct seq_latch_result {
@@ -381,7 +383,13 @@ int txn_end(MDBX_txn *txn, unsigned mode) {
 
   if (txn->flags & MDBX_TXN_RDONLY) {
     tASSERT(txn, txn != env->txn && !parent);
-    return txn_ro_end(txn, mode);
+    tASSERT(txn, (mode & TXN_END_UPDATE) || (mode & TXN_END_OPMASK) == TXN_END_FAIL_BEGIN);
+    tASSERT(txn, mode & TXN_END_SLOT);
+    tASSERT(txn, !(mode & TXN_END_LOCK));
+    int err = txn_ro_reset(txn);
+    if (mode & TXN_END_FREE)
+      txn_ro_free(txn);
+    return err;
   }
 
   if (unlikely(!parent || txn != env->txn || parent->signature != txn_signature || parent->nested != txn ||

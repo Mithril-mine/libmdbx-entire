@@ -74,8 +74,7 @@ int mdbx_txn_reset(MDBX_txn *txn) {
   if (unlikely((txn->flags & MDBX_TXN_RDONLY) == 0))
     return LOG_IFERR(MDBX_EINVAL);
 
-  rc = txn_ro_reset(txn);
-  return LOG_IFERR(rc);
+  return LOG_IFERR(txn_ro_reset(txn));
 }
 
 int mdbx_txn_break(MDBX_txn *txn) {
@@ -127,11 +126,6 @@ int mdbx_txn_park(MDBX_txn *txn, bool autounpark) {
 
   if (unlikely((txn->flags & MDBX_TXN_RDONLY) == 0))
     return LOG_IFERR(MDBX_TXN_INVALID);
-
-  if (unlikely((txn->flags & MDBX_TXN_ERROR))) {
-    rc = txn_ro_reset(txn);
-    return LOG_IFERR(rc ? rc : MDBX_OUSTED);
-  }
 
   return LOG_IFERR(txn_ro_park(txn, autounpark));
 }
@@ -194,7 +188,7 @@ int mdbx_txn_renew(MDBX_txn *txn) {
   if (unlikely((txn->flags & MDBX_TXN_RDONLY) == 0))
     return LOG_IFERR(MDBX_EINVAL);
 
-  if (unlikely(txn->owner != 0 || !(txn->flags & MDBX_TXN_FINISHED))) {
+  if (unlikely((txn->flags & MDBX_TXN_FINISHED)) == 0) {
     rc = txn_ro_reset(txn);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
@@ -584,7 +578,7 @@ retry:
     if (clone_context == clone)
       clone_context = clone->userctx;
 
-    if (unlikely(clone->owner != 0 || !(clone->flags & MDBX_TXN_FINISHED))) {
+    if (unlikely((clone->flags & MDBX_TXN_FINISHED) == 0)) {
       rc = txn_ro_reset(clone);
       if (unlikely(rc != MDBX_SUCCESS))
         goto bailout;
@@ -621,7 +615,11 @@ retry:
   return MDBX_SUCCESS;
 
 bailout:
-  if (clone)
-    txn_ro_end(clone, (clone != *in_out_clone) ? TXN_END_FREE | TXN_END_SLOT | TXN_END_FAIL_BEGIN : TXN_END_FAIL_BEGIN);
+  if (clone) {
+    if (clone != *in_out_clone)
+      txn_ro_free(clone);
+    else
+      txn_ro_reset(clone);
+  }
   return LOG_IFERR(rc);
 }
