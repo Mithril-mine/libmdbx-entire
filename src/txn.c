@@ -135,7 +135,7 @@ int txn_abort(MDBX_txn *txn) {
   MDBX_txn *const parent = txn->parent;
   if (txn == env->basal_txn) {
     tASSERT(txn, !parent && !(txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_FINISHED)) && txn->owner);
-    return txn_basal_end(txn, TXN_END_ABORT | TXN_END_LOCK);
+    return txn_basal_end(txn, true);
   }
 
   if (txn->parent)
@@ -360,6 +360,7 @@ int txn_renew(MDBX_txn *txn, unsigned flags) {
 
 bailout:
   tASSERT(txn, rc != MDBX_SUCCESS);
+  txn->flags |= MDBX_TXN_ERROR;
   txn_end(txn, TXN_END_SLOT | TXN_END_FAIL_BEGIN);
   return rc;
 }
@@ -378,7 +379,7 @@ int txn_end(MDBX_txn *txn, unsigned mode) {
   MDBX_txn *const parent = txn->parent;
   if (txn == env->basal_txn) {
     tASSERT(txn, !parent && !(txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_FINISHED)) && txn->owner);
-    return txn_basal_end(txn, mode);
+    return txn_basal_end(txn, (mode & TXN_END_LOCK) != 0);
   }
 
   if (txn->flags & MDBX_TXN_RDONLY) {

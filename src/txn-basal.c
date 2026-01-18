@@ -186,13 +186,14 @@ int txn_basal_start(MDBX_txn *txn, unsigned flags) {
   return MDBX_SUCCESS;
 }
 
-int txn_basal_end(MDBX_txn *txn, unsigned mode) {
+int txn_basal_end(MDBX_txn *txn, bool unlock) {
   MDBX_env *const env = txn->env;
   tASSERT(txn, !txn->parent && !(txn->flags & (MDBX_TXN_RDONLY | MDBX_TXN_FINISHED)) && txn->owner);
   tASSERT(txn, (txn->flags & (MDBX_TXN_FINISHED | txn_may_have_cursors)) == 0 && txn->owner);
   ENSURE(env, txn->txnid >= /* paranoia is appropriate here */ env->lck->cached_oldest.weak);
   dxb_sanitize_tail(env, nullptr);
 
+  const unsigned preserved_flags = txn->flags;
   txn->flags = MDBX_TXN_FINISHED;
   env->txn = nullptr;
   pnl_free(txn->wr.spilled.list);
@@ -208,13 +209,13 @@ int txn_basal_end(MDBX_txn *txn, unsigned mode) {
     dpl_release_shadows(txn);
 
   /* Export or close DBI handles created in this txn */
-  int err = dbi_update(txn, (mode & TXN_END_UPDATE) != 0);
+  int err = dbi_update(txn, (preserved_flags & (MDBX_TXN_DIRTY | MDBX_TXN_ERROR)) == MDBX_TXN_DIRTY);
   if (unlikely(err != MDBX_SUCCESS)) {
     ERROR("unexpected error %d during export the state of dbi-handles to env", err);
     err = MDBX_PROBLEM;
   }
 
-  if (likely(mode & TXN_END_LOCK) || unlikely(err != MDBX_SUCCESS)) {
+  if (likely(unlock) || unlikely(err != MDBX_SUCCESS)) {
     /* The writer mutex was locked in mdbx_txn_begin. */
     lck_txn_unlock(env);
   }
@@ -430,11 +431,15 @@ int txn_basal_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening_durability, s
   const unsigned preserved_flags = txn->flags & txn_rw_begin_flags;
   txn->flags |= weakening_durability & (MDBX_TXN_NOMETASYNC | MDBX_TXN_NOSYNC | MDBX_SYNC_DURABLE);
   int rc = txn_basal_commit(txn, ts);
-  if (likely(rc == MDBX_SUCCESS))
-    rc = txn_basal_end(txn, TXN_END_UPDATE);
-  if (likely(rc == MDBX_SUCCESS))
-    rc = txn_renew(txn, preserved_flags | txn_rw_checkpoint);
-  else
-    txn_basal_end(txn, TXN_END_ABORT | TXN_END_LOCK);
-  return rc;
+  if (likely(rc == MDBX_SUCCESS)) {
+    rc = txn_basal_end(txn, false);
+    if (likely(rc == MDBX_SUCCESS)) {
+      rc = txn_renew(txn, preserved_flags | txn_rw_checkpoint);
+      if (likely(rc == MDBX_SUCCESS))
+        return MDBX_SUCCESS;
+    }
+  }
+
+  int err = txn_basal_end(txn, true);
+  return (err == MDBX_SUCCESS) ? rc : err;
 }

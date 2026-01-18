@@ -87,7 +87,7 @@ MDBX_INTERNAL MDBX_txn *txn_basal_create(const size_t max_dbi);
 MDBX_INTERNAL void txn_basal_destroy(MDBX_txn *txn);
 MDBX_INTERNAL int txn_basal_start(MDBX_txn *txn, unsigned flags);
 MDBX_INTERNAL int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts);
-MDBX_INTERNAL int txn_basal_end(MDBX_txn *txn, unsigned mode);
+MDBX_INTERNAL int txn_basal_end(MDBX_txn *txn, bool unlock);
 MDBX_INTERNAL int txn_basal_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening_durability,
                                        struct commit_timestamp *ts);
 
