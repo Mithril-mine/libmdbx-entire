@@ -191,6 +191,9 @@ int txn_renew(MDBX_txn *txn, unsigned flags) {
     rc = txn_ro_start(txn, flags);
     if (unlikely(rc != MDBX_SUCCESS))
       goto bailout;
+    if (F_ISSET(flags, MDBX_TXN_RDONLY_PREPARE))
+      return MDBX_SUCCESS;
+
     ENSURE(env, txn->txnid >=
                     /* paranoia is appropriate here */ env->lck->cached_oldest.weak);
     tASSERT(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
