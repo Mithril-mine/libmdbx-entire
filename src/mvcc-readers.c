@@ -391,7 +391,7 @@ __cold bool mvcc_kick_laggards(MDBX_env *env, const txnid_t straggler) {
       } else {
         /* hsr reported reader process was killed and slot should be cleared */
         safe64_reset(&stucked->txnid, true);
-        atomic_store64(&stucked->tid, 0, mo_Relaxed);
+        atomic_store64(&stucked->tid, MDBX_TID_TXN_OUSTED, mo_Relaxed);
         atomic_store32(&stucked->pid, 0, mo_AcquireRelease);
       }
     } else if (!notify_eof_of_loop) {

@@ -214,7 +214,7 @@ __cold int dxb_resize(MDBX_env *const env, const pgno_t used_pgno, const pgno_t 
         eASSERT(env, mode == explicit_resize);
         for (size_t i = 0; i < snap_nreaders; ++i) {
           if (lck->rdt[i].pid.weak == (size_t)env->registered_reader_pid &&
-              lck->rdt[i].tid.weak != osal_thread_self()) {
+              lck->rdt[i].tid.weak != osal_thread_self() && lck->rdt[i].tid.weak < MDBX_TID_TXN_OUSTED) {
             /* the base address of the mapping can't be changed since
              * the other reader thread from this process exists. */
             lck_rdt_unlock(env);
