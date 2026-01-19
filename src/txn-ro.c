@@ -140,6 +140,7 @@ static int ro_seize(MDBX_txn *txn) {
   troika_t troika = meta_tap(txn->env);
   uint64_t timestamp = 0;
   size_t loop = 0;
+  txn->flags &= ~MDBX_TXN_FINISHED;
   do {
     MDBX_env *const env = txn->env;
     const meta_ptr_t head = likely(env->stuck_meta < 0) ? /* regular */ meta_recent(env, &troika)
@@ -196,22 +197,40 @@ static int ro_seize(MDBX_txn *txn) {
   return MDBX_PROBLEM;
 }
 
-int txn_ro_start(MDBX_txn *txn, unsigned flags) {
+static int ro_start_continue(MDBX_txn *txn) {
   MDBX_env *const env = txn->env;
-  eASSERT(env, flags & MDBX_TXN_RDONLY);
-  eASSERT(env, (flags & ~(txn_ro_begin_flags | MDBX_WRITEMAP | MDBX_NOSTICKYTHREADS)) == 0);
-  txn->flags = flags;
+  reader_slot_t *slot = txn->ro.slot;
 
+  txn->owner =
+      likely(slot) ? (uintptr_t)ro_slot_tid(slot) : ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self());
+
+  if ((env->flags & MDBX_NOSTICKYTHREADS) == 0 && env->txn && unlikely(env->basal_txn->owner == txn->owner) &&
+      (globals.runtime_flags & MDBX_DBG_LEGACY_OVERLAP) == 0)
+    return MDBX_TXN_OVERLAPPING;
+
+  int err = ro_seize(txn);
+  if (unlikely(err != MDBX_SUCCESS))
+    return err;
+
+  err = txn_setup_primal(txn);
+  if (unlikely(err != MDBX_SUCCESS))
+    return err;
+
+  return MDBX_SUCCESS;
+}
+
+int txn_ro_start(MDBX_txn *txn, bool prepare) {
+  MDBX_env *const env = txn->env;
+  txn->flags = MDBX_TXN_RDONLY | MDBX_TXN_FINISHED | (env->flags & (MDBX_WRITEMAP | MDBX_NOSTICKYTHREADS));
   int err = ro_slot_get(txn);
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 
-  STATIC_ASSERT(MDBX_TXN_RDONLY_PREPARE > MDBX_TXN_RDONLY);
-  reader_slot_t *slot = txn->ro.slot;
-  if (flags & (MDBX_TXN_RDONLY_PREPARE - MDBX_TXN_RDONLY)) {
+  if (prepare) {
     eASSERT(env, txn->txnid == 0);
     eASSERT(env, txn->owner == 0);
     eASSERT(env, txn->n_dbi == 0);
+    reader_slot_t *slot = txn->ro.slot;
     if (likely(slot)) {
       eASSERT(env, slot->snapshot_pages_used.weak == 0);
       eASSERT(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
@@ -221,30 +240,33 @@ int txn_ro_start(MDBX_txn *txn, unsigned flags) {
     return MDBX_SUCCESS;
   }
 
-  txn->owner =
-      likely(slot) ? (uintptr_t)ro_slot_tid(slot) : ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self());
-  if ((env->flags & MDBX_NOSTICKYTHREADS) == 0 && env->txn && unlikely(env->basal_txn->owner == txn->owner) &&
-      (globals.runtime_flags & MDBX_DBG_LEGACY_OVERLAP) == 0) {
-    err = MDBX_TXN_OVERLAPPING;
-    goto bailout;
+  err = ro_start_continue(txn);
+  if (unlikely(err != MDBX_SUCCESS)) {
+    txn_ro_reset(txn);
+    return err;
   }
 
-  err = ro_seize(txn);
-  if (unlikely(err != MDBX_SUCCESS))
-    goto bailout;
-
-  if (unlikely(txn->txnid < MIN_TXNID || txn->txnid > MAX_TXNID)) {
-    ERROR("%s", "environment corrupted by died writer, must shutdown!");
-    err = MDBX_CORRUPTED;
-    goto bailout;
+  eASSERT(env, pgno2bytes(env, txn->geo.first_unallocated) <= env->dxb_mmap.current);
+  eASSERT(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
+#if defined(_WIN32) || defined(_WIN64)
+  if (((used_bytes > env->geo_in_bytes.lower && env->geo_in_bytes.shrink) ||
+       (globals.running_under_Wine &&
+        /* under Wine acquisition of remap_guard is always required,
+         * since Wine don't support section extending,
+         * i.e. in both cases unmap+map are required. */
+        used_bytes < env->geo_in_bytes.upper && env->geo_in_bytes.grow)) &&
+      /* avoid recursive use SRW */ (txn->flags & MDBX_NOSTICKYTHREADS) == 0) {
+    txn->flags |= txn_shrink_allowed;
+    imports.srwl_AcquireShared(&env->remap_guard);
   }
+#endif /* Windows */
 
+  dxb_sanitize_tail(env, txn);
+  ENSURE(env, txn->txnid >=
+                  /* paranoia is appropriate here */ env->lck->cached_oldest.weak);
+  tASSERT(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
+  tASSERT(txn, check_table_flags(txn->dbs[MAIN_DBI].flags));
   return MDBX_SUCCESS;
-
-bailout:
-  tASSERT(txn, err != MDBX_SUCCESS);
-  txn_ro_reset(txn);
-  return err;
 }
 
 int txn_ro_reset(MDBX_txn *txn) {

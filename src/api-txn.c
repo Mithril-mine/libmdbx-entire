@@ -148,7 +148,7 @@ int mdbx_txn_unpark(MDBX_txn *txn, bool restart_if_ousted) {
     return LOG_IFERR(rc);
 
   tASSERT(txn, txn->flags & MDBX_TXN_FINISHED);
-  rc = txn_renew(txn, MDBX_TXN_RDONLY);
+  rc = txn_ro_start(txn, false);
   return (rc == MDBX_SUCCESS) ? MDBX_RESULT_TRUE : LOG_IFERR(rc);
 }
 
@@ -172,8 +172,7 @@ int mdbx_txn_refresh(MDBX_txn *txn) {
       return LOG_IFERR(rc);
   }
 
-  rc = txn_renew(txn, MDBX_TXN_RDONLY);
-  return LOG_IFERR(rc);
+  return LOG_IFERR(txn_ro_start(txn, false));
 }
 
 int mdbx_txn_renew(MDBX_txn *txn) {
@@ -194,7 +193,7 @@ int mdbx_txn_renew(MDBX_txn *txn) {
       return rc;
   }
 
-  rc = txn_renew(txn, MDBX_TXN_RDONLY);
+  rc = txn_ro_start(txn, false);
   if (rc == MDBX_SUCCESS) {
     tASSERT(txn, txn->owner == (txn->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self());
     DEBUG("renew txn %" PRIaTXN "%c %p on env %p, root page %" PRIaPGNO "/%" PRIaPGNO, txn->txnid,
