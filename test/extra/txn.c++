@@ -70,6 +70,15 @@ bool case0_trivia_sticky_threads(const mdbx::path &path) {
   int err = mdbx_txn_begin(env, NULL, MDBX_TXN_RDONLY, &c_txn);
   assert(err == MDBX_BAD_RSLOT);
   bool ok = err == MDBX_BAD_RSLOT;
+  err = mdbx_txn_begin(env, NULL, MDBX_TXN_RDONLY_PREPARE, &c_txn);
+  assert(err == MDBX_BAD_RSLOT);
+  ok = err == MDBX_BAD_RSLOT && ok;
+  txn.abort();
+
+  txn = env.prepare_read();
+  err = mdbx_txn_renew(txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
   txn.abort();
 
   //-------------------------------------
@@ -202,21 +211,41 @@ bool case1_trivia_NO_sticky_threads(const mdbx::path &path) {
 
   err = mdbx_txn_break(txn);
   assert(err == MDBX_SUCCESS);
-  ok = ok && err == MDBX_SUCCESS;
+  ok = err == MDBX_SUCCESS && ok;
 
-  err = mdbx_txn_commit(txn);
+  err = mdbx_txn_begin(env, NULL, MDBX_TXN_RDONLY_PREPARE, &c_txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
+
+  err = mdbx_txn_commit(txn /* хендл внутри mdbx::txn_managed сохраняется */);
   assert(err == MDBX_RESULT_TRUE);
-  ok = ok && err == MDBX_RESULT_TRUE;
+  ok = err == MDBX_RESULT_TRUE && ok;
+
+  err = mdbx_txn_renew(c_txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
+  err = mdbx_txn_break(c_txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
+  err = mdbx_txn_reset(c_txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
+  err = mdbx_txn_renew(c_txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
+  err = mdbx_txn_abort(c_txn);
+  assert(err == MDBX_SUCCESS);
+  ok = err == MDBX_SUCCESS && ok;
 
   //-------------------------------------
   err = mdbx_txn_begin(env, nullptr, MDBX_TXN_READWRITE, &c_txn);
   assert(err == MDBX_SUCCESS);
-  ok = ok && err == MDBX_SUCCESS;
+  ok = err == MDBX_SUCCESS && ok;
   assert(c_txn == (const MDBX_txn *)txn);
 
   err = mdbx_txn_break(txn);
   assert(err == MDBX_SUCCESS);
-  ok = ok && err == MDBX_SUCCESS;
+  ok = err == MDBX_SUCCESS && ok;
 
   err = mdbx_txn_reset(txn);
   assert(err == MDBX_EINVAL);
@@ -232,7 +261,7 @@ bool case1_trivia_NO_sticky_threads(const mdbx::path &path) {
   //-------------------------------------
   err = mdbx_txn_begin(env, nullptr, MDBX_TXN_READWRITE, &c_txn);
   assert(err == MDBX_SUCCESS);
-  ok = ok && err == MDBX_SUCCESS;
+  ok = err == MDBX_SUCCESS && ok;
   assert(c_txn == (const MDBX_txn *)txn);
   txn.commit();
 
