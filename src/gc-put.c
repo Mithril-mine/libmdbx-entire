@@ -86,16 +86,18 @@ static int prepare_backlog(MDBX_txn *txn, gcu_t *ctx) {
   const size_t for_tree_after_touch = for_rebalance + for_split;
   const size_t for_all_before_touch = for_repnl + for_tree_before_touch;
   const size_t for_all_after_touch = for_repnl + for_tree_after_touch;
+  const size_t enough_before_touch = for_all_before_touch + ctx->backlog_adj;
+  const size_t enough_after_touch = for_all_after_touch + ctx->backlog_adj;
 
-  if (likely(for_repnl < 2 && backlog_size(txn) > for_all_before_touch) &&
+  if (likely(for_repnl < 2 && backlog_size(txn) > enough_before_touch) &&
       (ctx->cursor.top < 0 || is_modifable(txn, ctx->cursor.pg[ctx->cursor.top])))
     return MDBX_SUCCESS;
 
-  TRACE(">> retired-stored %zu, left %zi, backlog %zu, need %zu (4list %zu, "
+  TRACE(">> retired-stored %zu, left %zi, backlog %zu, adj %zu, need %zu (4list %zu, "
         "4split %zu, "
         "4cow %zu, 4tree %zu)",
-        ctx->retired_stored, retired_left, backlog_size(txn), for_all_before_touch, for_repnl, for_split, for_cow,
-        for_tree_before_touch);
+        ctx->retired_stored, retired_left, backlog_size(txn), ctx->backlog_adj, enough_before_touch, for_repnl,
+        for_split, for_cow, for_tree_before_touch);
 
   int err = touch_gc(ctx);
   TRACE("== after-touch, backlog %zu, err %d", backlog_size(txn), err);
@@ -114,12 +116,12 @@ static int prepare_backlog(MDBX_txn *txn, gcu_t *ctx) {
     cASSERT(&ctx->cursor, backlog_size(txn) >= for_repnl || err != MDBX_SUCCESS);
   }
 
-  while (backlog_size(txn) < for_all_after_touch && err == MDBX_SUCCESS)
+  while (backlog_size(txn) < enough_after_touch && err == MDBX_SUCCESS)
     err = gc_alloc_ex(&ctx->cursor, 0, ALLOC_RESERVE | ALLOC_UNIMPORTANT).err;
 
-  TRACE("<< backlog %zu, err %d, gc: height %u, branch %zu, leaf %zu, large "
+  TRACE("<< backlog %zu, err %d, adj %zu, gc: height %u, branch %zu, leaf %zu, large "
         "%zu, entries %zu",
-        backlog_size(txn), err, txn->dbs[FREE_DBI].height, (size_t)txn->dbs[FREE_DBI].branch_pages,
+        backlog_size(txn), err, ctx->backlog_adj, txn->dbs[FREE_DBI].height, (size_t)txn->dbs[FREE_DBI].branch_pages,
         (size_t)txn->dbs[FREE_DBI].leaf_pages, (size_t)txn->dbs[FREE_DBI].large_pages,
         (size_t)txn->dbs[FREE_DBI].items);
   tASSERT(txn, err != MDBX_NOTFOUND || (txn->flags & txn_gc_drained) != 0);
@@ -534,6 +536,7 @@ int gc_update(MDBX_txn *txn, gcu_t *ctx) {
    * But page numbers cannot disappear from txn->tw.retired_pages[]. */
 retry_clean_adj:
   ctx->reserve_adj = 0;
+  ctx->backlog_adj = 0;
 retry:
   ctx->loop += !(ctx->prev_first_unallocated > txn->geo.first_unallocated);
   TRACE(">> restart, loop %u", ctx->loop);
@@ -548,8 +551,13 @@ retry:
 
   if (unlikely(ctx->dense || ctx->prev_first_unallocated > txn->geo.first_unallocated)) {
     rc = clean_stored_retired(txn, ctx);
-    if (unlikely(rc != MDBX_SUCCESS))
+    if (unlikely(rc != MDBX_SUCCESS)) {
+      if (rc == MDBX_BACKLOG_DEPLETED) {
+        ctx->backlog_adj += ctx->backlog_adj + 1;
+        goto retry;
+      }
       goto bailout;
+    }
   }
 
   ctx->prev_first_unallocated = txn->geo.first_unallocated;
@@ -591,8 +599,13 @@ retry:
           TRACE("%s: cleanup-reclaimed-id [%zu]%" PRIaTXN, dbg_prefix(ctx), ctx->cleaned_slot, ctx->cleaned_id);
           tASSERT(txn, *txn->cursors == &ctx->cursor);
           rc = cursor_del(&ctx->cursor, 0);
-          if (unlikely(rc != MDBX_SUCCESS))
+          if (unlikely(rc != MDBX_SUCCESS)) {
+            if (rc == MDBX_BACKLOG_DEPLETED) {
+              ctx->backlog_adj += ctx->backlog_adj + 1;
+              goto retry;
+            }
             goto bailout;
+          }
         } while (ctx->cleaned_slot < MDBX_PNL_GETSIZE(txn->tw.gc.retxl));
         txl_sort(txn->tw.gc.retxl);
       }
@@ -630,8 +643,13 @@ retry:
         TRACE("%s: cleanup-reclaimed-id %" PRIaTXN, dbg_prefix(ctx), ctx->cleaned_id);
         tASSERT(txn, *txn->cursors == &ctx->cursor);
         rc = cursor_del(&ctx->cursor, 0);
-        if (unlikely(rc != MDBX_SUCCESS))
+        if (unlikely(rc != MDBX_SUCCESS)) {
+          if (rc == MDBX_BACKLOG_DEPLETED) {
+            ctx->backlog_adj += ctx->backlog_adj + 1;
+            goto retry;
+          }
           goto bailout;
+        }
       }
     }
 
@@ -676,8 +694,13 @@ retry:
     if (ctx->retired_stored < MDBX_PNL_GETSIZE(txn->tw.retired_pages)) {
       /* store retired-list into GC */
       rc = gcu_retired(txn, ctx);
-      if (unlikely(rc != MDBX_SUCCESS))
+      if (unlikely(rc != MDBX_SUCCESS)) {
+        if (rc == MDBX_BACKLOG_DEPLETED) {
+          ctx->backlog_adj += ctx->backlog_adj + 1;
+          goto retry;
+        }
         goto bailout;
+      }
       continue;
     }
 
@@ -706,6 +729,7 @@ retry:
         continue;
       if (likely(rc == MDBX_RESULT_TRUE))
         goto retry;
+      eASSERT(env, rc != MDBX_BACKLOG_DEPLETED);
       goto bailout;
     }
     tASSERT(txn, rid_result.err == MDBX_SUCCESS);
@@ -783,8 +807,13 @@ retry:
     prepare_backlog(txn, ctx);
     rc = cursor_put(&ctx->cursor, &key, &data, MDBX_RESERVE | MDBX_NOOVERWRITE);
     tASSERT(txn, pnl_check_allocated(txn->tw.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
-    if (unlikely(rc != MDBX_SUCCESS))
+    if (unlikely(rc != MDBX_SUCCESS)) {
+      if (rc == MDBX_BACKLOG_DEPLETED) {
+        ctx->backlog_adj += ctx->backlog_adj + 1;
+        goto retry;
+      }
       goto bailout;
+    }
 
     zeroize_reserved(env, data);
     ctx->reserved += chunk;
@@ -875,8 +904,13 @@ retry:
         chunk = left;
       }
       rc = cursor_put(&ctx->cursor, &key, &data, MDBX_CURRENT | MDBX_RESERVE);
-      if (unlikely(rc != MDBX_SUCCESS))
+      if (unlikely(rc != MDBX_SUCCESS)) {
+        if (rc == MDBX_BACKLOG_DEPLETED) {
+          ctx->backlog_adj += ctx->backlog_adj + 1;
+          goto retry;
+        }
         goto bailout;
+      }
       zeroize_reserved(env, data);
 
       if (unlikely(txn->tw.loose_count || ctx->amount != MDBX_PNL_GETSIZE(txn->tw.repnl))) {

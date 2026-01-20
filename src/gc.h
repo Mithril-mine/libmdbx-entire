@@ -9,7 +9,7 @@ typedef struct gc_update_context {
   unsigned loop;
   pgno_t prev_first_unallocated;
   bool dense;
-  size_t reserve_adj;
+  size_t reserve_adj, backlog_adj;
   size_t retired_stored;
   size_t amount, reserved, cleaned_slot, reused_slot, fill_idx;
   txnid_t cleaned_id, rid;
