@@ -1494,6 +1494,16 @@ void txn_managed::commit(commit_latency *latency) {
     MDBX_CXX20_UNLIKELY err.throw_exception();
 }
 
+bool txn_managed::checkpoint(commit_latency *latency) {
+  const error err = static_cast<MDBX_error_t>(::mdbx_txn_checkpoint(handle_, MDBX_TXN_NOWEAKING, latency));
+  if (MDBX_UNLIKELY(err.is_failure())) {
+    if (err.code() != MDBX_THREAD_MISMATCH && err.code() != MDBX_EINVAL)
+      handle_ = nullptr;
+    MDBX_CXX20_UNLIKELY err.throw_exception();
+  }
+  return err.is_result_true();
+}
+
 void txn_managed::commit_embark_read() {
   auto env = handle_->env;
   commit();
