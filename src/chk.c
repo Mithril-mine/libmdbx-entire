@@ -573,8 +573,8 @@ static void histogram_acc(const size_t n, struct MDBX_chk_histogram *p) {
   p->amount += n;
   p->count += 1;
   if (likely(n < 2)) {
-    p->ones += n;
-    p->pad += 1;
+    p->le1_amount += n;
+    p->le1_count += 1;
   } else
     for (;;) {
       const size_t size = ARRAY_LENGTH(p->ranges), last = size - 1;
@@ -625,7 +625,7 @@ __cold static MDBX_chk_line_t *histogram_dist(MDBX_chk_line_t *line, const struc
 #endif
   line = chk_print(line, "%s:", prefix);
   const char *comma = "";
-  const size_t first_val = amount ? histogram->ones : histogram->pad;
+  const size_t first_val = amount ? histogram->le1_amount : histogram->le1_count;
   if (first_val) {
     chk_print(line, " %s%" UNICODE_MULSIGN_FMT "%" PRIuSIZE, first, UNICODE_MULSIGN_STR, first_val);
     comma = ",";

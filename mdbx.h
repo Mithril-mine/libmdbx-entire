@@ -6930,7 +6930,7 @@ typedef struct MDBX_chk_user_table_cookie MDBX_chk_user_table_cookie_t;
  * собираемой при проверке целостности БД.
  * \see mdbx_env_chk() */
 struct MDBX_chk_histogram {
-  size_t amount, count, ones, pad;
+  size_t amount, count, le1_amount, le1_count;
   struct {
     size_t begin, end, amount, count;
   } ranges[9];
