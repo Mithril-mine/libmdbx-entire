@@ -524,6 +524,14 @@ __cold static void chk_dispose(MDBX_chk_internal_t *chk) {
   osal_free(chk);
 }
 
+static bool histogram_check(const struct MDBX_chk_histogram *p, size_t adj) {
+  size_t quantiry = p->le1_count;
+  for (size_t i = 0; i < ARRAY_LENGTH(p->ranges); ++i)
+    quantiry += p->ranges[i].count;
+
+  return quantiry == p->count - adj;
+}
+
 static size_t div_8s(size_t numerator, size_t divider) {
   assert(numerator <= (SIZE_MAX >> 8));
   return (numerator << 8) / divider;
@@ -536,6 +544,7 @@ static size_t mul_8s(size_t quotient, size_t multiplier) {
 }
 
 static void histogram_reduce(struct MDBX_chk_histogram *p) {
+  assert(histogram_check(p, 1));
   const size_t size = ARRAY_LENGTH(p->ranges), last = size - 1;
   // ищем пару для слияния с минимальной ошибкой
   size_t min_err = SIZE_MAX, min_i = last - 1;
@@ -563,9 +572,10 @@ static void histogram_reduce(struct MDBX_chk_histogram *p) {
   p->ranges[min_i].count += p->ranges[min_i + 1].count;
   if (min_i < last)
     // перемещаем хвост
-    memmove(p->ranges + min_i, p->ranges + min_i + 1, (last - min_i) * sizeof(p->ranges[0]));
+    memmove(p->ranges + min_i + 1, p->ranges + min_i + 2, (last - min_i) * sizeof(p->ranges[0]));
   // обнуляем последний элемент и продолжаем
   p->ranges[last].count = 0;
+  assert(histogram_check(p, 1));
 }
 
 static void histogram_acc(const size_t n, struct MDBX_chk_histogram *p) {
@@ -575,38 +585,37 @@ static void histogram_acc(const size_t n, struct MDBX_chk_histogram *p) {
   if (likely(n < 2)) {
     p->le1_amount += n;
     p->le1_count += 1;
-  } else
-    for (;;) {
-      const size_t size = ARRAY_LENGTH(p->ranges), last = size - 1;
-      size_t i = 0;
-      while (i < size && p->ranges[i].count && n >= p->ranges[i].begin) {
-        if (n < p->ranges[i].end) {
-          // значение попадает в существующий интервал
-          p->ranges[i].amount += n;
-          p->ranges[i].count += 1;
-          return;
-        }
-        ++i;
-      }
-      if (p->ranges[last].count == 0) {
-        // использованы еще не все слоты, добавляем интервал
-        assert(i < size);
-        if (p->ranges[i].count) {
-          // раздвигаем
-          assert(i < last);
-#ifdef __COVERITY__
-          if (i < last) /* avoid Coverity false-positive issue */
-#endif                  /* __COVERITY__ */
-            memmove(p->ranges + i + 1, p->ranges + i, (last - i) * sizeof(p->ranges[0]));
-        }
-        p->ranges[i].begin = n;
-        p->ranges[i].end = n + 1;
-        p->ranges[i].amount = n;
-        p->ranges[i].count = 1;
+    return;
+  }
+
+  const size_t size = ARRAY_LENGTH(p->ranges), last = size - 1;
+  for (;;) {
+    size_t i = 0;
+    while (i < size && p->ranges[i].count && n >= p->ranges[i].begin) {
+      if (n < p->ranges[i].end) {
+        // значение попадает в существующий интервал
+        p->ranges[i].amount += n;
+        p->ranges[i].count += 1;
         return;
       }
-      histogram_reduce(p);
+      ++i;
     }
+    if (p->ranges[last].count == 0) {
+      // использованы еще не все слоты, добавляем интервал
+      assert(i < size && histogram_check(p, 1));
+      if (p->ranges[i].count && i < last) {
+        // раздвигаем
+        memmove(p->ranges + i + 1, p->ranges + i, (last - i) * sizeof(p->ranges[0]));
+      }
+      p->ranges[i].begin = n;
+      p->ranges[i].end = n + 1;
+      p->ranges[i].amount = n;
+      p->ranges[i].count = 1;
+      assert(histogram_check(p, 0));
+      return;
+    }
+    histogram_reduce(p);
+  }
 }
 
 __cold static MDBX_chk_line_t *histogram_dist(MDBX_chk_line_t *line, const struct MDBX_chk_histogram *histogram,
@@ -639,6 +648,8 @@ __cold static MDBX_chk_line_t *histogram_dist(MDBX_chk_line_t *line, const struc
                        amount ? histogram->ranges[n].amount : histogram->ranges[n].count);
       comma = ",";
     }
+
+  ENSURE_MSG(nullptr, histogram_check(histogram, 0), "Historgam related bug, please report this");
   return line;
 }
 
