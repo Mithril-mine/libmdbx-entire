@@ -6965,7 +6965,7 @@ typedef struct MDBX_chk_table {
     /// Histogram of large/overflow pages length
     struct MDBX_chk_histogram large_pages;
     /// Histogram of nested trees height, span length for GC
-    struct MDBX_chk_histogram nested_height;
+    struct MDBX_chk_histogram nested_height_or_gc_span_length;
     /// Keys length histogram
     struct MDBX_chk_histogram key_len;
     /// Values length histogram

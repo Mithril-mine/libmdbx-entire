@@ -706,7 +706,7 @@ __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *
       tbl->pages.nested_leaf += 1;
       density = &tbl->histogram.large_or_nested_density;
       if (chk->last_nested != nested) {
-        histogram_acc(height, &tbl->histogram.nested_height);
+        histogram_acc(height, &tbl->histogram.nested_height_or_gc_span_length);
         chk->last_nested = nested;
       }
       if (height != nested->height)
@@ -885,12 +885,14 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
                 line = histogram_print(inner, line, &tbl->histogram.large_pages, " amount", "single", true);
             }
             line = histogram_dist(chk_line_feed(line), &tbl->histogram.height, "tree levels", "1", false);
-            if ((tbl->flags & MDBX_DUPSORT) != 0 || (tbl->histogram.nested_height.count && tbl != &chk->table_gc)) {
+            if ((tbl->flags & MDBX_DUPSORT) != 0 ||
+                (tbl->histogram.nested_height_or_gc_span_length.count && tbl != &chk->table_gc)) {
               line = chk_print(chk_line_feed(line),
                                "nested tree(s): quantity %" PRIuSIZE ", subtotal pages %" PRIuSIZE ", ",
-                               tbl->histogram.nested_height.count, tbl->pages.nested_branch + tbl->pages.nested_leaf);
-              if (tbl != &chk->table_gc && tbl->histogram.nested_height.count)
-                line = histogram_dist(line, &tbl->histogram.nested_height, "levels", "1", false);
+                               tbl->histogram.nested_height_or_gc_span_length.count,
+                               tbl->pages.nested_branch + tbl->pages.nested_leaf);
+              if (tbl != &chk->table_gc && tbl->histogram.nested_height_or_gc_span_length.count)
+                line = histogram_dist(line, &tbl->histogram.nested_height_or_gc_span_length, "levels", "1", false);
             }
             line = chk_line_feed(line);
 
@@ -1337,7 +1339,7 @@ __cold static int chk_handle_gc(MDBX_chk_scope_t *const scope, MDBX_chk_table_t 
                          iptr[i + span] == (MDBX_PNL_ASCENDING ? pgno_add(pgno, span) : pgno_sub(pgno, span));
                ++span)
             ;
-          histogram_acc(span, &tbl->histogram.nested_height);
+          histogram_acc(span, &tbl->histogram.nested_height_or_gc_span_length);
           MDBX_chk_line_t *line = chk_line_begin(scope, MDBX_chk_extra);
           if (line) {
             if (span > 1)
@@ -1577,7 +1579,8 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       err = chk_db(usr->scope, FREE_DBI, &chk->table_gc, chk_handle_gc);
     line = chk_line_begin(scope, MDBX_chk_info);
     if (line) {
-      histogram_print(scope, line, &chk->table_gc.histogram.nested_height, "span(s)", "single", false);
+      histogram_print(scope, line, &chk->table_gc.histogram.nested_height_or_gc_span_length, "span(s)", "single",
+                      false);
       chk_line_end(line);
     }
     if (usr->result.problems_gc == 0 && (chk->flags & MDBX_CHK_SKIP_BTREE_TRAVERSAL) == 0) {
