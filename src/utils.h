@@ -81,5 +81,87 @@ typedef struct ratio2digits_buffer {
   char string[1 + 20 + 1 + 19 + 1];
 } ratio2digits_buffer_t;
 
-char *ratio2digits(const uint64_t v, const uint64_t d, ratio2digits_buffer_t *const buffer, int precision);
-char *ratio2percent(const uint64_t v, const uint64_t d, ratio2digits_buffer_t *const buffer);
+MDBX_INTERNAL char *ratio2digits(const uint64_t v, const uint64_t d, ratio2digits_buffer_t *const buffer,
+                                 int precision);
+MDBX_INTERNAL char *ratio2percent(const uint64_t v, const uint64_t d, ratio2digits_buffer_t *const buffer);
+
+MDBX_INTERNAL bin128_t mul64x64_128_fallback(uint64_t x, uint64_t y);
+
+MDBX_MAYBE_UNUSED static inline bin128_t mul64x64_128(uint64_t x, uint64_t y) {
+  bin128_t r;
+#if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
+  r.u128 = x;
+  r.u128 *= y;
+#else
+  r = mul64x64_128_fallback(x, y);
+#if MDBX_HAVE_NATIVE_U128
+  assert(r.u128 == (__uint128_t)x * (__uint128_t)y);
+#endif
+#endif
+  return r;
+}
+
+MDBX_MAYBE_UNUSED static inline bin128_t u128_add(bin128_t x, bin128_t y) {
+  bin128_t r;
+#if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
+  r.u128 = x.u128 + y.u128;
+#else
+  r.l = x.l + y.l;
+  r.h = x.h + y.h + /* carry */ (r.l < x.l);
+#if MDBX_HAVE_NATIVE_U128
+  assert(r.u128 == x.u128 + y.u128);
+#endif
+#endif
+  return r;
+}
+
+MDBX_MAYBE_UNUSED static inline int u128_cmp(bin128_t x, bin128_t y) {
+  int r;
+#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+  r = CMP2INT(x.u128, y.u128);
+#else
+  const uint64_t a = (x.h != y.h) ? x.h : x.l;
+  const uint64_t b = (x.h != y.h) ? y.h : y.l;
+  r = CMP2INT(a, b);
+#if MDBX_HAVE_NATIVE_U128
+  assert(r == CMP2INT(x.u128, y.u128));
+#endif
+#endif
+  return r;
+}
+
+MDBX_MAYBE_UNUSED static inline bool u128_gt(bin128_t x, bin128_t y) {
+  bool r;
+#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+  r = x.u128 > y.u128;
+#else
+  r = x.h > y.h || (x.h == y.h && x.l > y.l);
+#if MDBX_HAVE_NATIVE_U128
+  assert(r == (x.u128 > y.u128));
+#endif
+#endif
+  return r;
+}
+
+MDBX_MAYBE_UNUSED static inline bool u128_lt(bin128_t x, bin128_t y) {
+  bool r;
+#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+  r = x.u128 < y.u128;
+#else
+  r = x.h < y.h || (x.h == y.h && x.l > y.l);
+#if MDBX_HAVE_NATIVE_U128
+  assert(r == (x.u128 < y.u128));
+#endif
+#endif
+  return r;
+}
+
+MDBX_MAYBE_UNUSED static inline bin128_t u128(uint64_t v) {
+  bin128_t r;
+  r.l = v;
+  r.h = 0;
+#if defined(__SIZEOF_INT128__)
+  assert(r.u128 == v);
+#endif
+  return r;
+}

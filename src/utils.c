@@ -90,3 +90,25 @@ __cold char *ratio2percent(uint64_t value, uint64_t whole, ratio2digits_buffer_t
   const bool rough = whole >= value && (!value || value > whole / 16);
   return ratio2digits(value * 100, whole, buffer, rough ? 1 : 2);
 }
+
+MDBX_MAYBE_UNUSED bin128_t mul64x64_128_fallback(uint64_t x, uint64_t y) {
+  bin128_t r;
+#if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
+  r.u128 = x;
+  r.u128 *= y;
+#else
+  const uint64_t xl = x & UINT32_C(0xFFFFffff);
+  const uint64_t xh = x >> 32;
+  const uint64_t yl = y & UINT32_C(0xFFFFffff);
+  const uint64_t yh = y >> 32;
+
+  const uint64_t ll = xl * yl;
+  const uint64_t hh = xh * yh;
+  const uint64_t hl = xh * yl + (ll >> 32);
+  const uint64_t lh = xl * yh + (hl & UINT32_C(0xFFFFffff));
+
+  r.l = (lh << 32) | (ll & UINT32_C(0xFFFFffff));
+  r.h = hh + (hl >> 32) + (lh >> 32);
+#endif
+  return r;
+}
