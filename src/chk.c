@@ -611,12 +611,14 @@ __cold static void chk_verbose_meta(MDBX_chk_scope_t *const scope, const unsigne
 
 __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *const ctx, const int deep,
                                 const walk_tbl_t *tbl_info, const size_t page_size, const page_type_t pagetype,
-                                const MDBX_error_t page_err, const size_t nentries, const size_t payload_bytes,
-                                const size_t header_bytes, const size_t unused_bytes, const size_t parent_pgno) {
+                                const txnid_t page_txnid, const MDBX_error_t page_err, const size_t nentries,
+                                const size_t payload_bytes, const size_t header_bytes, const size_t unused_bytes,
+                                const size_t parent_pgno) {
   MDBX_chk_scope_t *const scope = ctx;
   MDBX_chk_internal_t *const chk = scope->internal;
   MDBX_chk_context_t *const usr = chk->usr;
   MDBX_env *const env = usr->env;
+  MDBX_txn *const txn = usr->txn;
 
   MDBX_chk_table_t *tbl;
   int err = chk_get_tbl(scope, tbl_info, &tbl);
@@ -631,6 +633,14 @@ __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *
     histogram_acc(deep, &tbl->histogram.height);
   usr->result.processed_pages += npages;
   const size_t page_bytes = payload_bytes + header_bytes + unused_bytes;
+
+  if (pagetype < page_sub_leaf) {
+    const txnid_t basis = txn_basis_snapshot(txn);
+    const txnid_t age =
+        (page_txnid >= MIN_TXNID) ? ((page_txnid > basis) ? /* dirty */ 0 : basis - page_txnid + 1) : SIZE_MAX;
+    histogram_acc_ex((age < SIZE_MAX) ? age : SIZE_MAX - 1, &usr->result.histogram_page_age, HISTOGRAM_LE0);
+    histogram_acc_ex((age < SIZE_MAX) ? age : SIZE_MAX - 1, &tbl->histogram.page_age, HISTOGRAM_LE0);
+  }
 
   int height = deep + 1;
   if (tbl->id >= CORE_DBS)
@@ -912,6 +922,7 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
                                                               : "large pages %-density distribution",
                                   "1", false);
           }
+          histogram_dist(chk_line_feed(line), &tbl->histogram.page_age, "pages age distribution", "dirty", false);
           chk_line_end(line);
         }
       }
@@ -1252,6 +1263,7 @@ bailout:
     if (!txn->cursors[dbi] && (txn->dbi_state[dbi] & DBI_FRESH))
       mdbx_dbi_close(env, dbi);
   }
+
   return err;
 }
 
@@ -1563,6 +1575,13 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       usr->result.gc_tree_problems = usr->result.tree_problems;
     if (usr->result.tree_problems && usr->result.kv_tree_problems == 0)
       usr->result.kv_tree_problems = usr->result.tree_problems;
+    if (usr->result.histogram_page_age.count) {
+      line = chk_line_begin(scope, MDBX_chk_info);
+      if (line) {
+        histogram_dist(line, &usr->result.histogram_page_age, "pages age distribution", "dirty", false);
+        chk_line_end(line);
+      }
+    }
     chk_scope_restore(scope, err);
   }
 

@@ -6976,6 +6976,8 @@ typedef struct MDBX_chk_table {
     struct MDBX_chk_histogram tree_density;
     /// Histogram of nested tree(s) branch and leaf pages filling in percents
     struct MDBX_chk_histogram large_or_nested_density;
+    /// Histogram of pages age
+    struct MDBX_chk_histogram page_age;
   } histogram;
 } MDBX_chk_table_t;
 
@@ -6994,6 +6996,8 @@ typedef struct MDBX_chk_context {
     size_t processed_pages, reclaimable_pages, gc_pages, alloc_pages, backed_pages;
     size_t problems_meta, tree_problems, gc_tree_problems, kv_tree_problems, problems_gc, problems_kv, total_problems;
     uint64_t steady_txnid, recent_txnid;
+    /// Histogram of pages age
+    struct MDBX_chk_histogram histogram_page_age;
     /** Указатель на массив размером table_total с указателями на экземпляры
      * структур MDBX_chk_table_t с информацией о всех таблицах ключ-значение,
      * включая MainDB и GC/FreeDB. */
