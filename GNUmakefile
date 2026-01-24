@@ -475,13 +475,13 @@ CLANG_FORMAT ?= $(shell (which clang-format-19 || which clang-format) 2>/dev/nul
 reformat:
 	@echo '  RUNNING clang-format...'
 	$(QUIET)if [ -n "$(CLANG_FORMAT)" ]; then \
-		git ls-files | grep -E '\.(c|c++|h|h++)(\.in)?$$' | xargs -r $(CLANG_FORMAT) -i --style=file; \
+		git ls-files --deduplicate | grep -E '\.(c|c++|h|h++)(\.in)?$$' | xargs -r $(CLANG_FORMAT) -i --style=file; \
 	else \
 		echo "clang-format version 19 not found for 'reformat'"; \
 	fi
 
 MAN_SRCDIR := src/man1/
-ALLOY_DEPS := $(shell git ls-files src/ | grep -e /tools -e /man -v)
+ALLOY_DEPS := $(shell git ls-files --deduplicate src/ | grep -e /tools -e /man -v)
 MDBX_GIT_DIR := $(shell if [ -d .git ]; then echo .git; elif [ -s .git -a -f .git ]; then grep '^gitdir: ' .git | cut -d ':' -f 2; else echo git_directory_is_absent; fi)
 MDBX_GIT_LASTVTAG := $(shell git describe --tags --dirty=-DIRTY --abbrev=0 '--match=v[0-9]*' 2>&- || echo 'Please fetch tags and/or install non-obsolete git version')
 MDBX_GIT_3DOT := $(shell set -o pipefail; echo "$(MDBX_GIT_LASTVTAG)" | $(SED) -n 's|^v*\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\)\(.*\)|\1|p' || echo 'Please fetch tags and/or use non-obsolete git version')
@@ -801,7 +801,7 @@ $(DIST_DIR)/@tmp-internals.inc: $(DIST_DIR)/@tmp-essentials.inc src/version.c $(
 
 $(DIST_DIR)/mdbx.c: $(DIST_DIR)/@tmp-internals.inc $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $@'
-	$(QUIET)(cat $(DIST_DIR)/@tmp-internals.inc $(shell git ls-files src/*.c | grep -v alloy) src/version.c | $(SED) \
+	$(QUIET)(cat $(DIST_DIR)/@tmp-internals.inc $(shell git ls-files --deduplicate src/*.c | grep -v alloy) src/version.c | $(SED) \
 		-e '/#include "debug_begin.h"/r src/debug_begin.h' \
 		-e '/#include "debug_end.h"/r src/debug_end.h' \
 	) | $(SED) -e '/#include "/d;/#pragma once/d' -e 's|@INCLUDE|#include|' \
