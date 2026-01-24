@@ -218,7 +218,7 @@ MDBX_cursor *cursor_eot(MDBX_cursor *cursor, MDBX_txn *txn) {
   MDBX_cursor *const next = cursor->next;
   const unsigned stage = cursor->signature;
   MDBX_cursor *const shadow = cursor->backup;
-  ENSURE(txn->env, stage == cur_signature_live || (stage == cur_signature_wait4eot && shadow));
+  ENSURE(txn->env, stage == cur_signature_live || stage == cur_signature_wait4eot);
   tASSERT(txn, cursor->txn == txn);
   if (shadow) {
     subcur_t *subcur = cursor->subcur;
@@ -248,10 +248,13 @@ MDBX_cursor *cursor_eot(MDBX_cursor *cursor, MDBX_txn *txn) {
     shadow->signature = 0;
     osal_free(shadow);
   } else {
-    ENSURE(cursor->txn->env, stage == cur_signature_live);
-    cursor->signature = cur_signature_ready4dispose /* Cursor may be reused */;
-    cursor->next = cursor;
     cursor_drown((cursor_couple_t *)cursor);
+    cursor->next = cursor;
+    if (stage == cur_signature_wait4eot) {
+      cursor->signature = 0;
+      osal_free(cursor);
+    } else
+      cursor->signature = cur_signature_ready4dispose /* Cursor may be reused */;
   }
   return next;
 }
