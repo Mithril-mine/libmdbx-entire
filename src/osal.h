@@ -570,6 +570,23 @@ typedef union bin128 {
   __anonymous_struct_extension__ struct {
     uint32_t a, b, c, d;
   };
+  __anonymous_struct_extension__ struct {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    uint64_t l, h;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    uint64_t h, l;
+#else
+#error "FIXME: Unsupported byte order"
+#endif /* __BYTE_ORDER__ */
+  };
+
+#if defined(__SIZEOF_INT128__)
+#define MDBX_HAVE_NATIVE_U128 1
+  __int128_t i128;
+  __uint128_t u128;
+#else
+#define MDBX_HAVE_NATIVE_U128 0
+#endif
 } bin128_t;
 
 MDBX_INTERNAL bin128_t osal_guid(const MDBX_env *);

@@ -26,14 +26,14 @@ typedef struct MDBX_chk_internal {
   MDBX_val v2a_buf;
 } MDBX_chk_internal_t;
 
-__cold static int chk_check_break(MDBX_chk_scope_t *const scope) {
+__cold int chk_check_break(MDBX_chk_scope_t *const scope) {
   MDBX_chk_internal_t *const chk = scope->internal;
   return (chk->got_break || (chk->cb->check_break && (chk->got_break = chk->cb->check_break(chk->usr))))
              ? MDBX_RESULT_TRUE
              : MDBX_RESULT_FALSE;
 }
 
-__cold static void chk_line_end(MDBX_chk_line_t *line) {
+__cold void chk_line_end(MDBX_chk_line_t *line) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
     assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
@@ -42,8 +42,7 @@ __cold static void chk_line_end(MDBX_chk_line_t *line) {
   }
 }
 
-__cold __must_check_result static MDBX_chk_line_t *chk_line_begin(MDBX_chk_scope_t *const scope,
-                                                                  enum MDBX_chk_severity severity) {
+__cold MDBX_chk_line_t *chk_line_begin(MDBX_chk_scope_t *const scope, enum MDBX_chk_severity severity) {
   MDBX_chk_internal_t *const chk = scope->internal;
   if (severity < MDBX_chk_warning)
     mdbx_env_chk_encount_problem(chk->usr);
@@ -59,7 +58,7 @@ __cold __must_check_result static MDBX_chk_line_t *chk_line_begin(MDBX_chk_scope
   return line;
 }
 
-__cold static MDBX_chk_line_t *chk_line_feed(MDBX_chk_line_t *line) {
+__cold MDBX_chk_line_t *chk_line_feed(MDBX_chk_line_t *line) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
     enum MDBX_chk_severity severity = line->severity;
@@ -69,7 +68,7 @@ __cold static MDBX_chk_line_t *chk_line_feed(MDBX_chk_line_t *line) {
   return line;
 }
 
-__cold static MDBX_chk_line_t *chk_flush(MDBX_chk_line_t *line) {
+__cold MDBX_chk_line_t *chk_flush(MDBX_chk_line_t *line) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
     assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
@@ -82,7 +81,7 @@ __cold static MDBX_chk_line_t *chk_flush(MDBX_chk_line_t *line) {
   return line;
 }
 
-__cold static size_t chk_print_wanna(MDBX_chk_line_t *line, size_t need) {
+__cold size_t chk_print_wanna(MDBX_chk_line_t *line, size_t need) {
   if (likely(line && need)) {
     size_t have = line->end - line->out;
     assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
@@ -95,7 +94,7 @@ __cold static size_t chk_print_wanna(MDBX_chk_line_t *line, size_t need) {
   return 0;
 }
 
-__cold static MDBX_chk_line_t *chk_puts(MDBX_chk_line_t *line, const char *str) {
+__cold MDBX_chk_line_t *chk_puts(MDBX_chk_line_t *line, const char *str) {
   if (likely(line && str && *str)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
     size_t left = strlen(str);
@@ -120,7 +119,7 @@ __cold static MDBX_chk_line_t *chk_puts(MDBX_chk_line_t *line, const char *str) 
   return line;
 }
 
-__cold static MDBX_chk_line_t *chk_print_va(MDBX_chk_line_t *line, const char *fmt, va_list args) {
+__cold MDBX_chk_line_t *chk_print_va(MDBX_chk_line_t *line, const char *fmt, va_list args) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
     assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
@@ -147,7 +146,7 @@ __cold static MDBX_chk_line_t *chk_print_va(MDBX_chk_line_t *line, const char *f
   return line;
 }
 
-__cold static MDBX_chk_line_t *MDBX_PRINTF_ARGS(2, 3) chk_print(MDBX_chk_line_t *line, const char *fmt, ...) {
+__cold MDBX_chk_line_t *MDBX_PRINTF_ARGS(2, 3) chk_print(MDBX_chk_line_t *line, const char *fmt, ...) {
   if (likely(line)) {
     // MDBX_chk_internal_t *chk = line->ctx->internal;
     va_list args;
@@ -159,13 +158,13 @@ __cold static MDBX_chk_line_t *MDBX_PRINTF_ARGS(2, 3) chk_print(MDBX_chk_line_t 
   return line;
 }
 
-MDBX_MAYBE_UNUSED __cold static void chk_println_va(MDBX_chk_scope_t *const scope, enum MDBX_chk_severity severity,
-                                                    const char *fmt, va_list args) {
+MDBX_MAYBE_UNUSED __cold void chk_println_va(MDBX_chk_scope_t *const scope, enum MDBX_chk_severity severity,
+                                             const char *fmt, va_list args) {
   chk_line_end(chk_print_va(chk_line_begin(scope, severity), fmt, args));
 }
 
-MDBX_MAYBE_UNUSED __cold static void chk_println(MDBX_chk_scope_t *const scope, enum MDBX_chk_severity severity,
-                                                 const char *fmt, ...) {
+MDBX_MAYBE_UNUSED __cold void chk_println(MDBX_chk_scope_t *const scope, enum MDBX_chk_severity severity,
+                                          const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
   chk_println_va(scope, severity, fmt, args);
@@ -524,135 +523,6 @@ __cold static void chk_dispose(MDBX_chk_internal_t *chk) {
   osal_free(chk);
 }
 
-static size_t div_8s(size_t numerator, size_t divider) {
-  assert(numerator <= (SIZE_MAX >> 8));
-  return (numerator << 8) / divider;
-}
-
-static size_t mul_8s(size_t quotient, size_t multiplier) {
-  size_t hi = multiplier * (quotient >> 8);
-  size_t lo = multiplier * (quotient & 255) + 128;
-  return hi + (lo >> 8);
-}
-
-static void histogram_reduce(struct MDBX_chk_histogram *p) {
-  const size_t size = ARRAY_LENGTH(p->ranges), last = size - 1;
-  // ищем пару для слияния с минимальной ошибкой
-  size_t min_err = SIZE_MAX, min_i = last - 1;
-  for (size_t i = 0; i < last; ++i) {
-    const size_t b1 = p->ranges[i].begin, e1 = p->ranges[i].end, s1 = p->ranges[i].amount;
-    const size_t b2 = p->ranges[i + 1].begin, e2 = p->ranges[i + 1].end, s2 = p->ranges[i + 1].amount;
-    const size_t l1 = e1 - b1, l2 = e2 - b2, lx = e2 - b1, sx = s1 + s2;
-    assert(s1 > 0 && b1 > 0 && b1 < e1);
-    assert(s2 > 0 && b2 > 0 && b2 < e2);
-    assert(e1 <= b2);
-    // за ошибку принимаем площадь изменений на гистограмме при слиянии
-    const size_t h1 = div_8s(s1, l1), h2 = div_8s(s2, l2), hx = div_8s(sx, lx);
-    const size_t d1 = mul_8s((h1 > hx) ? h1 - hx : hx - h1, l1);
-    const size_t d2 = mul_8s((h2 > hx) ? h2 - hx : hx - h2, l2);
-    const size_t dx = mul_8s(hx, b2 - e1);
-    const size_t err = d1 + d2 + dx;
-    if (min_err >= err) {
-      min_i = i;
-      min_err = err;
-    }
-  }
-  // объединяем
-  p->ranges[min_i].end = p->ranges[min_i + 1].end;
-  p->ranges[min_i].amount += p->ranges[min_i + 1].amount;
-  p->ranges[min_i].count += p->ranges[min_i + 1].count;
-  if (min_i < last)
-    // перемещаем хвост
-    memmove(p->ranges + min_i, p->ranges + min_i + 1, (last - min_i) * sizeof(p->ranges[0]));
-  // обнуляем последний элемент и продолжаем
-  p->ranges[last].count = 0;
-}
-
-static void histogram_acc(const size_t n, struct MDBX_chk_histogram *p) {
-  STATIC_ASSERT(ARRAY_LENGTH(p->ranges) > 2);
-  p->amount += n;
-  p->count += 1;
-  if (likely(n < 2)) {
-    p->ones += n;
-    p->pad += 1;
-  } else
-    for (;;) {
-      const size_t size = ARRAY_LENGTH(p->ranges), last = size - 1;
-      size_t i = 0;
-      while (i < size && p->ranges[i].count && n >= p->ranges[i].begin) {
-        if (n < p->ranges[i].end) {
-          // значение попадает в существующий интервал
-          p->ranges[i].amount += n;
-          p->ranges[i].count += 1;
-          return;
-        }
-        ++i;
-      }
-      if (p->ranges[last].count == 0) {
-        // использованы еще не все слоты, добавляем интервал
-        assert(i < size);
-        if (p->ranges[i].count) {
-          // раздвигаем
-          assert(i < last);
-#ifdef __COVERITY__
-          if (i < last) /* avoid Coverity false-positive issue */
-#endif                  /* __COVERITY__ */
-            memmove(p->ranges + i + 1, p->ranges + i, (last - i) * sizeof(p->ranges[0]));
-        }
-        p->ranges[i].begin = n;
-        p->ranges[i].end = n + 1;
-        p->ranges[i].amount = n;
-        p->ranges[i].count = 1;
-        return;
-      }
-      histogram_reduce(p);
-    }
-}
-
-__cold static MDBX_chk_line_t *histogram_dist(MDBX_chk_line_t *line, const struct MDBX_chk_histogram *histogram,
-                                              const char *prefix, const char *first, bool amount) {
-  /* https://en.wikipedia.org/wiki/Multiplication_sign */
-#if defined(unix) || defined(linux) || defined(__unix__) || defined(__unix) || defined(__linux__) ||                   \
-    defined(__APPLE__) || defined(__MACH__) || defined(_DARWIN_C_SOURCE)
-#define UNICODE_MULSIGN_STR "×"
-#define UNICODE_MULSIGN_FMT "s"
-#elif defined(_WIN32) || defined(_WIN64)
-#define UNICODE_MULSIGN_STR L"\u00d7"
-#define UNICODE_MULSIGN_FMT "ls"
-#else
-#define UNICODE_MULSIGN_STR "*"
-#define UNICODE_MULSIGN_FMT "s"
-#endif
-  line = chk_print(line, "%s:", prefix);
-  const char *comma = "";
-  const size_t first_val = amount ? histogram->ones : histogram->pad;
-  if (first_val) {
-    chk_print(line, " %s%" UNICODE_MULSIGN_FMT "%" PRIuSIZE, first, UNICODE_MULSIGN_STR, first_val);
-    comma = ",";
-  }
-  for (size_t n = 0; n < ARRAY_LENGTH(histogram->ranges); ++n)
-    if (histogram->ranges[n].count) {
-      chk_print(line, "%s %" PRIuSIZE, comma, histogram->ranges[n].begin);
-      if (histogram->ranges[n].begin != histogram->ranges[n].end - 1)
-        chk_print(line, "-%" PRIuSIZE, histogram->ranges[n].end - 1);
-      line = chk_print(line, "%" UNICODE_MULSIGN_FMT "%" PRIuSIZE, UNICODE_MULSIGN_STR,
-                       amount ? histogram->ranges[n].amount : histogram->ranges[n].count);
-      comma = ",";
-    }
-  return line;
-}
-
-__cold static MDBX_chk_line_t *histogram_print(MDBX_chk_scope_t *scope, MDBX_chk_line_t *line,
-                                               const struct MDBX_chk_histogram *histogram, const char *prefix,
-                                               const char *first, bool amount) {
-  if (histogram->count) {
-    line = chk_print(line, "%s %" PRIuSIZE, prefix, amount ? histogram->amount : histogram->count);
-    if (scope->verbosity > MDBX_chk_info)
-      line = chk_puts(histogram_dist(line, histogram, " (distribution", first, amount), ")");
-  }
-  return line;
-}
-
 //-----------------------------------------------------------------------------
 
 __cold static int chk_get_tbl(MDBX_chk_scope_t *const scope, const walk_tbl_t *in, MDBX_chk_table_t **out) {
@@ -741,12 +611,14 @@ __cold static void chk_verbose_meta(MDBX_chk_scope_t *const scope, const unsigne
 
 __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *const ctx, const int deep,
                                 const walk_tbl_t *tbl_info, const size_t page_size, const page_type_t pagetype,
-                                const MDBX_error_t page_err, const size_t nentries, const size_t payload_bytes,
-                                const size_t header_bytes, const size_t unused_bytes, const size_t parent_pgno) {
+                                const txnid_t page_txnid, const MDBX_error_t page_err, const size_t nentries,
+                                const size_t payload_bytes, const size_t header_bytes, const size_t unused_bytes,
+                                const size_t parent_pgno) {
   MDBX_chk_scope_t *const scope = ctx;
   MDBX_chk_internal_t *const chk = scope->internal;
   MDBX_chk_context_t *const usr = chk->usr;
   MDBX_env *const env = usr->env;
+  MDBX_txn *const txn = usr->txn;
 
   MDBX_chk_table_t *tbl;
   int err = chk_get_tbl(scope, tbl_info, &tbl);
@@ -761,6 +633,14 @@ __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *
     histogram_acc(deep, &tbl->histogram.height);
   usr->result.processed_pages += npages;
   const size_t page_bytes = payload_bytes + header_bytes + unused_bytes;
+
+  if (pagetype < page_sub_leaf) {
+    const txnid_t basis = txn_basis_snapshot(txn);
+    const txnid_t age =
+        (page_txnid >= MIN_TXNID) ? ((page_txnid > basis) ? /* dirty */ 0 : basis - page_txnid + 1) : SIZE_MAX;
+    histogram_acc_ex((age < SIZE_MAX) ? age : SIZE_MAX - 1, &usr->result.histogram_page_age, HISTOGRAM_LE0);
+    histogram_acc_ex((age < SIZE_MAX) ? age : SIZE_MAX - 1, &tbl->histogram.page_age, HISTOGRAM_LE0);
+  }
 
   int height = deep + 1;
   if (tbl->id >= CORE_DBS)
@@ -836,7 +716,7 @@ __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *
       tbl->pages.nested_leaf += 1;
       density = &tbl->histogram.large_or_nested_density;
       if (chk->last_nested != nested) {
-        histogram_acc(height, &tbl->histogram.nested_height);
+        histogram_acc(height, &tbl->histogram.nested_height_or_gc_span_length);
         chk->last_nested = nested;
       }
       if (height != nested->height)
@@ -1015,12 +895,14 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
                 line = histogram_print(inner, line, &tbl->histogram.large_pages, " amount", "single", true);
             }
             line = histogram_dist(chk_line_feed(line), &tbl->histogram.height, "tree levels", "1", false);
-            if ((tbl->flags & MDBX_DUPSORT) != 0 || (tbl->histogram.nested_height.count && tbl != &chk->table_gc)) {
+            if ((tbl->flags & MDBX_DUPSORT) != 0 ||
+                (tbl->histogram.nested_height_or_gc_span_length.count && tbl != &chk->table_gc)) {
               line = chk_print(chk_line_feed(line),
                                "nested tree(s): quantity %" PRIuSIZE ", subtotal pages %" PRIuSIZE ", ",
-                               tbl->histogram.nested_height.count, tbl->pages.nested_branch + tbl->pages.nested_leaf);
-              if (tbl != &chk->table_gc && tbl->histogram.nested_height.count)
-                line = histogram_dist(line, &tbl->histogram.nested_height, "levels", "1", false);
+                               tbl->histogram.nested_height_or_gc_span_length.count,
+                               tbl->pages.nested_branch + tbl->pages.nested_leaf);
+              if (tbl != &chk->table_gc)
+                line = histogram_dist(line, &tbl->histogram.nested_height_or_gc_span_length, "levels", "1", false);
             }
             line = chk_line_feed(line);
 
@@ -1035,12 +917,12 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
 
             line = histogram_dist(chk_line_feed(line), &tbl->histogram.tree_density, "pages %-density distribution",
                                   "1", false);
-            if (tbl->histogram.large_or_nested_density.count)
-              line = histogram_dist(chk_line_feed(line), &tbl->histogram.large_or_nested_density,
-                                    (tbl->flags & MDBX_DUPSORT) ? "nested %-density distribution"
-                                                                : "large pages %-density distribution",
-                                    "1", false);
+            line = histogram_dist(chk_line_feed(line), &tbl->histogram.large_or_nested_density,
+                                  (tbl->flags & MDBX_DUPSORT) ? "nested %-density distribution"
+                                                              : "large pages %-density distribution",
+                                  "1", false);
           }
+          histogram_dist(chk_line_feed(line), &tbl->histogram.page_age, "pages age distribution", "dirty", false);
           chk_line_end(line);
         }
       }
@@ -1381,6 +1263,7 @@ bailout:
     if (!txn->cursors[dbi] && (txn->dbi_state[dbi] & DBI_FRESH))
       mdbx_dbi_close(env, dbi);
   }
+
   return err;
 }
 
@@ -1467,7 +1350,7 @@ __cold static int chk_handle_gc(MDBX_chk_scope_t *const scope, MDBX_chk_table_t 
                          iptr[i + span] == (MDBX_PNL_ASCENDING ? pgno_add(pgno, span) : pgno_sub(pgno, span));
                ++span)
             ;
-          histogram_acc(span, &tbl->histogram.nested_height);
+          histogram_acc(span, &tbl->histogram.nested_height_or_gc_span_length);
           MDBX_chk_line_t *line = chk_line_begin(scope, MDBX_chk_extra);
           if (line) {
             if (span > 1)
@@ -1692,6 +1575,13 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       usr->result.gc_tree_problems = usr->result.tree_problems;
     if (usr->result.tree_problems && usr->result.kv_tree_problems == 0)
       usr->result.kv_tree_problems = usr->result.tree_problems;
+    if (usr->result.histogram_page_age.count) {
+      line = chk_line_begin(scope, MDBX_chk_info);
+      if (line) {
+        histogram_dist(line, &usr->result.histogram_page_age, "pages age distribution", "dirty", false);
+        chk_line_end(line);
+      }
+    }
     chk_scope_restore(scope, err);
   }
 
@@ -1707,7 +1597,8 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       err = chk_db(usr->scope, FREE_DBI, &chk->table_gc, chk_handle_gc);
     line = chk_line_begin(scope, MDBX_chk_info);
     if (line) {
-      histogram_print(scope, line, &chk->table_gc.histogram.nested_height, "span(s)", "single", false);
+      histogram_print(scope, line, &chk->table_gc.histogram.nested_height_or_gc_span_length, "span(s)", "single",
+                      false);
       chk_line_end(line);
     }
     if (usr->result.problems_gc == 0 && (chk->flags & MDBX_CHK_SKIP_BTREE_TRAVERSAL) == 0) {
