@@ -806,7 +806,7 @@ __hot int cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data, unsig
       }
     } else {
       csr_t csr =
-          /* olddata may not be updated in case DUPFIX-page of dupfix-table */
+          /* old_data may not be updated in case DUPFIX-page of dupfix-table */
           cursor_seek(mc, (MDBX_val *)key, &old_data, MDBX_SET);
       rc = csr.err;
       exact = csr.exact;
@@ -819,12 +819,9 @@ __hot int cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data, unsig
           return MDBX_KEYEXIST;
         }
         if (unlikely(mc->flags & z_inner)) {
-          /* nested subtree of DUPSORT-database with the same key,
-           * nothing to update */
-          eASSERT(env, data->iov_len == 0 && (old_data.iov_len == 0 ||
-                                              /* olddata may not be updated in case
-                                                 DUPFIX-page of dupfix-table */
-                                              (mc->tree->flags & MDBX_DUPFIXED)));
+          /* nested subtree of DUPSORT-database with the same key, nothing to update */
+          eASSERT(env, data->iov_len == 0 && (/* old_data may not be updated in case DUPFIX-page of dupfix-table */
+                                              (mc->tree->flags & MDBX_DUPFIXED) || old_data.iov_len == 0));
           return MDBX_SUCCESS;
         }
         if (unlikely(flags & MDBX_ALLDUPS) && inner_pointed(mc)) {
@@ -1376,8 +1373,7 @@ insert_node:;
           if (!is_related(mc, m2) || m2->pg[mc->top] != mp)
             continue;
           if (/* пропускаем незаполненные курсоры, иначе получится что у такого
-                 курсора будет инициализирован вложенный,
-                 что антилогично и бесполезно. */
+                 курсора будет инициализирован вложенный, что антилогично и бесполезно. */
               is_filled(m2) && m2->ki[mc->top] == mc->ki[mc->top]) {
             cASSERT(m2, m2->subcur->cursor.clc == mx->cursor.clc);
             m2->subcur->nested_tree = mx->nested_tree;
