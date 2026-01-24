@@ -429,7 +429,7 @@ static int nested_start(MDBX_txn *const nested, MDBX_txn *parent) {
 }
 
 int txn_nested_create(MDBX_txn *parent, const MDBX_txn_flags_t flags) {
-  if (parent->env->options.spill_parent4child_denominator) {
+  if (parent->env->options.spill_parent4child_denominator && (flags & txn_ro_nested)) {
     /* Spill dirty-pages of parent to provide dirtyroom for child txn */
     int err =
         txn_spill(parent, nullptr, parent->wr.dirtylist->length / parent->env->options.spill_parent4child_denominator);
@@ -539,26 +539,28 @@ static int nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
   // Preserve space for page lists in the parent transaction.
 
   const size_t parent_retired_len = (uintptr_t)parent->wr.retired_pages;
-  tASSERT(nested, parent_retired_len <= pnl_size(nested->wr.retired_pages));
-  const size_t retired_delta = pnl_size(nested->wr.retired_pages) - parent_retired_len;
-  if (retired_delta) {
-    int err = pnl_need(&nested->wr.repnl, retired_delta);
-    if (unlikely(err != MDBX_SUCCESS))
-      return err;
-  }
-
-  if (nested->wr.spilled.list) {
-    if (parent->wr.spilled.list) {
-      int err = pnl_need(&parent->wr.spilled.list, pnl_size(nested->wr.spilled.list));
+  if (nested->flags & MDBX_TXN_DIRTY) {
+    tASSERT(nested, parent_retired_len <= pnl_size(nested->wr.retired_pages));
+    const size_t retired_delta = pnl_size(nested->wr.retired_pages) - parent_retired_len;
+    if (retired_delta) {
+      int err = pnl_need(&nested->wr.repnl, retired_delta);
       if (unlikely(err != MDBX_SUCCESS))
         return err;
     }
-    spill_purge(nested);
-  }
 
-  if (unlikely(nested->wr.dirtylist->length + parent->wr.dirtylist->length > parent->wr.dirtylist->detent &&
-               !dpl_reserve(parent, nested->wr.dirtylist->length + parent->wr.dirtylist->length))) {
-    return MDBX_ENOMEM;
+    if (nested->wr.spilled.list) {
+      if (parent->wr.spilled.list) {
+        int err = pnl_need(&parent->wr.spilled.list, pnl_size(nested->wr.spilled.list));
+        if (unlikely(err != MDBX_SUCCESS))
+          return err;
+      }
+      spill_purge(nested);
+    }
+
+    if (unlikely(nested->wr.dirtylist->length + parent->wr.dirtylist->length > parent->wr.dirtylist->detent &&
+                 !dpl_reserve(parent, nested->wr.dirtylist->length + parent->wr.dirtylist->length))) {
+      return MDBX_ENOMEM;
+    }
   }
 
   //-------------------------------------------------------------------------

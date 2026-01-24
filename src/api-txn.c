@@ -219,9 +219,6 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
     return LOG_IFERR(MDBX_EINVAL);
   *ret = nullptr;
 
-  if (unlikely((flags & ~txn_rw_begin_flags) && (parent || (flags & ~txn_ro_begin_flags))))
-    return LOG_IFERR(MDBX_EINVAL);
-
   int rc = check_env(env, true);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
@@ -231,7 +228,9 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
 
   MDBX_txn *txn = nullptr;
   if (!parent) {
-    if (flags & txn_ro_flat) {
+    if (flags & MDBX_TXN_RDONLY) {
+      if (unlikely(flags & ~txn_ro_begin_flags))
+        return LOG_IFERR(MDBX_EINVAL);
       txn = txn_alloc(txn_ro_flat, env);
       if (unlikely(!txn))
         return LOG_IFERR(MDBX_ENOMEM);
@@ -241,6 +240,8 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
         return LOG_IFERR(rc);
       }
     } else {
+      if (unlikely(flags & ~txn_rw_begin_flags))
+        return LOG_IFERR(MDBX_EINVAL);
       rc = txn_basal_start(txn = env->basal_txn, flags);
       if (unlikely(rc != MDBX_SUCCESS))
         return LOG_IFERR(rc);
@@ -250,18 +251,26 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
     if (unlikely(rc != MDBX_SUCCESS))
       return LOG_IFERR(rc);
 
+    if (flags != MDBX_TXN_READWRITE) {
+      if (unlikely(flags != MDBX_TXN_RDONLY))
+        return LOG_IFERR(MDBX_EINVAL);
+      flags = (unsigned)txn_ro_nested;
+    }
+    flags |= parent->flags & (MDBX_TXN_SPILLS | MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP);
+
     if (unlikely(parent->flags & (txn_ro_flat | MDBX_WRITEMAP))) {
-      rc = MDBX_BAD_TXN;
-      if ((parent->flags & txn_ro_flat) == 0) {
+      if (parent->flags & MDBX_WRITEMAP) {
         ERROR("%s mode is incompatible with nested transactions", "MDBX_WRITEMAP");
         rc = MDBX_INCOMPATIBLE;
+      } else {
+        ERROR("%s", "Could not start a nested transaction from the flat read-only parent");
+        rc = MDBX_BAD_TXN;
       }
       return LOG_IFERR(rc);
     }
     if (unlikely(parent->env != env))
       return LOG_IFERR(MDBX_BAD_TXN);
 
-    flags |= parent->flags & (txn_rw_begin_flags | MDBX_TXN_SPILLS | MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP);
     rc = txn_nested_create(parent, flags);
     txn = parent->nested;
     if (unlikely(rc != MDBX_SUCCESS))
@@ -278,7 +287,7 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
                                  /* Win32: SRWL flag */ txn_shrink_allowed)) == 0);
   else {
     eASSERT(env, (txn->flags & ~(MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP | txn_shrink_allowed | txn_may_have_cursors |
-                                 MDBX_NOMETASYNC | MDBX_SAFE_NOSYNC | MDBX_TXN_SPILLS)) == 0);
+                                 MDBX_NOMETASYNC | MDBX_SAFE_NOSYNC | MDBX_TXN_SPILLS | txn_ro_nested)) == 0);
     assert(!txn->wr.spilled.list && !txn->wr.spilled.least_removed);
     if (AUDIT_ENABLED() && ASSERT_ENABLED())
       tASSERT(txn, audit_ex(txn, 0, false) == 0);

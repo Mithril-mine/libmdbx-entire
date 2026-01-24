@@ -441,11 +441,13 @@ static __always_inline pgr_t page_get_inline(const uint16_t ILL, const MDBX_curs
       if (unlikely(spiller->flags & MDBX_TXN_SPILLS) && spill_search(spiller, pgno))
         break;
 
-      const size_t i = dpl_search(spiller, pgno);
-      tASSERT(txn, (intptr_t)i > 0);
-      if (spiller->wr.dirtylist->items[i].pgno == pgno) {
-        r.page = spiller->wr.dirtylist->items[i].ptr;
-        break;
+      if (spiller->flags & MDBX_TXN_DIRTY) {
+        const size_t i = dpl_search(spiller, pgno);
+        tASSERT(txn, (intptr_t)i > 0);
+        if (spiller->wr.dirtylist->items[i].pgno == pgno) {
+          r.page = spiller->wr.dirtylist->items[i].ptr;
+          break;
+        }
       }
 
       spiller = spiller->parent;
