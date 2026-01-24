@@ -9,7 +9,7 @@ Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`,
 BTC `bc1qzvl9uegf2ea6cwlytnanrscyv8snwsvrc0xfsu`, SOL `FTCTgbHajoLVZGr8aEFWMzx3NDMyS5wXJgfeMTmJznRi`.
 Всё будет хорошо!
 
-## v0.13.11 in a release engineering stage
+## v0.13.11 scheduled at 2026-01-30
 
 The supporting release of a stable branch with bug fixes.
 
@@ -45,7 +45,9 @@ Fixes:
    In the 0.14.x version series, this mechanism has been completely updated.
    However, for version 0.13.11, this inelegant modification done in order to reduce the risk of regression.
 
- - Minor fixed `iov_callback4dirtypages()` for Valgrind/ASAN.
+ - Minor fixed `iov_callback4dirtypages()` and assertion inside `cursor_put()` to avoid Valgrind/ASAN warnings.
+
+ - Fixed cursor(s) finalization after ones explicitly closed in a nested transactions.
 
 Other:
 
