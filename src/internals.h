@@ -551,7 +551,7 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
   STATIC_ASSERT(offsetof(lck_t, wrt_lock) % MDBX_CACHELINE_SIZE == 0);
   STATIC_ASSERT(offsetof(lck_t, rdt_lock) % MDBX_CACHELINE_SIZE == 0);
 #else
-  STATIC_ASSERT(offsetof(lck_t, cached_oldest) % MDBX_CACHELINE_SIZE == 0);
+  STATIC_ASSERT(offsetof(lck_t, cached_oldest_txnid) % MDBX_CACHELINE_SIZE == 0);
   STATIC_ASSERT(offsetof(lck_t, rdt_length) % MDBX_CACHELINE_SIZE == 0);
 #endif /* MDBX_LOCKING */
 #if FLEXIBLE_ARRAY_MEMBERS

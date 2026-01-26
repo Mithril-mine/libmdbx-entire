@@ -831,9 +831,9 @@ bailout:
   return ret;
 }
 
-static txnid_t shapshot_oldest_force_rescan(MDBX_env *const env, const txnid_t steady) {
-  atomic_store32(&env->lck->rdt_refresh_flag, 42, mo_AcquireRelease);
-  return mvcc_shapshot_oldest(env, steady);
+static txnid_t shapshot_oldest_force_rescan(MDBX_txn *const txn) {
+  atomic_store32(&txn->env->lck->rdt_refresh_flag, true, mo_AcquireRelease);
+  return mvcc_shapshot_oldest(txn).oldest_txnid;
 }
 
 pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) {
@@ -1239,7 +1239,7 @@ depleted_gc:
     goto done;
   }
 
-  if (txn->txnid - txn->env->gc.detent > xMDBX_TXNID_STEP && mvcc_kick_laggards(env, txn->env->gc.detent))
+  if (txn->txnid - txn->env->gc.detent > xMDBX_TXNID_STEP && mvcc_kick_laggards(txn, txn->env->gc.detent))
     goto retry_gc_refresh_detent;
 
   //---------------------------------------------------------------------------
@@ -1277,9 +1277,9 @@ no_gc:
     aligned = txn->geo.upper;
   eASSERT(env, aligned >= newnext);
 
-  const txnid_t oldest_cached = env->lck->cached_oldest.weak;
+  const txnid_t oldest_cached = env->lck->cached_oldest_txnid.weak;
   const meta_ptr_t syncpoint = meta_prefer_steady(env, &txn->wr.troika);
-  const txnid_t oldest_rescan = shapshot_oldest_force_rescan(txn->env, syncpoint.txnid);
+  const txnid_t oldest_rescan = shapshot_oldest_force_rescan(txn);
   NOTICE("try growth datafile to %zu pages (+%zu), pending-txnid %" PRIu64 ", gc-reclaiming detent %" PRIu64
          "(syncpoint %s.%" PRIu64 ", oldest-reader cached %" PRIu64 " rescan %" PRIu64 " %+zi)",
          aligned, aligned - txn->geo.end_pgno, txn->txnid, env->gc.detent, syncpoint.is_steady ? "steady" : "weak",

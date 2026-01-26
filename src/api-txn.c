@@ -313,7 +313,7 @@ static void latency_init(MDBX_commit_latency *latency, struct commit_timestamp *
 static void latency_done(const MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timestamp *ts) {
   if (latency) {
     MDBX_env *const env = txn->env;
-    if (likely(env->lck) && MDBX_ENABLE_PROFGC) {
+    if (likely(env->lck)) {
       pgop_stat_t *const ptr = &env->lck->pgops;
       latency->gc_prof.work_counter = ptr->gc_prof.work.spe_counter;
       latency->gc_prof.work_rtime_monotonic = osal_monotime_to_16dot16(ptr->gc_prof.work.rtime_monotonic);
@@ -341,6 +341,9 @@ static void latency_done(const MDBX_txn *txn, MDBX_commit_latency *latency, stru
       latency->gc_prof.pnl_merge_self.time = osal_monotime_to_16dot16(ptr->gc_prof.self.pnl_merge.time);
       latency->gc_prof.pnl_merge_self.calls = ptr->gc_prof.self.pnl_merge.calls;
       latency->gc_prof.pnl_merge_self.volume = ptr->gc_prof.self.pnl_merge.volume;
+
+      latency->gc_prof.max_reader_lag = ptr->gc_prof.max_reader_lag;
+      latency->gc_prof.max_retained_pages = ptr->gc_prof.max_retained_pages;
 
       if (txn == env->basal_txn)
         memset(&ptr->gc_prof, 0, sizeof(ptr->gc_prof));

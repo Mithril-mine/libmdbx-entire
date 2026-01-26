@@ -113,8 +113,8 @@ static int ro_slot_clean(MDBX_txn *txn) {
 
   if (likely((txn->flags & MDBX_TXN_FINISHED) == 0)) {
     if (likely((txn->flags & MDBX_TXN_PARKED) == 0)) {
-      ENSURE(env, txn->txnid >= /* paranoia is appropriate here */ env->lck->cached_oldest.weak);
-      eASSERT(env, txn->txnid == slot->txnid.weak && slot->txnid.weak >= env->lck->cached_oldest.weak);
+      ENSURE(env, txn->txnid >= /* paranoia is appropriate here */ env->lck->cached_oldest_txnid.weak);
+      eASSERT(env, txn->txnid == slot->txnid.weak && slot->txnid.weak >= env->lck->cached_oldest_txnid.weak);
     } else {
       txn->flags -= MDBX_TXN_PARKED;
       if (safe64_read(&slot->tid) == MDBX_TID_TXN_OUSTED)
@@ -154,8 +154,8 @@ static int ro_seize(MDBX_txn *txn) {
       safe64_write(&slot->txnid, head.txnid);
       eASSERT(env, ro_slot_pid(slot) == osal_getpid());
       eASSERT(env, ro_slot_tid(slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
-      eASSERT(env, ro_slot_txnid(slot) == head.txnid ||
-                       (ro_slot_txnid(slot) >= SAFE64_INVALID_THRESHOLD && head.txnid < env->lck->cached_oldest.weak));
+      eASSERT(env, ro_slot_txnid(slot) == head.txnid || (ro_slot_txnid(slot) >= SAFE64_INVALID_THRESHOLD &&
+                                                         head.txnid < env->lck->cached_oldest_txnid.weak));
       atomic_store32(&env->lck->rdt_refresh_flag, true, mo_AcquireRelease);
     } else {
       /* exclusive mode without lck */
@@ -177,7 +177,7 @@ static int ro_seize(MDBX_txn *txn) {
       continue;
     }
 
-    const uint64_t snap_oldest = atomic_load64(&env->lck->cached_oldest, mo_AcquireRelease);
+    const uint64_t snap_oldest = atomic_load64(&env->lck->cached_oldest_txnid, mo_AcquireRelease);
     if (unlikely(txn->txnid < snap_oldest)) {
       if (env->stuck_meta >= 0) {
         ERROR("target meta-page %i is referenced to an obsolete MVCC-snapshot "
@@ -264,7 +264,7 @@ int txn_ro_start(MDBX_txn *txn, bool prepare) {
 
   dxb_sanitize_tail(env, txn);
   ENSURE(env, txn->txnid >=
-                  /* paranoia is appropriate here */ env->lck->cached_oldest.weak);
+                  /* paranoia is appropriate here */ env->lck->cached_oldest_txnid.weak);
   tASSERT(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
   tASSERT(txn, check_table_flags(txn->dbs[MAIN_DBI].flags));
   return MDBX_SUCCESS;
@@ -444,7 +444,7 @@ int txn_ro_clone(const MDBX_txn *const origin, MDBX_txn *const clone) {
     if (!(clone->flags & MDBX_TXN_PARKED)) {
       if (likely(clone->ro.slot) && unlikely(clone->txnid != atomic_load64(&clone->ro.slot->txnid, mo_Relaxed)))
         return MDBX_OUSTED;
-      if (unlikely(clone->txnid < atomic_load64(&env->lck->cached_oldest, mo_AcquireRelease)))
+      if (unlikely(clone->txnid < atomic_load64(&env->lck->cached_oldest_txnid, mo_AcquireRelease)))
         return MDBX_MVCC_RETARDED;
     }
     return MDBX_SUCCESS;

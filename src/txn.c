@@ -4,7 +4,7 @@
 #include "internals.h"
 
 __hot bool txn_gc_detent(const MDBX_txn *const txn) {
-  const txnid_t detent = mvcc_shapshot_oldest(txn->env, txn->wr.troika.txnid[txn->wr.troika.prefer_steady]);
+  const txnid_t detent = mvcc_shapshot_oldest(txn).oldest_txnid;
   if (likely(detent == txn->env->gc.detent))
     return false;
 

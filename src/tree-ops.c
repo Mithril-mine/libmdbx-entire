@@ -6,7 +6,7 @@
 #include "internals.h"
 
 static MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *couple) {
-  cASSERT(csrc, csrc->txn->txnid >= csrc->txn->env->lck->cached_oldest.weak);
+  cASSERT(csrc, csrc->txn->txnid >= csrc->txn->env->lck->cached_oldest_txnid.weak);
   couple->outer.next = nullptr;
   couple->outer.backup = nullptr;
   couple->outer.subcur = nullptr;

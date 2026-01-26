@@ -476,7 +476,7 @@ static int gc_remove_rkl(MDBX_txn *txn, gcu_t *ctx, rkl_t *rkl) {
     txnid_t id = rkl_edge(rkl, is_lifo(txn));
     if (ctx->gc_first == id)
       ctx->gc_first = 0;
-    tASSERT(txn, id <= txn->env->lck->cached_oldest.weak);
+    tASSERT(txn, id <= txn->env->lck->cached_oldest_txnid.weak);
     MDBX_val key = {.iov_base = &id, .iov_len = sizeof(id)};
     int err = cursor_seek(&ctx->cursor, &key, nullptr, MDBX_SET).err;
     tASSERT(txn, id == rkl_edge(rkl, is_lifo(txn)));
@@ -501,7 +501,7 @@ static int gc_remove_rkl(MDBX_txn *txn, gcu_t *ctx, rkl_t *rkl) {
     if (unlikely(err != MDBX_SUCCESS))
       return err;
     ENSURE(txn->env, id == rkl_pop(rkl, is_lifo(txn)));
-    tASSERT(txn, id <= txn->env->lck->cached_oldest.weak);
+    tASSERT(txn, id <= txn->env->lck->cached_oldest_txnid.weak);
     err = rkl_push(&txn->wr.gc.ready4reuse, id);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
@@ -948,9 +948,9 @@ static inline int gc_reserve4return(MDBX_txn *txn, gcu_t *ctx, const size_t chun
   TRACE("%s: slots-ready4reuse-left %zu, reservation-id %" PRIaTXN, dbg_prefix(ctx), rkl_len(&txn->wr.gc.ready4reuse),
         reservation_id);
   tASSERT(txn, reservation_id >= MIN_TXNID && reservation_id < txn->txnid);
-  tASSERT(txn, reservation_id <= txn->env->lck->cached_oldest.weak);
+  tASSERT(txn, reservation_id <= txn->env->lck->cached_oldest_txnid.weak);
   if (unlikely(reservation_id < MIN_TXNID ||
-               reservation_id > atomic_load64(&txn->env->lck->cached_oldest, mo_Relaxed))) {
+               reservation_id > atomic_load64(&txn->env->lck->cached_oldest_txnid, mo_Relaxed))) {
     ERROR("** internal error (reservation gc-id %" PRIaTXN ")", reservation_id);
     return MDBX_PROBLEM;
   }
