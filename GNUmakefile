@@ -837,7 +837,9 @@ $(DIST_DIR)/mdbx.h++: $(filter %h++, $(HEADERS)) $(lastword $(MAKEFILE_LIST))
 
 $(DIST_DIR)/mdbx.c++: $(DIST_DIR)/@tmp-internals.inc src/mdbx.c++ $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $@'
-	$(QUIET)cat $(DIST_DIR)/@tmp-internals.inc src/mdbx.c++ | $(SED) \
+	$(QUIET)$(SED) -e '/#ifndef __cplusplus/,/#endif \/\* !__cplusplus \*\//d' $(DIST_DIR)/@tmp-internals.inc | \
+	cat - src/mdbx.c++ | \
+	$(SED) \
 		-e '/#define xMDBX_ALLOY/d' \
 		-e '/#include "/d;/#pragma once/d' \
 		-e 's|@INCLUDE|#include|;s|"mdbx.h"|"mdbx.h++"|' \
@@ -845,7 +847,7 @@ $(DIST_DIR)/mdbx.c++: $(DIST_DIR)/@tmp-internals.inc src/mdbx.c++ $(lastword $(M
 
 define dist-tool-rule
 $(DIST_DIR)/mdbx_$(1).c: src/tools/$(1).c src/tools/wingetopt.h src/tools/wingetopt.c \
-		$(DIST_DIR)/@tmp-internals.inc $(lastword $(MAKEFILE_LIST))
+		$(DIST_DIR)/@tmp-essentials.inc $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $$@'
 	$(QUIET)mkdir -p dist && $(SED) \
 		-e '/#include "essentials.h"/r $(DIST_DIR)/@tmp-essentials.inc' \

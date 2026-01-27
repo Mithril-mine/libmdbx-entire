@@ -602,7 +602,7 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
 
 #include "sort.h"
 
-#endif /* __cplusplus */
+#endif /* !__cplusplus */
 
 #ifdef _MSC_VER
 #pragma warning(pop)
