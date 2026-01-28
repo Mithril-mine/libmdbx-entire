@@ -31,6 +31,8 @@ typedef struct MDBX_rkl {
                            * в большинстве случаев. */
 } rkl_t;
 
+#ifndef __cplusplus
+
 MDBX_MAYBE_UNUSED MDBX_INTERNAL void rkl_init(rkl_t *rkl);
 MDBX_MAYBE_UNUSED MDBX_INTERNAL void rkl_clear(rkl_t *rkl);
 MDBX_MAYBE_UNUSED static inline void rkl_clear_and_shrink(rkl_t *rkl) { rkl_clear(rkl); /* TODO */ }
@@ -74,3 +76,5 @@ typedef struct MDBX_rkl_hole {
   txnid_t end;
 } rkl_hole_t;
 MDBX_MAYBE_UNUSED MDBX_INTERNAL __must_check_result rkl_hole_t rkl_hole(rkl_iter_t *iter, const bool reverse);
+
+#endif /* !__cplusplus */

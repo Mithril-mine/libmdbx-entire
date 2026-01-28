@@ -56,6 +56,8 @@ MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t ceil_powerof2
   return floor_powerof2(value + granularity - 1, granularity);
 }
 
+#ifndef __cplusplus
+
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED MDBX_INTERNAL unsigned log2n_powerof2(size_t value_uintptr);
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED MDBX_INTERNAL unsigned ceil_log2n(size_t value_uintptr);
@@ -184,3 +186,5 @@ MDBX_MAYBE_UNUSED static inline bin128_t u128(uint64_t v) {
 #endif
   return r;
 }
+
+#endif /* !__cplusplus */

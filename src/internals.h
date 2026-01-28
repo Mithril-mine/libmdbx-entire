@@ -52,10 +52,10 @@ typedef struct bind_reader_slot_result {
 } bsr_t;
 
 #include "atomics-ops.h"
-#include "proto.h"
 #include "rkl.h"
 #include "txl.h"
 #include "unaligned.h"
+
 #if defined(_WIN32) || defined(_WIN64)
 #include "windows-import.h"
 #endif /* Windows */
@@ -573,6 +573,8 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
 /******************************************************************************/
 
 #ifndef __cplusplus
+
+#include "proto.h"
 
 #include "node.h"
 

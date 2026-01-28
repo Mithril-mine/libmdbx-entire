@@ -6,13 +6,20 @@
 #define LIBMDBX_INTERNALS
 #define MDBX_DEPRECATED
 
+#ifdef _MSC_VER
+#if _MSC_VER > 1800
+#pragma warning(disable : 4464) /* relative include path contains '..' */
+#endif
+#pragma warning(disable : 4996) /* The POSIX name is deprecated... */
+#endif                          /* _MSC_VER (warnings) */
+
 #ifdef MDBX_CONFIG_H
 #include MDBX_CONFIG_H
 #endif
 
 #include "preface.h"
 
-#ifdef xMDBX_ALLOY
+#if defined(xMDBX_ALLOY) && !defined(xMDBX_TOOLS)
 /* Amalgamated build */
 #define MDBX_INTERNAL static
 #else
@@ -26,6 +33,33 @@
 /* Basic constants and types */
 
 typedef struct iov_ctx iov_ctx_t;
+
+typedef union bin128 {
+  __anonymous_struct_extension__ struct {
+    uint64_t x, y;
+  };
+  __anonymous_struct_extension__ struct {
+    uint32_t a, b, c, d;
+  };
+  __anonymous_struct_extension__ struct {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    uint64_t l, h;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    uint64_t h, l;
+#else
+#error "FIXME: Unsupported byte order"
+#endif /* __BYTE_ORDER__ */
+  };
+
+#if defined(__SIZEOF_INT128__)
+#define MDBX_HAVE_NATIVE_U128 1
+  __int128_t i128;
+  __uint128_t u128;
+#else
+#define MDBX_HAVE_NATIVE_U128 0
+#endif
+} bin128_t;
+
 #include "osal.h"
 
 #include "options.h"

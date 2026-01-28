@@ -168,6 +168,10 @@ typedef pthread_mutex_t osal_fastmutex_t;
 #define osal_malloc_usable_size(ptr) _msize(ptr)
 #endif /* osal_malloc_usable_size */
 
+#ifndef osal_strdup
+LIBMDBX_API char *osal_strdup(const char *str);
+#endif
+
 /*----------------------------------------------------------------------------*/
 /* OS abstraction layer stuff */
 
@@ -205,8 +209,6 @@ typedef struct osal_mmap {
 #if defined(_WIN32) || defined(_WIN64)
 
 #define MDBX_HAVE_PWRITEV 0
-
-MDBX_INTERNAL int osal_waitstatus2errcode(DWORD result);
 
 #elif defined(__ANDROID_API__)
 
@@ -291,6 +293,29 @@ typedef struct osal_ioring {
   ior_item_t *pool;
   char *boundary;
 } osal_ioring_t;
+
+MDBX_MAYBE_UNUSED static inline mdbx_pid_t osal_getpid(void) {
+  STATIC_ASSERT(sizeof(mdbx_pid_t) <= sizeof(uint32_t));
+#if defined(_WIN32) || defined(_WIN64)
+  return GetCurrentProcessId();
+#else
+  STATIC_ASSERT(sizeof(pid_t) <= sizeof(uint32_t));
+  return getpid();
+#endif
+}
+
+MDBX_MAYBE_UNUSED static inline uintptr_t osal_thread_self(void) {
+  mdbx_tid_t thunk;
+  STATIC_ASSERT(sizeof(uintptr_t) >= sizeof(thunk));
+#if defined(_WIN32) || defined(_WIN64)
+  thunk = GetCurrentThreadId();
+#else
+  thunk = pthread_self();
+#endif
+  return (uintptr_t)thunk;
+}
+
+#ifndef __cplusplus
 
 /* Actually this is not ioring for now, but on the way. */
 MDBX_INTERNAL int osal_ioring_create(osal_ioring_t *
@@ -401,10 +426,6 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL void osal_jitter(bool tiny);
 
 #endif /* !Windows */
 
-#ifndef osal_strdup
-LIBMDBX_API char *osal_strdup(const char *str);
-#endif
-
 MDBX_MAYBE_UNUSED static inline int osal_get_errno(void) {
 #if defined(_WIN32) || defined(_WIN64)
   DWORD rc = GetLastError();
@@ -504,32 +525,12 @@ typedef struct {
 } mdbx_handle_array_t;
 MDBX_INTERNAL int osal_suspend_threads_before_remap(MDBX_env *env, mdbx_handle_array_t **array);
 MDBX_INTERNAL int osal_resume_threads_after_remap(mdbx_handle_array_t *array);
+MDBX_INTERNAL int osal_waitstatus2errcode(DWORD result);
 #endif /* Windows */
 MDBX_INTERNAL int osal_msync(const osal_mmap_t *map, size_t length, enum osal_syncmode_bits mode_bits);
 MDBX_INTERNAL int osal_check_fs_rdonly(mdbx_filehandle_t handle, const pathchar_t *pathname, int err);
 MDBX_INTERNAL int osal_check_fs_incore(mdbx_filehandle_t handle);
 MDBX_INTERNAL int osal_check_fs_local(mdbx_filehandle_t handle, int flags);
-
-MDBX_MAYBE_UNUSED static inline mdbx_pid_t osal_getpid(void) {
-  STATIC_ASSERT(sizeof(mdbx_pid_t) <= sizeof(uint32_t));
-#if defined(_WIN32) || defined(_WIN64)
-  return GetCurrentProcessId();
-#else
-  STATIC_ASSERT(sizeof(pid_t) <= sizeof(uint32_t));
-  return getpid();
-#endif
-}
-
-MDBX_MAYBE_UNUSED static inline uintptr_t osal_thread_self(void) {
-  mdbx_tid_t thunk;
-  STATIC_ASSERT(sizeof(uintptr_t) >= sizeof(thunk));
-#if defined(_WIN32) || defined(_WIN64)
-  thunk = GetCurrentThreadId();
-#else
-  thunk = pthread_self();
-#endif
-  return (uintptr_t)thunk;
-}
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #if defined(__ANDROID_API__) || defined(ANDROID) || defined(BIONIC)
@@ -562,32 +563,6 @@ MDBX_INTERNAL void osal_dtor(void);
 #if defined(_WIN32) || defined(_WIN64)
 MDBX_INTERNAL int osal_mb2w(const char *const src, wchar_t **const pdst);
 #endif /* Windows */
-
-typedef union bin128 {
-  __anonymous_struct_extension__ struct {
-    uint64_t x, y;
-  };
-  __anonymous_struct_extension__ struct {
-    uint32_t a, b, c, d;
-  };
-  __anonymous_struct_extension__ struct {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    uint64_t l, h;
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-    uint64_t h, l;
-#else
-#error "FIXME: Unsupported byte order"
-#endif /* __BYTE_ORDER__ */
-  };
-
-#if defined(__SIZEOF_INT128__)
-#define MDBX_HAVE_NATIVE_U128 1
-  __int128_t i128;
-  __uint128_t u128;
-#else
-#define MDBX_HAVE_NATIVE_U128 0
-#endif
-} bin128_t;
 
 MDBX_INTERNAL bin128_t osal_guid(const MDBX_env *);
 
@@ -622,3 +597,5 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline uint32_t osal_bswap32
   return v << 24 | v >> 24 | ((v << 8) & UINT32_C(0x00ff0000)) | ((v >> 8) & UINT32_C(0x0000ff00));
 #endif
 }
+
+#endif /* !__cplusplus */

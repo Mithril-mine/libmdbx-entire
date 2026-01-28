@@ -387,19 +387,19 @@ config-gnumake.h: @buildflags.tag mdbx.c $(lastword $(MAKEFILE_LIST)) LICENSE NO
 	&& echo '#define MDBX_BUILD_METADATA "$(MDBX_BUILD_METADATA)"' \
 	) >$@
 
-mdbx-dylib.o: config-gnumake.h mdbx.c mdbx.h $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+mdbx-dylib.o: config-gnumake.h mdbx.c mdbx.h mdbx-internals.h $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  CC $@'
 	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -DLIBMDBX_EXPORTS=1 -c mdbx.c -o $@
 
-mdbx-static.o: config-gnumake.h mdbx.c mdbx.h $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+mdbx-static.o: config-gnumake.h mdbx.c mdbx.h mdbx-internals.h $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  CC $@'
 	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -ULIBMDBX_EXPORTS -c mdbx.c -o $@
 
-mdbx++-dylib.o: config-gnumake.h mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+mdbx++-dylib.o: config-gnumake.h mdbx.c++ $(HEADERS) mdbx-internals.h $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -DLIBMDBX_EXPORTS=1 -c mdbx.c++ -o $@
 
-mdbx++-static.o: config-gnumake.h mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
+mdbx++-static.o: config-gnumake.h mdbx.c++ $(HEADERS) mdbx-internals.h $(lastword $(MAKEFILE_LIST)) LICENSE NOTICE COPYRIGHT
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -ULIBMDBX_EXPORTS -c mdbx.c++ -o $@
 
@@ -456,7 +456,7 @@ DIST_EXTRA := LICENSE NOTICE COPYRIGHT README.md CMakeLists.txt GNUmakefile Make
 	$(addprefix ut_and_examples/, CMakeLists.txt example-mdbx.c++ example-mdbx.c pcrf/pcrf_simulator.c README.md) \
 	$(addprefix packages/, archlinux/PKGBUILD archlinux/.SRCINFO buildroot/0001-package-libmdbx.patch)
 
-DIST_SRC   := mdbx.h mdbx.h++ mdbx.c mdbx.c++ $(addsuffix .c, $(MDBX_TOOLS))
+DIST_SRC   := mdbx.h mdbx.h++ mdbx.c mdbx.c++ $(addsuffix .c, $(MDBX_TOOLS)) mdbx-internals.h
 
 TEST_DB    ?= $(shell [ -d /dev/shm ] && echo /dev/shm || echo /tmp)/mdbx-test.db
 TEST_LOG   ?= $(shell [ -d /dev/shm ] && echo /dev/shm || echo /tmp)/mdbx-test.log
@@ -723,7 +723,7 @@ release-assets: libmdbx-amalgamated-$(MDBX_GIT_3DOT).zpaq \
 
 @dist-checked.tag: $(addprefix $(DIST_DIR)/, $(DIST_SRC) $(DIST_EXTRA))
 	@echo -n '  VERIFY amalgamated sources...'
-	$(QUIET)rm -rf $@ $(DIST_DIR)/@tmp-essentials.inc $(DIST_DIR)/@tmp-internals.inc \
+	$(QUIET)rm -rf $@ $(DIST_DIR)/@tmp-squashed.inc \
 	&& if grep -R "define xMDBX_ALLOY" dist | grep -q MDBX_BUILD_SOURCERY; then echo "sed output is WRONG!" >&2; exit 2; fi \
 	&& rm -rf @dist-check && cp -r -p $(DIST_DIR) @dist-check && ($(MAKE) -j IOARENA=false CXXSTD=$(CXXSTD) -C @dist-check all check ninja-assertions >@dist-check.log 2>@dist-check.err || (cat @dist-check.err && exit 1)) \
 	&& touch $@ || (echo " FAILED! See @dist-check.log and @dist-check.err" >&2; exit 2) && echo " Ok"
@@ -748,7 +748,7 @@ release-assets: libmdbx-amalgamated-$(MDBX_GIT_3DOT).zpaq \
 	@echo '  CREATE $@'
 	$(QUIET)rm -rf $@ && (cd dist && zpaq a ../$@ $(DIST_SRC) $(DIST_EXTRA) -m59) &>@zpaq.log
 
-$(DIST_DIR)/@tmp-essentials.inc: src/version.c $(ALLOY_DEPS) $(lastword $(MAKEFILE_LIST))
+$(DIST_DIR)/mdbx-internals.h: src/version.c $(ALLOY_DEPS) $(lastword $(MAKEFILE_LIST))
 	@echo '  ALLOYING...'
 	$(QUIET)mkdir -p dist \
 	&& (grep -v '#include ' src/alloy.c && echo '#define MDBX_BUILD_SOURCERY $(MDBX_BUILD_SOURCERY)' \
@@ -765,14 +765,13 @@ $(DIST_DIR)/@tmp-essentials.inc: src/version.c $(ALLOY_DEPS) $(lastword $(MAKEFI
 		-e '/#include "pnl.h"/r src/pnl.h' \
 		src/essentials.h \
 	| $(SED) \
-		-e '/#pragma once/d' -e '/#include "/d' \
+		-e '/#pragma once/d' -e '/#include "/d' -e 's|@INCLUDE|#include|' \
 		-e '/ clang-format o/d' -e '/ \*INDENT-O/d' \
-		| grep -v '^/// ') >$@
+	| grep -v '^///') | cat -s >$@
 
-$(DIST_DIR)/@tmp-internals.inc: $(DIST_DIR)/@tmp-essentials.inc src/version.c $(ALLOY_DEPS) $(lastword $(MAKEFILE_LIST))
-	$(QUIET)(cat $(DIST_DIR)/@tmp-essentials.inc \
-	&& $(SED) \
-		-e '/#include "essentials.h"/d' \
+$(DIST_DIR)/@tmp-squashed.inc: $(DIST_DIR)/mdbx-internals.h src/version.c $(ALLOY_DEPS) $(lastword $(MAKEFILE_LIST))
+	$(QUIET)($(SED) \
+		-e 's|#include "essentials.h"|@INCLUDE "mdbx-internals.h"|' \
 		-e '/#include "atomics-ops.h"/r src/atomics-ops.h' \
 		-e '/#include "proto.h"/r src/proto.h' \
 		-e '/#include "rkl.h"/r src/rkl.h' \
@@ -797,11 +796,11 @@ $(DIST_DIR)/@tmp-internals.inc: $(DIST_DIR)/@tmp-essentials.inc src/version.c $(
 	| $(SED) \
 		-e '/#pragma once/d' -e '/#include "/d' \
 		-e '/ clang-format o/d' -e '/ \*INDENT-O/d' \
-		| grep -v '^/// ') >$@
+		| grep -v '^///') >$@
 
-$(DIST_DIR)/mdbx.c: $(DIST_DIR)/@tmp-internals.inc $(lastword $(MAKEFILE_LIST))
+$(DIST_DIR)/mdbx.c: $(DIST_DIR)/@tmp-squashed.inc $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $@'
-	$(QUIET)(cat $(DIST_DIR)/@tmp-internals.inc $(shell git ls-files --deduplicate src/*.c | grep -v alloy) src/version.c | $(SED) \
+	$(QUIET)(cat $(DIST_DIR)/@tmp-squashed.inc $(shell git ls-files --deduplicate src/*.c | grep -v alloy) src/version.c | $(SED) \
 		-e '/#include "debug_begin.h"/r src/debug_begin.h' \
 		-e '/#include "debug_end.h"/r src/debug_end.h' \
 	) | $(SED) -e '/#include "/d;/#pragma once/d' -e 's|@INCLUDE|#include|' \
@@ -835,22 +834,21 @@ $(DIST_DIR)/mdbx.h++: $(filter %h++, $(HEADERS)) $(lastword $(MAKEFILE_LIST))
 		-e '/#include "/d' -e '/ clang-format o/d;/ \*INDENT-O/d' -e 's|@INCLUDE|#include|' \
 		| cat -s >$@
 
-$(DIST_DIR)/mdbx.c++: $(DIST_DIR)/@tmp-internals.inc src/mdbx.c++ $(lastword $(MAKEFILE_LIST))
+$(DIST_DIR)/mdbx.c++: $(DIST_DIR)/@tmp-squashed.inc src/mdbx.c++ $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $@'
-	$(QUIET)$(SED) -e '/#ifndef __cplusplus/,/#endif \/\* !__cplusplus \*\//d' $(DIST_DIR)/@tmp-internals.inc | \
+	$(QUIET)$(SED) -e '/#ifndef __cplusplus/,/#endif \/\* !__cplusplus \*\//d' $(DIST_DIR)/@tmp-squashed.inc | \
 	cat - src/mdbx.c++ | \
 	$(SED) \
-		-e '/#define xMDBX_ALLOY/d' \
-		-e '/#include "/d;/#pragma once/d' \
-		-e 's|@INCLUDE|#include|;s|"mdbx.h"|"mdbx.h++"|' \
+		-e 's|#include "../mdbx.h++"|@INCLUDE "mdbx.h++"|' \
+		-e '/#include "/d' -e 's|@INCLUDE|#include|' \
 		-e '/ clang-format o/d;/ \*INDENT-O/d' -e '3i /* clang-format off */' | cat -s >$@
 
 define dist-tool-rule
 $(DIST_DIR)/mdbx_$(1).c: src/tools/$(1).c src/tools/wingetopt.h src/tools/wingetopt.c \
-		$(DIST_DIR)/@tmp-essentials.inc $(lastword $(MAKEFILE_LIST))
+		$(DIST_DIR)/mdbx-internals.h $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $$@'
 	$(QUIET)mkdir -p dist && $(SED) \
-		-e '/#include "essentials.h"/r $(DIST_DIR)/@tmp-essentials.inc' \
+		-e 's|#include "essentials.h"|@INCLUDE "mdbx-internals.h"|' \
 		-e '/#include "wingetopt.h"/r src/tools/wingetopt.c' \
 		-e '/ clang-format o/d' -e '/ \*INDENT-O/d' \
 		src/tools/$(1).c \

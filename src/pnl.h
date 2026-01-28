@@ -16,13 +16,28 @@
 typedef pgno_t *pnl_t;
 typedef const pgno_t *const_pnl_t;
 
+#define MDBX_PNL_FIRST(pl) ((pl)[1])
+#define MDBX_PNL_LAST(pl) ((pl)[pnl_size(pl)])
+#define MDBX_PNL_BEGIN(pl) (&(pl)[1])
+#define MDBX_PNL_END(pl) (&(pl)[pnl_size(pl) + 1])
+
 #if MDBX_PNL_ASCENDING
 #define MDBX_PNL_ORDERED(first, last) ((first) < (last))
 #define MDBX_PNL_DISORDERED(first, last) ((first) >= (last))
+#define MDBX_PNL_EDGE(pl) ((pl) + 1)
+#define MDBX_PNL_LEAST(pl) MDBX_PNL_FIRST(pl)
+#define MDBX_PNL_MOST(pl) MDBX_PNL_LAST(pl)
+#define MDBX_PNL_CONTIGUOUS(prev, next, span) ((next) - (prev)) == (span))
 #else
 #define MDBX_PNL_ORDERED(first, last) ((first) > (last))
 #define MDBX_PNL_DISORDERED(first, last) ((first) <= (last))
+#define MDBX_PNL_EDGE(pl) ((pl) + pnl_size(pl))
+#define MDBX_PNL_LEAST(pl) MDBX_PNL_LAST(pl)
+#define MDBX_PNL_MOST(pl) MDBX_PNL_FIRST(pl)
+#define MDBX_PNL_CONTIGUOUS(prev, next, span) (((prev) - (next)) == (span))
 #endif
+
+#ifndef __cplusplus
 
 #define MDBX_PNL_GRANULATE_LOG2 10
 #define MDBX_PNL_GRANULATE (1 << MDBX_PNL_GRANULATE_LOG2)
@@ -36,23 +51,6 @@ MDBX_MAYBE_UNUSED static inline void pnl_setsize(pnl_t pnl, size_t len) {
   assert(len < INT_MAX);
   pnl[0] = (pgno_t)len;
 }
-
-#define MDBX_PNL_FIRST(pl) ((pl)[1])
-#define MDBX_PNL_LAST(pl) ((pl)[pnl_size(pl)])
-#define MDBX_PNL_BEGIN(pl) (&(pl)[1])
-#define MDBX_PNL_END(pl) (&(pl)[pnl_size(pl) + 1])
-
-#if MDBX_PNL_ASCENDING
-#define MDBX_PNL_EDGE(pl) ((pl) + 1)
-#define MDBX_PNL_LEAST(pl) MDBX_PNL_FIRST(pl)
-#define MDBX_PNL_MOST(pl) MDBX_PNL_LAST(pl)
-#define MDBX_PNL_CONTIGUOUS(prev, next, span) ((next) - (prev)) == (span))
-#else
-#define MDBX_PNL_EDGE(pl) ((pl) + pnl_size(pl))
-#define MDBX_PNL_LEAST(pl) MDBX_PNL_LAST(pl)
-#define MDBX_PNL_MOST(pl) MDBX_PNL_FIRST(pl)
-#define MDBX_PNL_CONTIGUOUS(prev, next, span) (((prev) - (next)) == (span))
-#endif
 
 #define MDBX_PNL_SIZEOF(pl) ((pnl_size(pl) + 1) * sizeof(pgno_t))
 #define MDBX_PNL_IS_EMPTY(pl) (pnl_size(pl) == 0)
@@ -160,3 +158,5 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_search(con
 MDBX_INTERNAL size_t pnl_merge(pnl_t dst, const pnl_t src);
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t pnl_maxspan(const pnl_t pnl);
+
+#endif /* !__cplusplus */

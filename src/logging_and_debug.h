@@ -10,6 +10,8 @@ MDBX_MAYBE_UNUSED static inline const void *__Wpedantic_format_voidptr(const voi
 #define __Wpedantic_format_voidptr(ARG) __Wpedantic_format_voidptr(ARG)
 #endif /* __Wpedantic_format_voidptr */
 
+#ifndef __cplusplus
+
 MDBX_INTERNAL void MDBX_PRINTF_ARGS(4, 5) debug_log(int level, const char *function, int line, const char *fmt, ...)
     MDBX_PRINTF_ARGS(4, 5);
 MDBX_INTERNAL void debug_log_va(int level, const char *function, int line, const char *fmt, va_list args);
@@ -160,3 +162,5 @@ MDBX_MAYBE_UNUSED static inline int log_if_error(const int err, const char *func
 }
 
 #define LOG_IFERR(err) log_if_error((err), __func__, __LINE__)
+
+#endif /* !__cplusplus */
