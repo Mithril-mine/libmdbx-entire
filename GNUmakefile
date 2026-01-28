@@ -405,16 +405,16 @@ mdbx++-static.o: config-gnumake.h mdbx.c++ $(HEADERS) mdbx-internals.h $(lastwor
 
 mdbx_%:	mdbx_%.c mdbx-static.o
 	@echo '  CC+LD $@'
-	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' $^ $(EXE_LDFLAGS) $(LIBS) -o $@
+	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' $^ $(LDFLAGS) $(EXE_LDFLAGS) $(LIBS) -o $@
 
 mdbx_%.static: mdbx_%.c mdbx-static.o
 	@echo '  CC+LD $@'
-	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' $^ $(EXE_LDFLAGS) -static -Wl,--strip-all -o $@
+	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' $^ $(LDFLAGS) $(EXE_LDFLAGS) -static -Wl,--strip-all -o $@
 
 mdbx_%.static-lto: mdbx_%.c config-gnumake.h mdbx.c mdbx.h
 	@echo '  CC+LD $@'
 	$(QUIET)$(CC) $(CFLAGS) -Os -flto $(MDBX_BUILD_OPTIONS) '-DLIBMDBX_API=' '-DMDBX_CONFIG_H="config-gnumake.h"' \
-		$< mdbx.c $(EXE_LDFLAGS) $(LIBS) -static -Wl,--strip-all -o $@
+		$< mdbx.c $(LDFLAGS) $(EXE_LDFLAGS) $(LIBS) -static -Wl,--strip-all -o $@
 
 check smoke: test
 
@@ -585,16 +585,16 @@ $(foreach file,$(TEST_SRC),$(eval $(call test-rule,$(file))))
 define tool-rule
 mdbx_$(1):	src/tools/$(1).c libmdbx.a
 	@echo '  CC+LD $$@'
-	$(QUIET)$$(CC) $$(CFLAGS) $$(MDBX_BUILD_OPTIONS) -Isrc '-DMDBX_CONFIG_H="config-gnumake.h"' $$^ $$(EXE_LDFLAGS) $$(LIBS) -o $$@
+	$(QUIET)$$(CC) $$(CFLAGS) $$(MDBX_BUILD_OPTIONS) -Isrc '-DMDBX_CONFIG_H="config-gnumake.h"' $$^ $$(LDFLAGS) $$(EXE_LDFLAGS) $$(LIBS) -o $$@
 
 mdbx_$(1).static:	src/tools/$(1).c mdbx-static.o
 	@echo '  CC+LD $$@'
-	$(QUIET)$$(CC) $$(CFLAGS) $$(MDBX_BUILD_OPTIONS) -Isrc '-DMDBX_CONFIG_H="config-gnumake.h"' $$^ $$(EXE_LDFLAGS) $$(LIBS) -static -Wl,--strip-all -o $$@
+	$(QUIET)$$(CC) $$(CFLAGS) $$(MDBX_BUILD_OPTIONS) -Isrc '-DMDBX_CONFIG_H="config-gnumake.h"' $$^ $$(LDFLAGS) $$(EXE_LDFLAGS) $$(LIBS) -static -Wl,--strip-all -o $$@
 
 mdbx_$(1).static-lto: src/tools/$(1).c src/config-gnumake.h src/version.c src/alloy.c $(ALLOY_DEPS)
 	@echo '  CC+LD $$@'
 	$(QUIET)$$(CC) $$(CFLAGS) -Os -flto $$(MDBX_BUILD_OPTIONS) -Isrc '-DLIBMDBX_API=' '-DMDBX_CONFIG_H="config-gnumake.h"' \
-		$$< src/alloy.c $$(EXE_LDFLAGS) $$(LIBS) -static -Wl,--strip-all -o $$@
+		$$< src/alloy.c $$(LDFLAGS) $$(EXE_LDFLAGS) $$(LIBS) -static -Wl,--strip-all -o $$@
 
 endef
 $(foreach file,$(TOOLS),$(eval $(call tool-rule,$(file))))
