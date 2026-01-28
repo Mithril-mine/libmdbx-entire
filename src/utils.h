@@ -87,17 +87,36 @@ MDBX_INTERNAL char *ratio2percent(uint64_t v, uint64_t d, ratio2digits_buffer_t 
 
 MDBX_INTERNAL bin128_t mul64x64_128_fallback(uint64_t x, uint64_t y);
 
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IA64) || defined(_M_AMD64))
+#pragma intrinsic(_umul128)
+#endif /* MSVC AMD64 */
+
+#if defined(_MSC_VER) && defined(_M_ARM64)
+#pragma intrinsic(__umulh)
+#endif /* MSVC ARM64 */
+
+MDBX_MAYBE_UNUSED static inline bool u128_eq(bin128_t x, bin128_t y) {
+#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+  return x.u128 == y.u128;
+#else
+  return x.l == y.l && x.h == y.h;
+#endif
+}
+
 MDBX_MAYBE_UNUSED static inline bin128_t mul64x64_128(uint64_t x, uint64_t y) {
   bin128_t r;
 #if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
   r.u128 = x;
   r.u128 *= y;
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IA64) || defined(_M_AMD64)) && !MDBX_DEBUG
+  r.l = _umul128(x, y, &r.h);
+#elif defined(_MSC_VER) && defined(_M_ARM64) && !MDBX_DEBUG
+  r.l = x * y;
+  r.h = __umulh(x, y);
 #else
   r = mul64x64_128_fallback(x, y);
-#if MDBX_HAVE_NATIVE_U128
-  assert(r.u128 == (__uint128_t)x * (__uint128_t)y);
 #endif
-#endif
+  assert(u128_eq(r, mul64x64_128_fallback(y, x)));
   return r;
 }
 
