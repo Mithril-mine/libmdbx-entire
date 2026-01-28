@@ -403,9 +403,9 @@ mdbx++-static.o: config-gnumake.h mdbx.c++ $(HEADERS) mdbx-internals.h $(lastwor
 	@echo '  CC $@'
 	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' -ULIBMDBX_EXPORTS -c mdbx.c++ -o $@
 
-mdbx_%:	mdbx_%.c mdbx-static.o
+mdbx_%:	mdbx_%.c mdbx-static.o mdbx-wingetopt.h
 	@echo '  CC+LD $@'
-	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' $^ $(LDFLAGS) $(EXE_LDFLAGS) $(LIBS) -o $@
+	$(QUIET)$(CC) $(CFLAGS) $(MDBX_BUILD_OPTIONS) '-DMDBX_CONFIG_H="config-gnumake.h"' $< mdbx-static.o $(LDFLAGS) $(EXE_LDFLAGS) $(LIBS) -o $@
 
 mdbx_%.static: mdbx_%.c mdbx-static.o
 	@echo '  CC+LD $@'
@@ -456,7 +456,7 @@ DIST_EXTRA := LICENSE NOTICE COPYRIGHT README.md CMakeLists.txt GNUmakefile Make
 	$(addprefix ut_and_examples/, CMakeLists.txt example-mdbx.c++ example-mdbx.c pcrf/pcrf_simulator.c README.md) \
 	$(addprefix packages/, archlinux/PKGBUILD archlinux/.SRCINFO buildroot/0001-package-libmdbx.patch)
 
-DIST_SRC   := mdbx.h mdbx.h++ mdbx.c mdbx.c++ $(addsuffix .c, $(MDBX_TOOLS)) mdbx-internals.h
+DIST_SRC   := mdbx.h mdbx.h++ mdbx.c mdbx.c++ $(addsuffix .c, $(MDBX_TOOLS)) mdbx-internals.h mdbx-wingetopt.h
 
 TEST_DB    ?= $(shell [ -d /dev/shm ] && echo /dev/shm || echo /tmp)/mdbx-test.db
 TEST_LOG   ?= $(shell [ -d /dev/shm ] && echo /dev/shm || echo /tmp)/mdbx-test.log
@@ -863,22 +863,29 @@ $(DIST_DIR)/mdbx.c++: $(DIST_DIR)/@tmp-squashed.inc $(DIST_DIR)/@tmp-amalgam.inc
 		-e '/ clang-format o/d;/ \*INDENT-O/d' \
 	| grep -v '^///' | cat -s $(DIST_DIR)/@tmp-amalgam.inc - >$@
 
+$(DIST_DIR)/mdbx-wingetopt.h: src/tools/wingetopt.h src/tools/wingetopt.c
+	@echo '  MAKE $@'
+	$(QUIET)mkdir -p dist && cat $^ | \
+	$(SED) \
+		-e '/#include "/d' \
+		-e '/#pragma once/d' \
+		-e '/ clang-format o/d;/ \*INDENT-O/d' \
+	| grep -v '^///' | cat -s >$@
+
 define dist-tool-rule
-$(DIST_DIR)/mdbx_$(1).c: src/tools/$(1).c src/tools/wingetopt.h src/tools/wingetopt.c \
+$(DIST_DIR)/mdbx_$(1).c: src/tools/$(1).c \
 		$(DIST_DIR)/mdbx-internals.h $(lastword $(MAKEFILE_LIST)) $(DIST_DIR)/@tmp-amalgam.inc
 	@echo '  MAKE $$@'
 	$(QUIET)mkdir -p dist && \
 	$(SED) \
 		-e 's|#include "essentials.h"|@INCLUDE "mdbx-internals.h"|' \
-		-e '/#include "wingetopt.h"/r src/tools/wingetopt.c' \
+		-e 's|#include "wingetopt.h"|@INCLUDE "mdbx-wingetopt.h"|' \
 		-e '/#include "/d;/#pragma once/d;/#define xMDBX_ALLOY/d' \
 		-e 's|@INCLUDE|#include|' \
 		src/tools/$(1).c \
 	| $(SED) \
 		-e "s|@MDBX_GIT_TIMESTAMP@|$$(MDBX_GIT_TIMESTAMP)|" \
 		-e "s|@MDBX_GIT_DESCRIBE@|$$(MDBX_GIT_DESCRIBE)|" \
-		-e '/ clang-format o/d' \
-		-e '/ \*INDENT-O/d' \
 		-e '/ clang-format o/d;/ \*INDENT-O/d' \
 	| grep -v '^///' | cat -s $(DIST_DIR)/@tmp-amalgam.inc - >$$@
 

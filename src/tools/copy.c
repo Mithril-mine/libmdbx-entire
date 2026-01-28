@@ -10,6 +10,11 @@
 #include "essentials.h"
 
 #if defined(_WIN32) || defined(_WIN64)
+
+/* Bit of madness for Windows console */
+#define mdbx_strerror mdbx_strerror_ANSI2OEM
+#define mdbx_strerror_r mdbx_strerror_r_ANSI2OEM
+
 #include "wingetopt.h"
 
 static volatile BOOL user_break;

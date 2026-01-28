@@ -11,25 +11,12 @@
 
 #include <ctype.h>
 
-#define PRINT 1
-#define GLOBAL 2
-#define CONCISE 4
-static int mode = GLOBAL;
-
-typedef struct flagbit {
-  int bit;
-  char *name;
-} flagbit;
-
-flagbit dbflags[] = {{MDBX_REVERSEKEY, "reversekey"},
-                     {MDBX_DUPSORT, "dupsort"},
-                     {MDBX_INTEGERKEY, "integerkey"},
-                     {MDBX_DUPFIXED, "dupfix"},
-                     {MDBX_INTEGERDUP, "integerdup"},
-                     {MDBX_REVERSEDUP, "reversedup"},
-                     {0, nullptr}};
-
 #if defined(_WIN32) || defined(_WIN64)
+
+/* Bit of madness for Windows console */
+#define mdbx_strerror mdbx_strerror_ANSI2OEM
+#define mdbx_strerror_r mdbx_strerror_r_ANSI2OEM
+
 #include "wingetopt.h"
 
 static volatile BOOL user_break;
@@ -48,6 +35,24 @@ static void signal_handler(int sig) {
 }
 
 #endif /* !WINDOWS */
+
+#define PRINT 1
+#define GLOBAL 2
+#define CONCISE 4
+static int mode = GLOBAL;
+
+typedef struct flagbit {
+  int bit;
+  char *name;
+} flagbit;
+
+flagbit dbflags[] = {{MDBX_REVERSEKEY, "reversekey"},
+                     {MDBX_DUPSORT, "dupsort"},
+                     {MDBX_INTEGERKEY, "integerkey"},
+                     {MDBX_DUPFIXED, "dupfix"},
+                     {MDBX_INTEGERDUP, "integerdup"},
+                     {MDBX_REVERSEDUP, "reversedup"},
+                     {0, nullptr}};
 
 static void dumpval(const MDBX_val *v) {
   static const char digits[] = "0123456789abcdef";
