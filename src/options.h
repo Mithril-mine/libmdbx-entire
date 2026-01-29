@@ -140,8 +140,9 @@
 #error MDBX_DPL_PREALLOC_FOR_RADIXSORT must be defined as 0 or 1
 #endif /* MDBX_DPL_PREALLOC_FOR_RADIXSORT */
 
-/** Controls dirty pages tracking, spilling and persisting in `MDBX_WRITEMAP`
- * mode, i.e. disables in-memory database updating with consequent
+/** Controls dirty pages tracking, spilling and persisting in `MDBX_WRITEMAP`.
+ *
+ * \details In other words, disables in-memory database updating with consequent
  * flush-to-disk/msync syscall.
  *
  * 0/OFF = Don't track dirty pages at all, don't spill ones, and use msync() to
@@ -161,16 +162,14 @@
 #error MDBX_AVOID_MSYNC must be defined as 0 or 1
 #endif /* MDBX_AVOID_MSYNC */
 
-/** Управляет механизмом поддержки разреженных наборов DBI-хендлов для снижения
- * накладных расходов при запуске и обработке транзакций. */
+/** Controls a supporting sparse sets of DBI-handles to reduce transaction startup and processing overhead. */
 #ifndef MDBX_ENABLE_DBI_SPARSE
 #define MDBX_ENABLE_DBI_SPARSE 1
 #elif !(MDBX_ENABLE_DBI_SPARSE == 0 || MDBX_ENABLE_DBI_SPARSE == 1)
 #error MDBX_ENABLE_DBI_SPARSE must be defined as 0 or 1
 #endif /* MDBX_ENABLE_DBI_SPARSE */
 
-/** Управляет механизмом отложенного освобождения и поддержки пути быстрого
- * открытия DBI-хендлов без захвата блокировок. */
+/** Controls support of lock-free opening of DBI-handles and deferred destroying ones. */
 #ifndef MDBX_ENABLE_DBI_LOCKFREE
 #define MDBX_ENABLE_DBI_LOCKFREE 1
 #elif !(MDBX_ENABLE_DBI_LOCKFREE == 0 || MDBX_ENABLE_DBI_LOCKFREE == 1)
