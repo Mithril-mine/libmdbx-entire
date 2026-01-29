@@ -74,8 +74,8 @@ bsr_t mvcc_bind_slot(MDBX_env *env) {
 __hot orsi_t mvcc_shapshot_oldest(const MDBX_txn *const txn) {
   const uint32_t nothing_changed = MDBX_STRING_TETRAD("None");
   lck_t *const lck = txn->env->lck;
+  uint64_t oldest_retired_pages = lck->cached_oldest_retired.weak;
   const txnid_t prev_oldest = atomic_load64(&lck->cached_oldest_txnid, mo_AcquireRelease);
-  uint64_t oldest_retired_pages = atomic_load64(&lck->cached_oldest_retired, mo_AcquireRelease);
   const meta_ptr_t steady = meta_prefer_steady(txn->env, &txn->wr.troika);
   orsi_t result = {.steady_txnid = steady.txnid, .oldest_txnid = prev_oldest};
   tASSERT(txn, steady.txnid <= txn->env->basal_txn->txnid);
@@ -86,6 +86,7 @@ __hot orsi_t mvcc_shapshot_oldest(const MDBX_txn *const txn) {
     jitter4testing(false);
     const size_t snap_nreaders = atomic_load32(&lck->rdt_length, mo_AcquireRelease);
     result.oldest_txnid = result.steady_txnid;
+    oldest_retired_pages = unaligned_peek_u64(4, steady.ptr_c->pages_retired);
 
     for (size_t i = 0; i < snap_nreaders; ++i) {
     retry:;

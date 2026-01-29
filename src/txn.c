@@ -3,6 +3,40 @@
 
 #include "internals.h"
 
+pgop_stat_t *txn_latency_gcprof(const MDBX_env *env, MDBX_commit_latency *latency) {
+  pgop_stat_t *const pgops = &env->lck->pgops;
+  latency->gc_prof.work_counter = pgops->gc_prof.work.spe_counter;
+  latency->gc_prof.work_rtime_monotonic = osal_monotime_to_16dot16(pgops->gc_prof.work.rtime_monotonic);
+  latency->gc_prof.work_xtime_cpu = osal_monotime_to_16dot16(pgops->gc_prof.work.xtime_cpu);
+  latency->gc_prof.work_rsteps = pgops->gc_prof.work.rsteps;
+  latency->gc_prof.work_xpages = pgops->gc_prof.work.xpages;
+  latency->gc_prof.work_majflt = pgops->gc_prof.work.majflt;
+
+  latency->gc_prof.self_counter = pgops->gc_prof.self.spe_counter;
+  latency->gc_prof.self_rtime_monotonic = osal_monotime_to_16dot16(pgops->gc_prof.self.rtime_monotonic);
+  latency->gc_prof.self_xtime_cpu = osal_monotime_to_16dot16(pgops->gc_prof.self.xtime_cpu);
+  latency->gc_prof.self_rsteps = pgops->gc_prof.self.rsteps;
+  latency->gc_prof.self_xpages = pgops->gc_prof.self.xpages;
+  latency->gc_prof.self_majflt = pgops->gc_prof.self.majflt;
+
+  latency->gc_prof.wloops = pgops->gc_prof.wloops;
+  latency->gc_prof.coalescences = pgops->gc_prof.coalescences;
+  latency->gc_prof.wipes = pgops->gc_prof.wipes;
+  latency->gc_prof.flushes = pgops->gc_prof.flushes;
+  latency->gc_prof.kicks = pgops->gc_prof.kicks;
+
+  latency->gc_prof.pnl_merge_work.time = osal_monotime_to_16dot16(pgops->gc_prof.work.pnl_merge.time);
+  latency->gc_prof.pnl_merge_work.calls = pgops->gc_prof.work.pnl_merge.calls;
+  latency->gc_prof.pnl_merge_work.volume = pgops->gc_prof.work.pnl_merge.volume;
+  latency->gc_prof.pnl_merge_self.time = osal_monotime_to_16dot16(pgops->gc_prof.self.pnl_merge.time);
+  latency->gc_prof.pnl_merge_self.calls = pgops->gc_prof.self.pnl_merge.calls;
+  latency->gc_prof.pnl_merge_self.volume = pgops->gc_prof.self.pnl_merge.volume;
+
+  latency->gc_prof.max_reader_lag = pgops->gc_prof.max_reader_lag;
+  latency->gc_prof.max_retained_pages = pgops->gc_prof.max_retained_pages;
+  return pgops;
+}
+
 __hot bool txn_gc_detent(const MDBX_txn *const txn) {
   const txnid_t detent = mvcc_shapshot_oldest(txn).oldest_txnid;
   if (likely(detent == txn->env->gc.detent))
@@ -58,7 +92,7 @@ int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
   return MDBX_SUCCESS;
 }
 
-int txn_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
+int txn_commit(MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timestamp *ts) {
   tASSERT(txn, !txn->nested && !(txn->flags & MDBX_TXN_FINISHED));
   if (unlikely(txn->flags & MDBX_TXN_ERROR)) {
     int err = txn_abort(txn);
@@ -86,6 +120,10 @@ int txn_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
       if (rc == MDBX_RESULT_TRUE)
         rc = MDBX_NOSUCCESS_PURE_COMMIT ? MDBX_RESULT_TRUE : MDBX_SUCCESS;
     }
+    if (latency) {
+      pgop_stat_t *const pgops = txn_latency_gcprof(env, latency);
+      memset(&pgops->gc_prof, 0, sizeof(pgops->gc_prof));
+    }
     int err = txn_basal_end(txn, true);
     return (err == MDBX_SUCCESS) ? rc : err;
   }
@@ -94,7 +132,10 @@ int txn_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
     ERROR("attempt to commit %s txn %p", "strange nested", __Wpedantic_format_voidptr(txn));
     return MDBX_PROBLEM;
   }
-  return txn_nested_commit(txn, ts);
+  int rc = txn_nested_commit(txn, ts);
+  if (latency)
+    txn_latency_gcprof(env, latency);
+  return rc;
 }
 
 #if !(defined(_WIN32) || defined(_WIN64))
