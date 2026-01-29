@@ -272,6 +272,14 @@
 #error MDBX_ENABLE_NON_READONLY_EXPORT must be defined as 0 or 1
 #endif /* MDBX_ENABLE_NON_READONLY_EXPORT */
 
+/** Enables fake nested read-only transactions, which are much cheaper but do not restore
+ * the state of cursors in case of transaction abortion. */
+#ifndef MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS
+#define MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS 0
+#elif !(MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS == 0 || MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS == 1)
+#error MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS must be defined as 0 or 1
+#endif /* MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS */
+
 //------------------------------------------------------------------------------
 
 /** Win32 File Locking API for \ref MDBX_LOCKING */

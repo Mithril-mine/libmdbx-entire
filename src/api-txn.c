@@ -83,6 +83,8 @@ MDBX_txn_flags_t mdbx_txn_flags(const MDBX_txn *txn) {
   if (F_ISSET(flags, MDBX_TXN_PARKED | txn_ro_flat) && txn->ro.slot &&
       safe64_read(&txn->ro.slot->tid) == MDBX_TID_TXN_OUSTED)
     flags |= MDBX_TXN_OUSTED;
+  if (flags & txn_ro_nested)
+    flags += MDBX_TXN_RDONLY - txn_ro_nested;
   return flags;
 }
 
@@ -272,34 +274,30 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
         return LOG_IFERR(rc);
     }
   } else {
+    if (unlikely(flags & ~(MDBX_TXN_READWRITE | MDBX_TXN_RDONLY)))
+      return LOG_IFERR(MDBX_EINVAL);
+
     rc = check_txn(parent, MDBX_TXN_BLOCKED - MDBX_TXN_PARKED);
     if (unlikely(rc != MDBX_SUCCESS))
       return LOG_IFERR(rc);
 
-    if (flags != MDBX_TXN_READWRITE) {
-      if (unlikely(flags != MDBX_TXN_RDONLY))
-        return LOG_IFERR(MDBX_EINVAL);
-      flags = (unsigned)txn_ro_nested;
+    if (unlikely(parent->flags & txn_ro_both)) {
+      ERROR("%s", "Could not start a nested transaction from the flat read-only parent");
+      return LOG_IFERR(MDBX_BAD_TXN);
     }
-    flags |= parent->flags & (MDBX_TXN_SPILLS | MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP);
 
-    if (unlikely(parent->flags & (txn_ro_flat | MDBX_WRITEMAP))) {
-      if (parent->flags & MDBX_WRITEMAP) {
-        ERROR("%s mode is incompatible with nested transactions", "MDBX_WRITEMAP");
-        rc = MDBX_INCOMPATIBLE;
-      } else {
-        ERROR("%s", "Could not start a nested transaction from the flat read-only parent");
-        rc = MDBX_BAD_TXN;
-      }
-      return LOG_IFERR(rc);
-    }
     if (unlikely(parent->env != env))
-      return LOG_IFERR(MDBX_BAD_TXN);
+      return LOG_IFERR(MDBX_EINVAL);
 
-    rc = txn_nested_create(parent, flags);
-    txn = parent->nested;
-    if (unlikely(rc != MDBX_SUCCESS))
-      return LOG_IFERR(MDBX_BAD_TXN);
+    if (MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS && flags == MDBX_TXN_RDONLY) {
+      txn = txn_nested_fakero_begin(parent);
+      rc = txn ? MDBX_SUCCESS : MDBX_EINVAL;
+    } else {
+      rc = txn_nested_create(parent, (flags & MDBX_TXN_RDONLY) != 0);
+      txn = parent->nested;
+      if (unlikely(rc != MDBX_SUCCESS))
+        return LOG_IFERR(rc);
+    }
   }
 
   txn->signature = txn_signature;
@@ -307,13 +305,19 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags, M
 
   if (F_ISSET(flags, MDBX_TXN_RDONLY_PREPARE))
     eASSERT(env, txn->flags == (txn_ro_flat | MDBX_TXN_FINISHED));
-  else if (flags & txn_ro_flat)
+  else if ((flags & txn_ro_flat) != 0 && !parent)
     eASSERT(env, (txn->flags & ~(MDBX_NOSTICKYTHREADS | txn_ro_flat | MDBX_WRITEMAP |
                                  /* Win32: SRWL flag */ txn_shrink_allowed)) == 0);
   else {
-    eASSERT(env, (txn->flags & ~(MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP | txn_shrink_allowed | txn_may_have_cursors |
-                                 MDBX_NOMETASYNC | MDBX_SAFE_NOSYNC | MDBX_TXN_SPILLS | txn_ro_nested)) == 0);
-    assert(!txn->wr.spilled.list && !txn->wr.spilled.least_removed);
+    if (MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS)
+      eASSERT(env, (txn->flags & ~(MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP | txn_shrink_allowed | txn_may_have_cursors |
+                                   MDBX_NOMETASYNC | MDBX_SAFE_NOSYNC | MDBX_TXN_SPILLS | txn_ro_nested |
+                                   MDBX_TXN_DIRTY | txn_gc_drained)) == 0);
+    else {
+      eASSERT(env, (txn->flags & ~(MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP | txn_shrink_allowed | txn_may_have_cursors |
+                                   MDBX_NOMETASYNC | MDBX_SAFE_NOSYNC | MDBX_TXN_SPILLS | txn_ro_nested)) == 0);
+      eASSERT(env, !txn->wr.spilled.list && !txn->wr.spilled.least_removed);
+    }
     if (AUDIT_ENABLED() && ASSERT_ENABLED())
       tASSERT(txn, audit_ex(txn, 0, false) == 0);
   }
@@ -384,8 +388,7 @@ int mdbx_txn_commit_ex(MDBX_txn *txn, MDBX_commit_latency *latency) {
 #if MDBX_TXN_CHECKOWNER
   if ((txn->flags & MDBX_NOSTICKYTHREADS) && txn == env->basal_txn && unlikely(txn->owner != osal_thread_self())) {
     mdbx_txn_break(txn);
-    rc = MDBX_THREAD_MISMATCH;
-    return LOG_IFERR(rc);
+    return LOG_IFERR(MDBX_THREAD_MISMATCH);
   }
 #endif /* MDBX_TXN_CHECKOWNER */
 

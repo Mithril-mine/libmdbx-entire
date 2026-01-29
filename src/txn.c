@@ -99,6 +99,9 @@ int txn_commit(MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timest
     return (err == MDBX_SUCCESS) ? MDBX_RESULT_TRUE : err;
   }
 
+  if (MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS && unlikely(txn->flags & txn_ro_nested))
+    return txn_nested_fakero_end(txn);
+
   MDBX_env *const env = txn->env;
   if (txn != env->txn) {
     if (unlikely(txn->flags & txn_ro_flat) == 0) {
@@ -157,6 +160,10 @@ int txn_abort(MDBX_txn *txn) {
 
   tASSERT(txn, /* txn->signature == txn_signature && */ !txn->nested && !(txn->flags & MDBX_TXN_HAS_CHILD));
   tASSERT(txn, (txn->flags & (MDBX_TXN_ERROR | txn_ro_flat)) || dpl_check(txn));
+
+  if (MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS && unlikely(txn->flags & txn_ro_nested))
+    return txn_nested_fakero_end(txn);
+
   txn->flags |= /* avoid merge cursors' state */ MDBX_TXN_ERROR;
 
   if (txn->flags & txn_may_have_cursors)

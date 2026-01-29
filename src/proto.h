@@ -62,10 +62,12 @@ MDBX_INTERNAL void txn_abort_after_resurrect(MDBX_txn *txn);
 #endif /* Windows */
 MDBX_INTERNAL int txn_setup_primal(MDBX_txn *txn);
 
-MDBX_INTERNAL int txn_nested_create(MDBX_txn *parent, const MDBX_txn_flags_t flags);
-MDBX_INTERNAL int txn_nested_abort(MDBX_txn *nested);
+MDBX_INTERNAL int txn_nested_create(MDBX_txn *parent, bool readonly);
+MDBX_INTERNAL int txn_nested_abort(MDBX_txn *txn);
 MDBX_INTERNAL int txn_nested_commit(MDBX_txn *txn, struct commit_timestamp *ts);
 MDBX_INTERNAL int txn_nested_checkpoint(MDBX_txn *txn, struct commit_timestamp *ts);
+MDBX_INTERNAL MDBX_txn *txn_nested_fakero_begin(MDBX_txn *parent);
+MDBX_INTERNAL int txn_nested_fakero_end(MDBX_txn *txn);
 
 MDBX_INTERNAL MDBX_txn *txn_basal_create(const size_t max_dbi);
 MDBX_INTERNAL void txn_basal_destroy(MDBX_txn *txn);
@@ -77,7 +79,7 @@ MDBX_INTERNAL int txn_basal_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening
 
 MDBX_INTERNAL int txn_ro_park(MDBX_txn *txn, bool autounpark);
 MDBX_INTERNAL int txn_ro_unpark(MDBX_txn *txn);
-MDBX_INTERNAL int txn_ro_start(MDBX_txn *txn, bool prepare);
+MDBX_INTERNAL int txn_ro_start(MDBX_txn *txn, bool prepare_only);
 MDBX_INTERNAL int txn_ro_clone(const MDBX_txn *const source, MDBX_txn *const clone);
 MDBX_INTERNAL int txn_ro_reset(MDBX_txn *txn);
 MDBX_INTERNAL void txn_ro_free(MDBX_txn *txn);

@@ -219,14 +219,14 @@ static int ro_start_continue(MDBX_txn *txn) {
   return MDBX_SUCCESS;
 }
 
-int txn_ro_start(MDBX_txn *txn, bool prepare) {
+int txn_ro_start(MDBX_txn *txn, bool prepare_only) {
   MDBX_env *const env = txn->env;
   txn->flags = txn_ro_flat | MDBX_TXN_FINISHED | (env->flags & (MDBX_WRITEMAP | MDBX_NOSTICKYTHREADS));
   int err = ro_slot_get(txn);
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 
-  if (prepare) {
+  if (prepare_only) {
     eASSERT(env, txn->txnid == 0);
     eASSERT(env, txn->owner == 0);
     eASSERT(env, txn->n_dbi == 0);

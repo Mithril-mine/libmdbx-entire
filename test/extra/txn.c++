@@ -177,9 +177,8 @@ bool case0_trivia_sticky_threads(const mdbx::path &path, bool nested = false) {
 
   txn = env.start_read();
   err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
-  int expected = env.is_nested_transactions_available() ? MDBX_BAD_TXN : MDBX_INCOMPATIBLE;
-  assert(err == expected);
-  ok = ok && err == expected;
+  assert(err == MDBX_BAD_TXN);
+  ok = ok && err == MDBX_BAD_TXN;
   txn.make_broken();
   err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
   assert(err == MDBX_BAD_TXN);
@@ -319,9 +318,8 @@ bool case1_trivia_NO_sticky_threads(const mdbx::path &path, bool nested = true) 
 
   txn = env.start_read();
   err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
-  int expected = env.is_nested_transactions_available() ? MDBX_BAD_TXN : MDBX_INCOMPATIBLE;
-  assert(err == expected);
-  ok = ok && err == expected;
+  assert(err == MDBX_BAD_TXN);
+  ok = ok && err == MDBX_BAD_TXN;
   txn.make_broken();
   err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
   assert(err == MDBX_BAD_TXN);

@@ -261,6 +261,7 @@ struct MDBX_txn {
         size_t writemap_dirty_npages;
         size_t writemap_spilled_npages;
       };
+      void *preserve_parent_userctx;
       /* In write txns, next is located the array of cursors for each DB */
     } wr;
   };

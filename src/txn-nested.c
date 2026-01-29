@@ -428,8 +428,17 @@ static int nested_start(MDBX_txn *const nested, MDBX_txn *parent) {
   return txn_shadow_cursors(parent, MAIN_DBI);
 }
 
-int txn_nested_create(MDBX_txn *parent, const MDBX_txn_flags_t flags) {
-  if (parent->env->options.spill_parent4child_denominator && (flags & txn_ro_nested)) {
+int txn_nested_create(MDBX_txn *parent, bool readonly) {
+  if (unlikely(parent->flags & MDBX_WRITEMAP)) {
+    ERROR("%s mode is incompatible with nested transactions", "MDBX_WRITEMAP");
+    return MDBX_INCOMPATIBLE;
+  }
+
+  unsigned flags = parent->flags & (MDBX_TXN_SPILLS | MDBX_NOSTICKYTHREADS | MDBX_WRITEMAP);
+  if (readonly)
+    flags |= txn_ro_nested;
+
+  if (parent->env->options.spill_parent4child_denominator && (flags & txn_ro_nested) == 0) {
     /* Spill dirty-pages of parent to provide dirtyroom for child txn */
     int err =
         txn_spill(parent, nullptr, parent->wr.dirtylist->length / parent->env->options.spill_parent4child_denominator);
@@ -642,11 +651,11 @@ static int nested_join(MDBX_txn *nested, struct commit_timestamp *ts) {
   return MDBX_SUCCESS;
 }
 
-int txn_nested_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
-  int rc = nested_join(txn, ts);
+int txn_nested_commit(MDBX_txn *nested, struct commit_timestamp *ts) {
+  int rc = nested_join(nested, ts);
   if (unlikely(rc != MDBX_SUCCESS))
-    nested_undo(txn);
-  nested_free(txn);
+    nested_undo(nested);
+  nested_free(nested);
   return rc;
 }
 
@@ -663,4 +672,22 @@ int txn_nested_checkpoint(MDBX_txn *nested, struct commit_timestamp *ts) {
   if (unlikely(rc != MDBX_SUCCESS))
     txn_nested_abort(nested);
   return rc;
+}
+
+MDBX_txn *txn_nested_fakero_begin(MDBX_txn *parent) {
+  tASSERT(parent, (parent->flags & (txn_ro_nested | MDBX_TXN_FINISHED | MDBX_TXN_HAS_CHILD)) == 0);
+  if (!MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS)
+    return nullptr;
+  parent->wr.preserve_parent_userctx = parent->userctx;
+  parent->flags |= txn_ro_nested;
+  return parent;
+}
+
+int txn_nested_fakero_end(MDBX_txn *nested) {
+  tASSERT(nested, nested->flags & txn_ro_nested);
+  if (!MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS)
+    return MDBX_BAD_TXN;
+  nested->userctx = nested->wr.preserve_parent_userctx;
+  nested->flags -= txn_ro_nested;
+  return MDBX_SUCCESS;
 }

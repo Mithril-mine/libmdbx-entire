@@ -40,6 +40,7 @@
 #cmakedefine01 MDBX_ENABLE_PROFGC
 #cmakedefine01 MDBX_ENABLE_DBI_SPARSE
 #cmakedefine01 MDBX_ENABLE_DBI_LOCKFREE
+#cmakedefine01 MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS
 
 /* Windows */
 /* allowing override MDBX_WITHOUT_MSVC_CRT=ON to build the C++ API in "private" mode only for tests */
