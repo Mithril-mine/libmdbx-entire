@@ -95,7 +95,7 @@ int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
 int txn_commit(MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timestamp *ts) {
   tASSERT(txn, !txn->nested && !(txn->flags & MDBX_TXN_FINISHED));
   if (unlikely(txn->flags & MDBX_TXN_ERROR)) {
-    int err = txn_abort(txn);
+    int err = txn_abort(txn, latency);
     return (err == MDBX_SUCCESS) ? MDBX_RESULT_TRUE : err;
   }
 
@@ -148,18 +148,29 @@ void txn_abort_after_resurrect(MDBX_txn *txn) {
       txn_abort_after_resurrect(txn->nested);
       tASSERT(txn, !txn->nested);
     }
-    txn_abort(txn);
+    txn_abort(txn, nullptr);
   }
 }
 #endif /* Windows */
 
-int txn_abort(MDBX_txn *txn) {
+int txn_abort(MDBX_txn *txn, MDBX_commit_latency *latency) {
   DEBUG("txn %" PRIaTXN "%c-0x%X %p  on env %p, root page %" PRIaPGNO "/%" PRIaPGNO, txn->txnid,
         (txn->flags & txn_ro_flat) ? 'r' : 'w', txn->flags, __Wpedantic_format_voidptr(txn),
         __Wpedantic_format_voidptr(txn->env), txn->dbs[MAIN_DBI].root, txn->dbs[FREE_DBI].root);
 
   tASSERT(txn, /* txn->signature == txn_signature && */ !txn->nested && !(txn->flags & MDBX_TXN_HAS_CHILD));
   tASSERT(txn, (txn->flags & (MDBX_TXN_ERROR | txn_ro_flat)) || dpl_check(txn));
+
+  if (latency) {
+    txn_latency_gcprof(txn->env, latency);
+    if (txn != txn->env->txn) {
+      MDBX_commit_latency snap;
+      do {
+        snap = *latency;
+        txn_latency_gcprof(txn->env, latency);
+      } while (unlikely(memcpy(latency, &snap, sizeof(snap))));
+    }
+  }
 
   if (MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS && unlikely(txn->flags & txn_ro_nested))
     return txn_nested_fakero_end(txn);

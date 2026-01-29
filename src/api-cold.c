@@ -478,6 +478,8 @@ LIBMDBX_API int mdbx_txn_begin(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t
 
 LIBMDBX_API int mdbx_txn_commit(MDBX_txn *txn) { return __inline_mdbx_txn_commit(txn); }
 
+LIBMDBX_API int mdbx_txn_abort(MDBX_txn *txn) { return __inline_mdbx_txn_abort(txn); }
+
 LIBMDBX_API __cold int mdbx_env_stat(const MDBX_env *env, MDBX_stat *stat, size_t bytes) {
   return __inline_mdbx_env_stat(env, stat, bytes);
 }

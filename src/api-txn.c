@@ -115,7 +115,10 @@ int mdbx_txn_break(MDBX_txn *txn) {
   return MDBX_SUCCESS;
 }
 
-int mdbx_txn_abort(MDBX_txn *txn) {
+int mdbx_txn_abort_ex(MDBX_txn *txn, MDBX_commit_latency *latency) {
+  struct commit_timestamp ts;
+  txn_latency_init(latency, &ts);
+
   int rc = check_txn(txn, 0);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
@@ -138,7 +141,9 @@ int mdbx_txn_abort(MDBX_txn *txn) {
     tASSERT(txn, !txn->nested);
   }
 
-  return LOG_IFERR(txn_abort(txn));
+  rc = txn_abort(txn, latency);
+  txn_latency_done(latency, &ts);
+  return LOG_IFERR(rc);
 }
 
 int mdbx_txn_park(MDBX_txn *txn, bool autounpark) {
