@@ -132,7 +132,6 @@ static int basal_start_locked(MDBX_txn *txn, unsigned flags) {
   tASSERT(txn, rkl_empty(&txn->wr.gc.ready4reuse));
   tASSERT(txn, rkl_empty(&txn->wr.gc.comeback));
   txn->env->gc.detent = 0;
-  env->txn = txn;
 
   txn->wr.troika = meta_tap(env);
   const meta_ptr_t head = meta_recent(env, &txn->wr.troika);
@@ -183,6 +182,7 @@ static int basal_start_locked(MDBX_txn *txn, unsigned flags) {
   tASSERT(txn, txn->cursors[FREE_DBI] == nullptr);
 
   dxb_sanitize_tail(env, txn);
+  env->txn = txn;
   return MDBX_SUCCESS;
 }
 
@@ -212,7 +212,7 @@ int txn_basal_start(MDBX_txn *txn, unsigned flags) {
 
   int err = basal_start_locked(txn, flags);
   if (unlikely(err != MDBX_SUCCESS)) {
-    lck_txn_unlock(txn->env);
+    txn_basal_end(txn, true);
     return err;
   }
 
@@ -466,11 +466,8 @@ int txn_basal_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening_durability, s
   if (likely(rc == MDBX_SUCCESS)) {
     rc = txn_basal_end(txn, false);
     if (likely(rc == MDBX_SUCCESS)) {
-      rc = txn_basal_start(txn, preserved_flags | txn_rw_checkpoint);
-      if (likely(rc == MDBX_SUCCESS)) {
-        /* txn->userctx = preserved_context; */
-        return MDBX_SUCCESS;
-      }
+      /* txn->userctx = preserved_context; */
+      return txn_basal_start(txn, preserved_flags | txn_rw_checkpoint);
     }
   }
 
