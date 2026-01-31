@@ -413,13 +413,13 @@ static int nested_start(MDBX_txn *const nested, MDBX_txn *parent) {
 
   nested->wr.retired_pages = parent->wr.retired_pages;
   parent->wr.retired_pages = (void *)(intptr_t)pnl_size(parent->wr.retired_pages);
-
   nested->cursors[FREE_DBI] = nullptr;
   nested->cursors[MAIN_DBI] = nullptr;
   nested->dbi_state[FREE_DBI] = parent->dbi_state[FREE_DBI] & ~(DBI_FRESH | DBI_CREAT | DBI_DIRTY);
   nested->dbi_state[MAIN_DBI] = parent->dbi_state[MAIN_DBI] & ~(DBI_FRESH | DBI_CREAT | DBI_DIRTY);
-  memset(nested->dbi_state + CORE_DBS, 0, (nested->n_dbi = parent->n_dbi) - CORE_DBS);
   memcpy(nested->dbs, parent->dbs, sizeof(nested->dbs[0]) * CORE_DBS);
+  if ((nested->n_dbi = parent->n_dbi) > CORE_DBS)
+    memset(nested->dbi_state + CORE_DBS, 0, nested->n_dbi - CORE_DBS);
 
   tASSERT(parent, parent->wr.dirtyroom + parent->wr.dirtylist->length ==
                       (parent->parent ? parent->parent->wr.dirtyroom : parent->env->options.dp_limit));
@@ -673,6 +673,7 @@ int txn_nested_checkpoint(MDBX_txn *nested, struct commit_timestamp *ts) {
     nested->wr.loose_count = 0;
     nested->wr.loose_pages = nullptr;
     rc = nested_start(nested, parent);
+    tASSERT(nested, nested->env->txn == nested);
   }
   if (unlikely(rc != MDBX_SUCCESS))
     txn_nested_abort(nested);

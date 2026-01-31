@@ -399,6 +399,7 @@ int mdbx_txn_commit_embark_read(MDBX_txn **ptxn, MDBX_commit_latency *latency) {
     if (likely(rc == MDBX_SUCCESS)) {
       rtxn = wtxn;
       rtxn->flags |= txn_ro_nested;
+      tASSERT(rtxn, rtxn->env->txn == rtxn);
     }
   }
   *ptxn = rtxn;
