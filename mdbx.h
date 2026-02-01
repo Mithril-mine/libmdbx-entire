@@ -4301,6 +4301,10 @@ LIBMDBX_API int mdbx_txn_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening_du
  * \ref mdbx_txn_begin(\ref MDBX_TXN_RDONLY) if the first one is successful, but before release the locks, which
  * ensures that there are no other changes after the current changes are committed and the read transaction begins.
  *
+ * \note In future versions of libmdbx, it is planned to implement the transfer of the cursors state from a finished
+ * transaction to a new one that is being launched. The relevance of such an opportunity is currently being studied,
+ * please contact the developers if you need such.
+ *
  * \see mdbx_txn_checkpoint()
  * \see mdbx_txn_commit_ex()
  * \see mdbx_txn_refresh()
@@ -4337,6 +4341,10 @@ LIBMDBX_API int mdbx_txn_commit_embark_read(MDBX_txn **ptxn, MDBX_commit_latency
  * If successful, the handle of the new writing transaction is returned, and the previous reading transaction is finished.
  * With this if \ref MDBX_TXN_RDONLY_PREPARE is present in the flags, the handle of the previous reading transaction will
  * be preserved for subsequent reuse via \ref mdbx_txn_renew(), otherwise it will be released and will become unavailable.
+ *
+ * \note In future versions of libmdbx, it is planned to implement the transfer of the cursors state from a finished
+ * transaction to a new one that is being launched. The relevance of such an opportunity is currently being studied,
+ * please contact the developers if you need such.
  *
  * \see mdbx_txn_checkpoint()
  * \see mdbx_txn_commit_ex()
