@@ -1511,6 +1511,11 @@ void txn_managed::commit_embark_read(finalization_latency *latency) {
   error::success_or_throw(::mdbx_txn_commit_embark_read(&handle_, latency));
 }
 
+bool txn_managed::amend(bool dont_wait) {
+  return !error::boolean_or_throw(::mdbx_txn_amend(
+      handle_, &handle_, dont_wait ? MDBX_TXN_READWRITE | MDBX_TXN_TRY : MDBX_TXN_READWRITE, handle_->userctx));
+}
+
 //------------------------------------------------------------------------------
 
 __cold bool txn::drop_map(const char *name, bool throw_if_absent) {

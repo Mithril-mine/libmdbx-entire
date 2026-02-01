@@ -454,6 +454,10 @@ public:
     commit_embark_read(&result);
     return result;
   }
+
+  /// \brief Starts a writing transaction to amending data in the MVCC-snapshot used by the read-only transaction.
+  /// \returns The `true` if writing transaction successfully started and `false` if read-only one still continue.
+  bool amend(bool dont_wait = false);
 };
 
 // > dist-cutoff-begin

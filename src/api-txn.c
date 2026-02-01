@@ -696,3 +696,70 @@ bailout:
   }
   return LOG_IFERR(rc);
 }
+
+int mdbx_txn_amend(MDBX_txn *rtxn, MDBX_txn **ptxn, MDBX_txn_flags_t flags, void *context) {
+  if (unlikely(!ptxn))
+    return LOG_IFERR(MDBX_EINVAL);
+
+  if (*ptxn != rtxn)
+    *ptxn = nullptr;
+
+  if (unlikely(flags & ~(txn_rw_begin_flags | MDBX_TXN_RDONLY_PREPARE)))
+    return LOG_IFERR(MDBX_EINVAL);
+
+  int rc = check_txn(rtxn, MDBX_TXN_BLOCKED - MDBX_TXN_PARKED);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  MDBX_env *const env = rtxn->env;
+  rc = check_env(env, true);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  if (unlikely((rtxn->flags & txn_ro_flat) == 0))
+    return LOG_IFERR(MDBX_BAD_TXN);
+
+  /* avoid recursive deadlock */
+  if (env->txn && env->basal_txn->owner == osal_thread_self())
+    return LOG_IFERR(MDBX_TXN_OVERLAPPING);
+
+  /* first check that there were no new commits */
+  if (recent_committed_txnid(env) != rtxn->txnid)
+    return LOG_IFERR(MDBX_RESULT_TRUE);
+
+  STATIC_ASSERT(MDBX_TXN_TRY != MDBX_TXN_PARKED);
+  if ((uint32_t)(flags & MDBX_TXN_TRY) == (uint32_t)(rtxn->flags & MDBX_TXN_PARKED)) {
+    rc = txn_ro_park(rtxn, true);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+  }
+  rc = lck_txn_lock(env, (flags & MDBX_TXN_TRY) != 0);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  /* after the lock was acuired we re-check that there were no new commits */
+  if (recent_committed_txnid(env) != rtxn->txnid) {
+    lck_txn_unlock(env);
+    return LOG_IFERR(MDBX_RESULT_TRUE);
+  }
+
+  rc = txn_basal_start(env->basal_txn, (flags & ~MDBX_TXN_RDONLY_PREPARE) | txn_rw_already_locked);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  /* A paranoid check that changes will be made on top of the desired data snapshot */
+  rc = MDBX_RESULT_TRUE;
+  if (txn_basis_snapshot(env->basal_txn) == rtxn->txnid)
+    rc = txn_ro_reset(rtxn);
+  if (unlikely(rc != MDBX_SUCCESS)) {
+    env->basal_txn->flags |= MDBX_TXN_ERROR;
+    txn_basal_end(env->basal_txn, true);
+    return LOG_IFERR(rc);
+  }
+
+  if (!F_ISSET(flags, MDBX_TXN_RDONLY_PREPARE))
+      txn_ro_free(rtxn);
+  env->basal_txn->userctx = context;
+  *ptxn = env->basal_txn;
+  return MDBX_SUCCESS;
+}

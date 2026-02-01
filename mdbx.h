@@ -4326,6 +4326,64 @@ LIBMDBX_API int mdbx_txn_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening_du
  * \warning This function may be changed in future releases. */
 LIBMDBX_API int mdbx_txn_commit_embark_read(MDBX_txn **ptxn, MDBX_commit_latency *latency);
 
+/** \brief Starts a writing transaction to amending data in the MVCC-snapshot used by the read-only transaction.
+ * \ingroup c_transactions
+ *
+ * \details The function tries to start a writing transaction to amend the snapshot of a data associated with a given
+ * reading transaction. However, such an operation is not possible if at least one writing transaction has been
+ * committed after the start of the specified read-only transaction. In this case, no action is performed and
+ * the \ref MDBX_RESULT_TRUE code is returned.
+ *
+ * If successful, the handle of the new writing transaction is returned, and the previous reading transaction is finished.
+ * With this if \ref MDBX_TXN_RDONLY_PREPARE is present in the flags, the handle of the previous reading transaction will
+ * be preserved for subsequent reuse via \ref mdbx_txn_renew(), otherwise it will be released and will become unavailable.
+ *
+ * \see mdbx_txn_checkpoint()
+ * \see mdbx_txn_commit_ex()
+ * \see mdbx_txn_refresh()
+ * \see mdbx_txn_begin_ex()
+ *
+ * \param [in] read_txn            A read-only transaction handle returned by \ref mdbx_txn_begin().
+ * \param [in, out] ptr_write_txn  A pointer for returning the \ref MDBX_txn handle of newly
+ *                                 started writing transaction.
+ *
+ * \param [in] flags               Special options for new write transaction. This parameter
+ *                                 must be set to 0 or by bitwise OR'ing together one
+ *                                 or more of the values described here:
+ *                                  - \ref MDBX_TXN_RDONLY_PREPARE.
+ *                                    Do not release the source read-only transaction,
+ *                                    but preserve it handle to be reused by \ref mdbx_txn_renew().
+ *
+ *                                  - \ref MDBX_TXN_TRY.
+ *                                    Do not block when starting a write transaction.
+ *
+ *                                  - \ref MDBX_SAFE_NOSYNC, \ref MDBX_NOMETASYNC.
+ *                                    Do not sync data to disk corresponding
+ *                                    to \ref MDBX_NOMETASYNC or \ref MDBX_SAFE_NOSYNC
+ *                                    description. \see sync_modes
+ *
+ * \param [in] context             A pointer to application context to be associated with
+ *                                 created transaction and could be retrieved by
+ *                                 \ref mdbx_txn_get_userctx() until transaction finished.
+ *
+ * \returns A non-zero error value on failure and 0 on success, some possibilities are:
+ * \retval MDBX_RESULT_TRUE      A more recent MVCC-snapshot has been committed after reading transaction
+ *                               was started and data cannot be amended based on the desired data snapshot,
+ *                               no actions have been performed.
+ * \retval MDBX_TXN_OVERLAPPING  The current thread is already executing a write transaction.
+ * \retval MDBX_PANIC            A fatal error occurred earlier and
+ *                               the environment must be shut down.
+ * \retval MDBX_BAD_TXN          Unexpected or wrong transaction state.
+ * \retval MDBX_EBADSIGN         Transaction object has invalid signature,
+ *                               e.g. transaction was already terminated
+ *                               or memory was corrupted.
+ * \retval MDBX_THREAD_MISMATCH  Given transaction is not owned
+ *                               by current thread.
+ * \retval MDBX_EINVAL           Transaction handle is NULL.
+ *
+ * \warning This function may be changed in future releases. */
+LIBMDBX_API int mdbx_txn_amend(MDBX_txn *read_txn, MDBX_txn **ptr_write_txn, MDBX_txn_flags_t flags, void *context);
+
 /** \brief Commits all the operations of the transaction into the database.
  * \ingroup c_transactions
  *
