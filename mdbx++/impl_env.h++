@@ -379,8 +379,9 @@ inline txn_managed env::prepare_read() const {
 
 inline txn_managed env::start_write(bool dont_wait) {
   ::MDBX_txn *ptr;
-  error::success_or_throw(::mdbx_txn_begin(handle_, nullptr, dont_wait ? MDBX_TXN_TRY : MDBX_TXN_READWRITE, &ptr));
-  assert(ptr != nullptr);
+  error::success_or_throw(
+      ::mdbx_txn_begin(handle_, nullptr, dont_wait ? MDBX_TXN_READWRITE | MDBX_TXN_TRY : MDBX_TXN_READWRITE, &ptr));
+  assert(ptr != nullptr || dont_wait);
   return txn_managed(ptr);
 }
 
