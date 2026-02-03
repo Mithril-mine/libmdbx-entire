@@ -1578,10 +1578,8 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       usr->result.kv_tree_problems = usr->result.tree_problems;
     if (usr->result.histogram_page_age.count) {
       line = chk_line_begin(scope, MDBX_chk_info);
-      if (line) {
-        histogram_dist(line, &usr->result.histogram_page_age, "pages age distribution", "dirty", false);
-        chk_line_end(line);
-      }
+      histogram_dist(line, &usr->result.histogram_page_age, "pages age distribution", "dirty", false);
+      chk_line_end(line);
     }
     chk_scope_restore(scope, err);
   }
@@ -1597,11 +1595,8 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
     if (likely(!err))
       err = chk_db(usr->scope, FREE_DBI, &chk->table_gc, chk_handle_gc);
     line = chk_line_begin(scope, MDBX_chk_info);
-    if (line) {
-      histogram_print(scope, line, &chk->table_gc.histogram.nested_height_or_gc_span_length, "span(s)", "single",
-                      false);
-      chk_line_end(line);
-    }
+    histogram_print(scope, line, &chk->table_gc.histogram.nested_height_or_gc_span_length, "span(s)", "single", false);
+    chk_line_end(line);
     if (usr->result.problems_gc == 0 && (chk->flags & MDBX_CHK_SKIP_BTREE_TRAVERSAL) == 0) {
       const size_t used_pages = usr->result.alloc_pages - usr->result.gc_pages;
       if (usr->result.processed_pages != used_pages)
