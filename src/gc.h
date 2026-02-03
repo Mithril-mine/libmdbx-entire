@@ -81,10 +81,12 @@ static inline txnid_t txnid_max(txnid_t a, txnid_t b) { return (a > b) ? a : b; 
 
 static inline MDBX_cursor *gc_cursor(MDBX_env *env) { return ptr_disp(env->basal_txn, sizeof(MDBX_txn)); }
 
+MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL const char *gc_check_keylen(size_t const key_len);
+MDBX_INTERNAL const char *gc_check_rowdata(const MDBX_txn *const txn, const MDBX_val data);
+
 typedef struct gc_pnl_result {
   const_pnl_t pnl;
   int err;
   const char *reason;
 } glr_t;
-
 MDBX_INTERNAL glr_t gc_row_pnl(const MDBX_txn *const txn, const MDBX_val data);

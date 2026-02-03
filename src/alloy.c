@@ -10,6 +10,7 @@
 #include "api-dbi.c"
 #include "api-env.c"
 #include "api-extra.c"
+#include "api-gc.c"
 #include "api-get-cached.c"
 #include "api-key-transform.c"
 #include "api-misc.c"

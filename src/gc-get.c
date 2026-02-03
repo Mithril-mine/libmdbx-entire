@@ -836,11 +836,11 @@ static txnid_t shapshot_oldest_force_rescan(MDBX_txn *const txn) {
   return mvcc_shapshot_oldest_rw(txn).oldest_txnid;
 }
 
-static const char *gc_check_keylen(size_t const key_len) {
+const char *gc_check_keylen(size_t const key_len) {
   return likely(key_len == sizeof(txnid_t)) ? nullptr : "invalid GC key-length";
 }
 
-static const char *gc_check_rowdata(const MDBX_txn *const txn, const MDBX_val data) {
+const char *gc_check_rowdata(const MDBX_txn *const txn, const MDBX_val data) {
   if (unlikely(data.iov_len % sizeof(pgno_t) || data.iov_len < sizeof(pgno_t)))
     return "invalid length of GC-record";
   if (unlikely((size_t)data.iov_base % sizeof(pgno_t)))

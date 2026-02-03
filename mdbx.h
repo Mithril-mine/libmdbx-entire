@@ -2792,7 +2792,7 @@ MDBX_DEPRECATED LIBMDBX_INLINE_API(int, mdbx_env_stat, (const MDBX_env *env, MDB
   return mdbx_env_stat_ex(env, NULL, stat, bytes);
 }
 
-/** \brief Information about the environment
+/** \brief Information about the environment.
  * \ingroup c_statinfo
  * \see mdbx_env_info_ex() */
 struct MDBX_envinfo {
@@ -2897,7 +2897,7 @@ typedef struct MDBX_envinfo MDBX_envinfo;
  * \param [in] env     An environment handle returned by \ref mdbx_env_create()
  * \param [in] txn     A transaction handle returned by \ref mdbx_txn_begin()
  * \param [out] info   The address of an \ref MDBX_envinfo structure
- *                     where the information will be copied
+ *                     where the information will be provided.
  * \param [in] bytes   The actual size of \ref MDBX_envinfo,
  *                     this value is used to provide ABI compatibility.
  *
@@ -7145,6 +7145,77 @@ LIBMDBX_API const char *mdbx_ratio2digits(uint64_t numerator, uint64_t denominat
 LIBMDBX_API const char *mdbx_ratio2percents(uint64_t value, uint64_t whole, char *buffer, size_t buffer_size);
 
 /** end of chk @} */
+
+/** \brief A callback function for iterating GC entries.
+ * \ingroup c_statinfo
+ * \see mdbx_gc_info()
+ *
+ * The callback function is called for each sequence of an adjacent pages inside GC, including single pages.
+ * \note This API has not been frozen yet, and there may be improvements and changes in subsequent versions.
+ *
+ * \param [in] ctx                 A pointer to the context passed by a similar parameter in \ref mdbx_gc_info().
+ * \param [in] txn                 A transaction handle returned by \ref mdbx_txn_begin().
+ * \param [in] span_txnid          A transaction ID and the same as MVCC-snapshot number
+ *                                 of which the span is associated in reclaiming order.
+ * \param [in] span_pgno           The starting page number of a span.
+ * \param [in] span_length         The number of pages in a span, it is 1 for a single pages.
+ * \param [in] span_is_reclaimable A boolean flag indicates the span is reclaimable for now either no.
+ *
+ * \returns Zero if an enumeration step is successful and should be continues,
+ * if another value is returned, it will be immediately returned to the caller without continuing an enumeration. */
+typedef int(MDBX_gc_iter_func)(void *ctx, const MDBX_txn *txn, uint64_t span_txnid, size_t span_pgno,
+                               size_t span_length, bool span_is_reclaimable) MDBX_CXX17_NOEXCEPT;
+
+/** \brief Information about Garbage Collection and page usage.
+ * \ingroup c_statinfo
+ * \see mdbx_gc_info */
+typedef struct MDBX_gc_info {
+  size_t pages_total;     /**< Total number of pages in a database, i.e. the upper limit defined by geometry */
+  size_t pages_backed;    /**< Number of pages currently backed by a database file */
+  size_t pages_allocated; /**< Number of pages currently allocated */
+  size_t pages_gc;        /**< Number of all pages within GC,
+                           * includes a pages formes the B-tree structure of GC itself */
+  struct {
+    size_t pages; /**< Number of reclaimable pages, including pending reserve within a current write transaction */
+    struct MDBX_chk_histogram
+        span_histogram; /**< Histogram of the spans length of a sequence(s) adjacent reclaimable pages */
+    struct MDBX_chk_histogram pgno_distribution; /**< Distribution of a reclaimable pages over the file of a database */
+  } gc_reclaimable;
+} MDBX_gc_info_t;
+
+/** \brief Provides information of Garbage Collection and page usage.
+ *
+ * \details Scans the whole GC to summarise information of GC state and page page usage for given transaction.
+ * During this optionaly iterages GC entries by calling a user-specified visitor function for each span of
+ * pages inside GC, excepting a pages formes the B-tree structure of GC itself. Such iteration continues until the GC
+ * items are exhausted, or until a result other than zero is returned from a user-defined callback function, which will
+ * be returned immediately as a result.
+ *
+ * \note This API has not been frozen yet, and there may be improvements and changes in subsequent versions.
+ *
+ * \ingroup c_statinfo
+ * \see MDBX_gc_info_t
+ * \see MDBX_gc_iter_func
+ *
+ * \param [in] txn          A transaction started by \ref mdbx_txn_begin().
+ *
+ * \param [out] info        The address of an \ref MDBX_gc_info_t structure
+ *                          where the information will be provided.
+ *
+ * \param [in] bytes        The actual size of \ref MDBX_gc_info_t,
+ *                          this value is used to provide ABI compatibility.
+ *
+ * \param [in] iter_func    A custom callback function with the signature \ref MDBX_gc_iter_func,
+ *                          which will be called for each span.
+ *
+ * \param [in] iter_ctx     A pointer to some context that will be passed to the `func()` function as it is.
+ *
+ * \returns A non-zero error value on failure and 0 on success,
+ *          some possible errors are:
+ * \retval MDBX_EINVAL    An invalid parameter was specified.
+ * \retval MDBX_NOTFOUND  The GC is empty for now. */
+LIBMDBX_API int mdbx_gc_info(MDBX_txn *txn, MDBX_gc_info_t *info, size_t bytes, MDBX_gc_iter_func iter_func,
+                             void *iter_ctx);
 
 /** end of c_api @} */
 
