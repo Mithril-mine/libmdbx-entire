@@ -82,11 +82,7 @@ typedef struct geo {
     pgno_t now; /* current size of datafile in pages */
     pgno_t end_pgno;
   };
-  union {
-    pgno_t first_unallocated; /* first unused page in the datafile,
-                         but actually the file may be shorter. */
-    pgno_t next_pgno;
-  };
+  pgno_t first_unallocated; /* first unused page in the datafile. */
 } geo_t;
 
 /* Meta page content.

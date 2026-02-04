@@ -836,6 +836,35 @@ static txnid_t shapshot_oldest_force_rescan(MDBX_txn *const txn) {
   return mvcc_shapshot_oldest_rw(txn).oldest_txnid;
 }
 
+static const char *gc_check_keylen(size_t const key_len) {
+  return likely(key_len == sizeof(txnid_t)) ? nullptr : "invalid GC key-length";
+}
+
+static const char *gc_check_rowdata(const MDBX_txn *const txn, const MDBX_val data) {
+  if (unlikely(data.iov_len % sizeof(pgno_t) || data.iov_len < sizeof(pgno_t)))
+    return "invalid length of GC-record";
+  if (unlikely((size_t)data.iov_base % sizeof(pgno_t)))
+    return "invalid alignment of GC-record";
+
+  const const_pnl_t pnl = data.iov_base;
+  if (unlikely(data.iov_len < MDBX_PNL_SIZEOF(pnl))) {
+    return "trimmed GC-record";
+  }
+  if (unlikely(!pnl_check(pnl, txn->geo.first_unallocated)))
+    return "wrong GC-record";
+
+  return /* no error */ nullptr;
+}
+
+glr_t gc_row_pnl(const MDBX_txn *const txn, const MDBX_val data) {
+  glr_t result = {.pnl = (const pgno_t *)data.iov_base, .err = MDBX_SUCCESS, .reason = gc_check_rowdata(txn, data)};
+  if (unlikely(result.reason)) {
+    ERROR("%s/%d: %s", "MDBX_CORRUPTED", result.err = MDBX_CORRUPTED, result.reason);
+    result.pnl = nullptr;
+  }
+  return result;
+}
+
 pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) {
   pgr_t ret;
   MDBX_txn *const txn = mc->txn;
@@ -969,9 +998,8 @@ next_gc:
     }
     goto depleted_gc;
   }
-  if (unlikely(key.iov_len != sizeof(txnid_t))) {
-    ERROR("%s/%d: %s", "MDBX_CORRUPTED", MDBX_CORRUPTED, "invalid GC key-length");
-    ret.err = MDBX_CORRUPTED;
+  if (unlikely(gc_check_keylen(key.iov_len))) {
+    ERROR("%s/%d: %s", "corrupted GC-record", ret.err = MDBX_CORRUPTED, gc_check_keylen(key.iov_len));
     goto fail;
   }
 
@@ -989,21 +1017,19 @@ next_gc:
   }
   txn->flags &= ~txn_gc_drained;
 
-  /* Reading next GC record */
+  /* Reading GC record */
   MDBX_val data;
   page_t *const mp = gc->pg[gc->top];
   if (unlikely((ret.err = node_read(gc, page_node(mp, gc->ki[gc->top]), &data, mp)) != MDBX_SUCCESS))
     goto fail;
 
-  pgno_t *gc_pnl = (pgno_t *)data.iov_base;
-  if (unlikely(data.iov_len % sizeof(pgno_t) || data.iov_len < MDBX_PNL_SIZEOF(gc_pnl) ||
-               (MDBX_UNALIGNED_OK < sizeof(pgno_t) && (size_t)data.iov_base % sizeof(pgno_t)) ||
-               !pnl_check(gc_pnl, txn->geo.first_unallocated))) {
-    ERROR("%s/%d: %s", "MDBX_CORRUPTED", MDBX_CORRUPTED, "invalid length/align of GC-record");
-    ret.err = MDBX_CORRUPTED;
+  const glr_t glr = gc_row_pnl(txn, data);
+  if (unlikely(glr.err != MDBX_SUCCESS)) {
+    ERROR("%s/%d: %s", "corrupted GC-record", ret.err = glr.err, glr.reason);
     goto fail;
   }
 
+  const pgno_t *const gc_pnl = glr.pnl;
   const size_t gc_len = pnl_size(gc_pnl);
   TRACE("gc-read: id #%" PRIaTXN " len %zu, re-list will %zu ", id, gc_len, gc_len + pnl_size(txn->wr.repnl));
 
