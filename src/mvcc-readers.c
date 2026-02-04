@@ -71,18 +71,21 @@ bsr_t mvcc_bind_slot(MDBX_env *env) {
   return result;
 }
 
-__hot orsi_t mvcc_shapshot_oldest(const MDBX_txn *const txn) {
-  const uint32_t nothing_changed = MDBX_STRING_TETRAD("None");
+#define NOTHING_CHANGED_SIGNATURE MDBX_STRING_TETRAD("None")
+
+__hot orsi_rw_t mvcc_shapshot_oldest_rw(const MDBX_txn *const txn) {
+  const uint32_t nothing_changed_signature = NOTHING_CHANGED_SIGNATURE;
+  tASSERT(txn, (txn->flags & txn_ro_flat) == 0);
   lck_t *const lck = txn->env->lck;
   uint64_t oldest_retired_pages = lck->cached_oldest_retired.weak;
   const txnid_t prev_oldest = atomic_load64(&lck->cached_oldest_txnid, mo_AcquireRelease);
   const meta_ptr_t steady = meta_prefer_steady(txn->env, &txn->wr.troika);
-  orsi_t result = {.steady_txnid = steady.txnid, .oldest_txnid = prev_oldest};
+  orsi_rw_t result = {.steady_txnid = steady.txnid, .oldest_txnid = prev_oldest};
   tASSERT(txn, steady.txnid <= txn->env->basal_txn->txnid);
   tASSERT(txn, steady.txnid >= prev_oldest);
 
-  while (nothing_changed != atomic_load32(&lck->rdt_refresh_flag, mo_AcquireRelease)) {
-    lck->rdt_refresh_flag.weak = nothing_changed;
+  while (nothing_changed_signature != atomic_load32(&lck->rdt_refresh_flag, mo_AcquireRelease)) {
+    lck->rdt_refresh_flag.weak = nothing_changed_signature;
     jitter4testing(false);
     const size_t snap_nreaders = atomic_load32(&lck->rdt_length, mo_AcquireRelease);
     result.oldest_txnid = result.steady_txnid;
@@ -90,7 +93,7 @@ __hot orsi_t mvcc_shapshot_oldest(const MDBX_txn *const txn) {
 
     for (size_t i = 0; i < snap_nreaders; ++i) {
     retry:;
-      const uint32_t pid = atomic_load_pid(&lck->rdt[i].pid, mo_AcquireRelease);
+      const mdbx_pid_t pid = atomic_load_pid(&lck->rdt[i].pid, mo_AcquireRelease);
       if (!pid)
         continue;
       jitter4testing(true);
@@ -104,10 +107,10 @@ __hot orsi_t mvcc_shapshot_oldest(const MDBX_txn *const txn) {
       }
 
       if (unlikely(reader_txnid < prev_oldest)) {
-        if (unlikely(nothing_changed == atomic_load32(&lck->rdt_refresh_flag, mo_AcquireRelease)) &&
+        if (unlikely(nothing_changed_signature == atomic_load32(&lck->rdt_refresh_flag, mo_AcquireRelease)) &&
             safe64_reset_compare(&lck->rdt[i].txnid, reader_txnid)) {
-          NOTICE("kick stuck reader[%zu of %zu].pid_%u %" PRIaTXN " < prev-oldest %" PRIaTXN ", steady-txn %" PRIaTXN,
-                 i, snap_nreaders, pid, reader_txnid, prev_oldest, steady.txnid);
+          NOTICE("kick stuck reader[%zu of %zu].pid_%zu %" PRIaTXN " < prev-oldest %" PRIaTXN ", steady-txn %" PRIaTXN,
+                 i, snap_nreaders, (size_t)pid, reader_txnid, prev_oldest, steady.txnid);
         }
         continue;
       }
@@ -318,12 +321,12 @@ __cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler) {
   osal_memory_fence(mo_AcquireRelease, false);
   MDBX_env *const env = txn->env;
   MDBX_hsr_func *const callback = env->hsr_callback;
-  orsi_t orsi;
+  orsi_rw_t orsi;
   bool notify_eof_of_loop = false;
   int retry = 0;
   do {
     env->lck->rdt_refresh_flag.weak = /* force refresh */ true;
-    orsi = mvcc_shapshot_oldest(txn);
+    orsi = mvcc_shapshot_oldest_rw(txn);
     eASSERT(env, orsi.oldest_txnid < env->basal_txn->txnid);
     eASSERT(env, orsi.oldest_txnid >= straggler);
     eASSERT(env, orsi.oldest_txnid >= env->lck->cached_oldest_txnid.weak);

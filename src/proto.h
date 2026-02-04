@@ -16,11 +16,11 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t mvcc_largest_this(MDBX_env *env, pgno_t l
 MDBX_INTERNAL pgno_t mvcc_snapshot_largest(const MDBX_env *env, pgno_t last_used_page);
 MDBX_INTERNAL int mvcc_cleanup_dead(MDBX_env *env, int rlocked, int *dead);
 MDBX_INTERNAL bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t laggard);
-typedef struct oldest_readed_shapshot_into {
-  txnid_t oldest_txnid, steady_txnid;
-} orsi_t;
 
-MDBX_INTERNAL orsi_t mvcc_shapshot_oldest(const MDBX_txn *const txn);
+typedef struct rw_oldest_readed_shapshot_into {
+  txnid_t oldest_txnid, steady_txnid;
+} orsi_rw_t;
+MDBX_INTERNAL orsi_rw_t mvcc_shapshot_oldest_rw(const MDBX_txn *const txn);
 
 /* dxb.c */
 MDBX_INTERNAL int dxb_setup(MDBX_env *env, const int lck_rc, const mdbx_mode_t mode_bits);

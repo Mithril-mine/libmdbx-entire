@@ -833,7 +833,7 @@ bailout:
 
 static txnid_t shapshot_oldest_force_rescan(MDBX_txn *const txn) {
   atomic_store32(&txn->env->lck->rdt_refresh_flag, true, mo_AcquireRelease);
-  return mvcc_shapshot_oldest(txn).oldest_txnid;
+  return mvcc_shapshot_oldest_rw(txn).oldest_txnid;
 }
 
 pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) {
