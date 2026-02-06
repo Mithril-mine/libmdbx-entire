@@ -164,3 +164,69 @@ int tbl_purge(MDBX_cursor *mc) {
 
   return MDBX_SUCCESS;
 }
+
+/*----------------------------------------------------------------------------*/
+
+static void tbl_stat_add(const tree_t *db, MDBX_stat *const st) {
+  st->ms_depth += db->height;
+  st->ms_branch_pages += db->branch_pages;
+  st->ms_leaf_pages += db->leaf_pages;
+  st->ms_overflow_pages += db->large_pages;
+  st->ms_entries += db->items;
+  st->ms_mod_txnid = (st->ms_mod_txnid > db->mod_txnid) ? st->ms_mod_txnid : db->mod_txnid;
+}
+
+int tbl_stat_summary(const MDBX_txn *txn, MDBX_stat *st) {
+  memset(st, 0, sizeof(MDBX_stat));
+
+  const MDBX_env *const env = txn->env;
+  st->ms_psize = env->ps;
+  size_t done = 0;
+  TXN_FOREACH_DBI_FROM(txn, dbi,
+                       /* assuming GC is internal and not subject for accounting */ MAIN_DBI) {
+    if ((txn->dbi_state[dbi] & (DBI_VALID | DBI_STALE)) == DBI_VALID) {
+      done += 1;
+      tbl_stat_add(txn->dbs + dbi, st);
+    }
+  }
+
+  if ((txn->dbs[MAIN_DBI].flags & MDBX_DUPSORT) == 0 &&
+      done < txn->dbs[MAIN_DBI].items /* TODO: use `md_subs` field */ + /* MainDB */ 1) {
+    cursor_couple_t cx;
+    int err = cursor_init(&cx.outer, (MDBX_txn *)txn, MAIN_DBI);
+    if (unlikely(err != MDBX_SUCCESS))
+      return err;
+
+    /* scan and account not opened named tables */
+    err = tree_search(&cx.outer, nullptr, Z_FIRST);
+    while (err == MDBX_SUCCESS) {
+      const page_t *mp = cx.outer.pg[cx.outer.top];
+      for (size_t i = 0; i < page_numkeys(mp); i++) {
+        const node_t *const node = page_node(mp, i);
+        if (node_flags(node) != N_TREE)
+          continue;
+        if (unlikely(node_ds(node) != sizeof(tree_t))) {
+          ERROR("%s/%d: %s %zu", "MDBX_CORRUPTED", MDBX_CORRUPTED, "invalid table node size", node_ds(node));
+          return MDBX_CORRUPTED;
+        }
+
+        /* skip opened and already accounted */
+        const MDBX_val name = {node_key(node), node_ks(node)};
+        TXN_FOREACH_DBI_USER(txn, dbi)
+        if ((txn->dbi_state[dbi] & (DBI_VALID | DBI_STALE)) == DBI_VALID &&
+            env->kvs[MAIN_DBI].clc.k.cmp(&name, &env->kvs[dbi].name) == 0)
+          goto next;
+
+        tree_t db;
+        memcpy(&db, node_data(node), sizeof(db));
+        tbl_stat_add(&db, st);
+      }
+    next:
+      err = cursor_sibling_right(&cx.outer);
+    }
+    if (unlikely(err != MDBX_NOTFOUND))
+      return err;
+  }
+
+  return MDBX_SUCCESS;
+}
