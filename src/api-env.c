@@ -1008,17 +1008,18 @@ __cold int mdbx_env_set_geometry(MDBX_env *env, intptr_t size_lower, intptr_t si
 
     const geo_t *const geo = env->txn ? &env->txn->geo : &meta_recent(env, &env->basal_txn->wr.troika).ptr_c->geometry;
     if (size_lower < 0)
-      size_lower = pgno2bytes(env, geo->lower);
+      size_lower =
+          MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY ? pgno_ceil2os_bytes(env, geo->lower) : pgno2bytes(env, geo->lower);
     if (size_now < 0)
-      size_now = pgno_ceil2sp_bytes(env, geo->now);
+      size_now = pgno_ceil2os_bytes(env, geo->now);
     if (size_upper < 0)
-      size_upper = pgno_ceil2sp_bytes(env, geo->upper);
+      size_upper = pgno_ceil2os_bytes(env, geo->upper);
     if (growth_step < 0)
       growth_step = pgno2bytes(env, pv2pages(geo->grow_pv));
     if (shrink_threshold < 0)
       shrink_threshold = pgno2bytes(env, pv2pages(geo->shrink_pv));
 
-    const size_t usedbytes = pgno_ceil2sp_bytes(env, mvcc_snapshot_largest(env, geo->first_unallocated));
+    const size_t usedbytes = pgno_ceil2os_bytes(env, mvcc_snapshot_largest(env, geo->first_unallocated));
     if ((size_t)size_upper < usedbytes) {
       rc = MDBX_MAP_FULL;
       goto bailout;

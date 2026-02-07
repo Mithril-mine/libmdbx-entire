@@ -280,6 +280,20 @@
 #error MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS must be defined as 0 or 1
 #endif /* MDBX_ENABLE_FAKE_NESTED_READONLY_TRANSACTIONS */
 
+/** Forces rounding size of memory mapped regions and files to system allocation granularity rather to system page size.
+ *
+ * \details In most operating systems, RAM is allocated in larger chunks consisting of several pages.
+ * Thus, rounding up to the size of the system page, rather than the actual size of the block used
+ * for memory allocation, does not save resources, but only hides what is really happening.
+ * On the other hand, system allocation granularity may depend not only on the type of operating system,
+ * but also on the version, settings, and amount of available resources (RAM), so increasing the rounding
+ * unit may lead to doubtful and unexpected behavior for the user. */
+#ifndef MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY
+#define MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY 0
+#elif !(MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY == 0 || MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY == 1)
+#error MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY must be defined as 0 or 1
+#endif /* MDBX_ROUNDING_TO_ALLOCATION_GRANULARITY */
+
 //------------------------------------------------------------------------------
 
 /** Win32 File Locking API for \ref MDBX_LOCKING */
