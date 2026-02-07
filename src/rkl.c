@@ -101,6 +101,10 @@ static int rkl_resize(rkl_t *rkl, size_t wanna_size) {
   return MDBX_SUCCESS;
 }
 
+int rkl_reserve(rkl_t *rkl, size_t wanna_size) {
+  return (wanna_size > rkl->list_limit) ? rkl_resize(rkl, wanna_size) : MDBX_SUCCESS;
+}
+
 int rkl_copy(const rkl_t *src, rkl_t *dst) {
   assert(rkl_check(src));
   rkl_init(dst);
