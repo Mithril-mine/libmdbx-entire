@@ -1356,10 +1356,8 @@ __cold static int chk_handle_gc(MDBX_chk_scope_t *const scope, MDBX_chk_table_t 
                                "transaction %" PRIaTXN ", %" PRIuSIZE " pages, maxspan %" PRIuSIZE "%s", txnid, number,
                                pnl_maxspan(pnl), bad));
         for (size_t span, i = 1; i <= number; i += span) {
+          span = pnl_scan_span(pnl, i);
           const size_t pgno = pnl[i];
-          span = 1;
-          while (i + span <= number && MDBX_PNL_CONTIGUOUS(pgno, pnl[i + span], span))
-            ++span;
           histogram_acc(span, &tbl->histogram.nested_height_or_gc_span_length);
           MDBX_chk_line_t *line = chk_line_begin(scope, MDBX_chk_extra);
           if (line) {

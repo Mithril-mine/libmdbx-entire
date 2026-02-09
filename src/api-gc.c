@@ -69,10 +69,8 @@ int mdbx_gc_info(MDBX_txn *txn, MDBX_gc_info_t *info, size_t bytes, MDBX_gc_iter
       if (is_reclaimable)
         info->gc_reclaimable.pages += len;
       for (size_t span, i = 1; i <= len; i += span) {
+        span = pnl_scan_span(glr.pnl, i);
         const size_t pgno = glr.pnl[i];
-        span = 1;
-        while (i + span <= len && MDBX_PNL_CONTIGUOUS(pgno, glr.pnl[i + span], span))
-          ++span;
         if (is_reclaimable) {
           histogram_acc(span, &info->gc_reclaimable.span_histogram);
           histogram_acc(pgno, &info->gc_reclaimable.pgno_distribution);
