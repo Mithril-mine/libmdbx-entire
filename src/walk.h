@@ -10,7 +10,7 @@ typedef struct walk_tbl {
   tree_t *internal, *nested;
 } walk_tbl_t;
 
-typedef int walk_func(const size_t pgno, const unsigned number, void *const ctx, const int deep,
+typedef int walk_func(const size_t pgno, const unsigned number, void *const ctx, const unsigned deep,
                       const walk_tbl_t *table, const size_t page_size, const page_type_t page_type,
                       const txnid_t page_txnid, const MDBX_error_t err, const size_t nentries,
                       const size_t payload_bytes, const size_t header_bytes, const size_t unused_bytes,
@@ -23,7 +23,7 @@ MDBX_INTERNAL int walk_pages(MDBX_txn *txn, walk_func *visitor, void *user, walk
 typedef struct walk_ctx {
   void *userctx;
   walk_options_t options;
-  int deep;
+  unsigned deep;
   walk_func *visitor;
   MDBX_txn *txn;
   MDBX_cursor *cursor;
