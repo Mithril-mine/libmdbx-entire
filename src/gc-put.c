@@ -286,13 +286,13 @@ static int gc_prepare_stockpile4retired(MDBX_txn *txn, gcu_t *ctx) {
   return gc_prepare_stockpile(txn, ctx, for_retired);
 }
 
-static int gc_merge_loose(MDBX_txn *txn, gcu_t *ctx) {
+int gc_merge_loose(MDBX_txn *txn) {
   tASSERT(txn, txn->wr.loose_count > 0);
   /* Return loose page numbers to wr.repnl, though usually none are left at this point.
    * The pages themselves remain in dirtylist. */
   if (unlikely(!(txn->dbi_state[FREE_DBI] & DBI_DIRTY)) && txn->wr.loose_count < 3 + (unsigned)txn->dbs->height * 2) {
     /* Put loose page numbers in wr.retired_pages, since unreasonable to return ones to wr.repnl. */
-    TRACE("%s: merge %zu loose-pages into %s-pages", dbg_prefix(ctx), txn->wr.loose_count, "retired");
+    TRACE("merge %zu loose-pages into %s-pages", txn->wr.loose_count, "retired");
     int err = pnl_need(&txn->wr.retired_pages, txn->wr.loose_count);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
@@ -303,7 +303,7 @@ static int gc_merge_loose(MDBX_txn *txn, gcu_t *ctx) {
     }
   } else {
     /* Room for loose pages + temp PNL with same */
-    TRACE("%s: merge %zu loose-pages into %s-pages", dbg_prefix(ctx), txn->wr.loose_count, "reclaimed");
+    TRACE("merge %zu loose-pages into %s-pages", txn->wr.loose_count, "reclaimed");
     int err = pnl_need(&txn->wr.repnl, 2 * txn->wr.loose_count + 2);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
@@ -341,7 +341,7 @@ static int gc_merge_loose(MDBX_txn *txn, gcu_t *ctx) {
           page_shadow_release(txn->env, dp, 1);
       }
     }
-    TRACE("%s: filtered-out loose-pages from %zu -> %zu dirty-pages", dbg_prefix(ctx), dl->length, w);
+    TRACE("filtered-out loose-pages from %zu -> %zu dirty-pages", dl->length, w);
     tASSERT(txn, txn->wr.loose_count == dl->length - w);
     dl->sorted -= sorted_out;
     tASSERT(txn, dl->sorted <= w);
@@ -1453,7 +1453,7 @@ retry:
 
     if (txn->wr.loose_pages) {
       /* merge loose pages into the reclaimed- either retired-list */
-      err = gc_merge_loose(txn, ctx);
+      err = gc_merge_loose(txn);
       if (unlikely(err != MDBX_SUCCESS)) {
         if (err == MDBX_RESULT_TRUE)
           continue;
