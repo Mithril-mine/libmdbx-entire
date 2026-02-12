@@ -215,7 +215,11 @@ void dpl_remove_ex(const MDBX_txn *txn, size_t i, size_t npages) {
 int __must_check_result dpl_append(MDBX_txn *txn, pgno_t pgno, page_t *page, size_t npages) {
   tASSERT(txn, (txn->flags & txn_ro_both) == 0);
   tASSERT(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
+#if MDBX_DPL_CACHE_NPAGES
   const dp_t dp = {page, pgno, (pgno_t)npages};
+#else
+  const dp_t dp = {page, pgno};
+#endif /* MDBX_DPL_CACHE_NPAGES */
   if ((txn->flags & MDBX_WRITEMAP) == 0) {
     size_t *const ptr = ptr_disp(page, -(ptrdiff_t)sizeof(size_t));
     *ptr = txn->wr.dirtylru;
@@ -296,7 +300,9 @@ int __must_check_result dpl_append(MDBX_txn *txn, pgno_t pgno, page_t *page, siz
 #else
     i[1].ptr = i->ptr;
     i[1].pgno = i->pgno;
+#if MDBX_DPL_CACHE_NPAGES
     i[1].npages = i->npages;
+#endif /* MDBX_DPL_CACHE_NPAGES */
 #endif
       --i;
     }

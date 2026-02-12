@@ -307,7 +307,7 @@ __cold int spill_slowpath(MDBX_txn *const txn, MDBX_cursor *const m0, const intp
     const unsigned prio = spill_prio(txn, i, reciprocal);
     size_t *const ptr = ptr_disp(dl->items[i].ptr, -(ptrdiff_t)sizeof(size_t));
     TRACE("page %" PRIaPGNO ", lru %zu, is_multi %c, npages %u, age %u of %u, prio %u", dl->items[i].pgno, *ptr,
-          (dl->items[i].npages > 1) ? 'Y' : 'N', dpl_npages(dl, i), dpl_age(txn, i), age_max, prio);
+          (dpl_npages(dl, i) > 1) ? 'Y' : 'N', dpl_npages(dl, i), dpl_age(txn, i), age_max, prio);
     if (prio < 256) {
       radix_entries[prio] += 1;
       spillable_entries += 1;
