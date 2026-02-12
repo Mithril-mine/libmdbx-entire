@@ -9,7 +9,7 @@ __cold static intptr_t reasonable_db_maxsize(void) {
     intptr_t pagesize, total_ram_pages;
     if (unlikely(mdbx_get_sysraminfo(&pagesize, &total_ram_pages, nullptr) != MDBX_SUCCESS))
       /* the 32-bit limit is good enough for fallback */
-      return cached_result = MAX_MAPSIZE32;
+      return cached_result = MAX_MAPSIZE32 / 4;
 
 #if defined(__SANITIZE_ADDRESS__)
     total_ram_pages >>= 4;
@@ -17,8 +17,8 @@ __cold static intptr_t reasonable_db_maxsize(void) {
     if (RUNNING_ON_VALGRIND)
       total_ram_pages >>= 4;
 
-    if (unlikely((size_t)total_ram_pages * 2 > MAX_MAPSIZE / (size_t)pagesize))
-      return cached_result = MAX_MAPSIZE;
+    if (unlikely((size_t)total_ram_pages > MAX_MAPSIZE / (size_t)pagesize))
+      return cached_result = MAX_MAPSIZE / 2;
     assert(MAX_MAPSIZE >= (size_t)(total_ram_pages * pagesize * 2));
 
     /* Suggesting should not be more than golden ratio of the size of RAM. */
@@ -29,7 +29,7 @@ __cold static intptr_t reasonable_db_maxsize(void) {
       const size_t floor = floor_powerof2(cached_result, unit);
       const size_t ceil = ceil_powerof2(cached_result, unit);
       const size_t threshold = (size_t)cached_result >> 4;
-      const bool down = cached_result - floor < ceil - cached_result || ceil > MAX_MAPSIZE;
+      const bool down = cached_result - floor < ceil - cached_result || ceil > MAX_MAPSIZE / 4;
       if (threshold < (down ? cached_result - floor : ceil - cached_result))
         break;
       cached_result = down ? floor : ceil;
