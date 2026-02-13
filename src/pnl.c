@@ -256,3 +256,55 @@ size_t pnl_maxspan(const const_pnl_t pnl) {
   }
   return len;
 }
+
+__hot pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t seq, const pgno_t defrag_detent) {
+  size_t best_pos = 0;
+  size_t best_extra = MAX_PAGENO;
+
+#if MDBX_PNL_ASCENDING
+#error "FIXME"
+#else
+  size_t len = pnl_size(pnl);
+  for (size_t span, i = len; i >= seq && pnl[i] < defrag_detent; i -= span) {
+    for (span = 1; i - span > 0 && MDBX_PNL_CONTIGUOUS(pnl[i - span], pnl[i], span); ++span)
+      ;
+    if (span >= seq) {
+      size_t extra = span - seq;
+      if (extra < best_extra) {
+        best_pos = i;
+        best_extra = extra;
+        if (best_extra == 0)
+          break;
+      }
+    }
+  }
+
+  pgno_t pgno = 0;
+  if (best_pos) {
+    pgno = pnl[best_pos];
+    VERBOSE("seq %zu => %u", seq, pgno);
+    assert(pnl_contains_span(pnl, pgno, seq));
+    /* вырезаем с перемещением хвоста */
+    pnl_setsize(pnl, len -= seq);
+    for (size_t i = best_pos - seq + 1; i <= len; ++i)
+      pnl[i] = pnl[i + seq];
+  }
+#endif /* MDBX_PNL_ASCENDING */
+  return pgno;
+}
+
+pgno_t pnl_crop_tail_sequence(const pnl_t pnl) {
+  size_t len = pnl_size(pnl);
+  assert(len > 0);
+#if MDBX_PNL_ASCENDING
+#error "FIXME"
+#else
+  size_t span = 1;
+  while (1 + span <= pnl_size(pnl) && MDBX_PNL_CONTIGUOUS(pnl[1], pnl[1 + span], span))
+    ++span;
+  pnl_setsize(pnl, len -= span);
+  for (size_t i = 1; i <= len; ++i)
+    pnl[i] = pnl[i + span];
+#endif /* MDBX_PNL_ASCENDING */
+  return span;
+}

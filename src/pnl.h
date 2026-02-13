@@ -35,7 +35,7 @@ typedef const pgno_t *const_pnl_t;
 #define MDBX_PNL_LEAST(pl) MDBX_PNL_LAST(pl)
 #define MDBX_PNL_MOST(pl) MDBX_PNL_FIRST(pl)
 #define MDBX_PNL_CONTIGUOUS(prev, next, span) (((prev) - (next)) == (span))
-#endif
+#endif /* MDBX_PNL_ASCENDING */
 
 #ifndef __cplusplus
 
@@ -157,6 +157,22 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_search(con
   return n;
 }
 
+MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline bool pnl_contains(const const_pnl_t pnl, pgno_t pgno,
+                                                                             size_t limit) {
+  size_t n = pnl_search(pnl, pgno, limit);
+  return n > 0 && n <= pnl_size(pnl) && pnl[n] == pgno;
+}
+
+MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline bool pnl_contains_span(const const_pnl_t pnl, pgno_t pgno,
+                                                                                  pgno_t span) {
+  size_t n = pnl_search_nochk(pnl, pgno);
+#if MDBX_PNL_ASCENDING
+#error "FIXME"
+#else
+  return n >= span && pnl[n] == pgno && MDBX_PNL_CONTIGUOUS(pnl[n - span + 1], pnl[n], span - 1);
+#endif /* MDBX_PNL_ASCENDING */
+}
+
 MDBX_INTERNAL size_t pnl_merge(pnl_t dst, const const_pnl_t src);
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t pnl_maxspan(const const_pnl_t pnl);
@@ -169,5 +185,9 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline size_t pnl_scan_span(
     ++span;
   return span;
 }
+
+MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t span,
+                                                             const pgno_t defrag_detent);
+MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t pnl_crop_tail_sequence(const pnl_t pnl);
 
 #endif /* !__cplusplus */
