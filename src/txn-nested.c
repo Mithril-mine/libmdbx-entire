@@ -315,6 +315,7 @@ static void nested_merge(MDBX_txn *const parent, MDBX_txn *const nested, const s
     dst->pages_including_loose += dpl_npages(dst, r);
 
   tASSERT(parent, dpl_check(parent));
+  dpl_setlen(src, 0);
   dpl_free(nested);
 
   if (nested->wr.spilled.list) {
@@ -512,8 +513,6 @@ static void nested_free(MDBX_txn *nested) {
   rkl_destroy(&nested->wr.gc.reclaimed);
   rkl_destroy(&nested->wr.gc.ready4reuse);
 
-  if (nested->wr.dirtylist)
-    dpl_release_shadows(nested);
   dpl_free(nested);
   pnl_free(nested->wr.repnl);
   osal_free(nested);

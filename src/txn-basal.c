@@ -240,8 +240,7 @@ int txn_basal_end(MDBX_txn *txn, bool unlock) {
   eASSERT(env, txn->parent == nullptr);
   pnl_shrink(&txn->wr.retired_pages);
   pnl_shrink(&txn->wr.repnl);
-  if ((txn->flags & MDBX_WRITEMAP) == 0)
-    dpl_release_shadows(txn);
+  dpl_clear_and_release_shadows(txn);
 
   /* Export or close DBI handles created in this txn */
   int rc = (preserved_flags & MDBX_TXN_DIRTY) ? dbi_update(txn, !(preserved_flags & MDBX_TXN_ERROR)) : MDBX_SUCCESS;

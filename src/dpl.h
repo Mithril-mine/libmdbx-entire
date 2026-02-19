@@ -19,21 +19,6 @@ static inline size_t dpl_setlen(dpl_t *dl, size_t len) {
   return len;
 }
 
-static inline void dpl_clear(dpl_t *dl) {
-  static const page_t dpl_stub_pageB = {INVALID_TXNID,
-                                        0,
-                                        P_BAD,
-                                        {0},
-                                        /* pgno */ 0};
-  assert(dpl_stub_pageB.flags == P_BAD && dpl_stub_pageB.pgno == 0);
-  dl->sorted = dpl_setlen(dl, 0);
-  dl->pages_including_loose = 0;
-  dl->items[0].ptr = (page_t *)&dpl_stub_pageB;
-  dl->items[0].pgno = 0;
-  dl->items[0].npages = 1;
-  assert(dl->items[0].pgno == 0 && dl->items[dl->length + 1].pgno == P_INVALID);
-}
-
 MDBX_INTERNAL int __must_check_result dpl_alloc(MDBX_txn *txn);
 
 MDBX_INTERNAL void dpl_free(MDBX_txn *txn);
@@ -133,4 +118,4 @@ static inline uint32_t dpl_lru_turn(MDBX_txn *txn) {
 
 MDBX_INTERNAL void dpl_sift(MDBX_txn *const txn, pnl_t pl, const bool spilled);
 
-MDBX_INTERNAL void dpl_release_shadows(MDBX_txn *txn);
+MDBX_INTERNAL void dpl_clear_and_release_shadows(MDBX_txn *txn);

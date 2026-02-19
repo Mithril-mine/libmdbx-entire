@@ -3,6 +3,21 @@
 
 #include "internals.h"
 
+static inline void dpl_init(dpl_t *dl) {
+  static const page_t dpl_stub_pageB = {INVALID_TXNID,
+                                        0,
+                                        P_BAD,
+                                        {0},
+                                        /* pgno */ 0};
+  assert(dpl_stub_pageB.flags == P_BAD && dpl_stub_pageB.pgno == 0);
+  dl->pages_including_loose = 0;
+  dl->items[0].ptr = (page_t *)&dpl_stub_pageB;
+  dl->items[0].pgno = 0;
+  dl->items[0].npages = 1;
+  dl->sorted = dpl_setlen(dl, 0);
+  assert(dl->items[0].pgno == 0 && dl->items[dl->length + 1].pgno == P_INVALID);
+}
+
 static inline size_t dpl_size2bytes(ptrdiff_t size) {
   assert(size >= CURSOR_STACK_SIZE && (size_t)size <= PAGELIST_LIMIT);
 #if MDBX_DPL_PREALLOC_FOR_RADIXSORT
@@ -29,6 +44,7 @@ static inline size_t dpl_bytes2size(const ptrdiff_t bytes) {
 
 void dpl_free(MDBX_txn *txn) {
   if (likely(txn->wr.dirtylist)) {
+    dpl_clear_and_release_shadows(txn);
     osal_free(txn->wr.dirtylist);
     txn->wr.dirtylist = nullptr;
   }
@@ -69,7 +85,7 @@ int dpl_alloc(MDBX_txn *txn) {
 
   /* LY: wr.dirtylist не может быть nullptr, так как либо уже выделен, либо будет выделен в dpl_reserve(). */
   /* coverity[var_deref_model] */
-  dpl_clear(txn->wr.dirtylist);
+  dpl_init(txn->wr.dirtylist);
   return MDBX_SUCCESS;
 }
 
@@ -478,13 +494,15 @@ void dpl_sift(MDBX_txn *const txn, pnl_t pl, const bool spilled) {
   }
 }
 
-void dpl_release_shadows(MDBX_txn *txn) {
-  tASSERT(txn, (txn->flags & (txn_ro_both | MDBX_WRITEMAP)) == 0);
-  MDBX_env *env = txn->env;
+void dpl_clear_and_release_shadows(MDBX_txn *txn) {
+  tASSERT(txn, (txn->flags & txn_ro_flat) == 0);
   dpl_t *const dl = txn->wr.dirtylist;
-
-  for (size_t i = 1; i <= dl->length; i++)
-    page_shadow_release(env, dl->items[i].ptr, dpl_npages(dl, i));
-
-  dpl_clear(dl);
+  if (dl) {
+    if ((txn->flags & (txn_ro_nested | MDBX_WRITEMAP)) == 0) {
+      MDBX_env *env = txn->env;
+      for (size_t i = 1; i <= dl->length; i++)
+        page_shadow_release(env, dl->items[i].ptr, dpl_npages(dl, i));
+    }
+    dpl_setlen(dl, 0);
+  }
 }
