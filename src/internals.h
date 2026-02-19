@@ -73,7 +73,10 @@ enum signatures {
 /* An dirty-page list item is an pgno/pointer pair. */
 struct dp {
   page_t *ptr;
-  pgno_t pgno, npages;
+  pgno_t pgno;
+#if MDBX_DPL_CACHE_NPAGES
+  pgno_t npages;
+#endif /* MDBX_DPL_CACHE_NPAGES */
 };
 
 enum dpl_rules {
@@ -586,6 +589,8 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
 #include "cursor.h"
 
 #include "dpl.h"
+
+#include "dml.h"
 
 #include "gc.h"
 

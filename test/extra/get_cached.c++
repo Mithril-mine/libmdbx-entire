@@ -26,9 +26,9 @@
 #include <vector>
 #if defined(__cpp_lib_latch) && __cpp_lib_latch >= 201907L
 #include <latch>
-#include <mutex>
 #include <thread>
 #endif
+#include <mutex>
 #include <array>
 #include <functional>
 #include <iterator>

@@ -13,7 +13,9 @@ static inline void dpl_init(dpl_t *dl) {
   dl->pages_including_loose = 0;
   dl->items[0].ptr = (page_t *)&dpl_stub_pageB;
   dl->items[0].pgno = 0;
+#if MDBX_DPL_CACHE_NPAGES
   dl->items[0].npages = 1;
+#endif /* MDBX_DPL_CACHE_NPAGES */
   dl->sorted = dpl_setlen(dl, 0);
   assert(dl->items[0].pgno == 0 && dl->items[dl->length + 1].pgno == P_INVALID);
 }
@@ -50,7 +52,7 @@ void dpl_free(MDBX_txn *txn) {
   }
 }
 
-dpl_t *dpl_reserve(MDBX_txn *txn, size_t size) {
+dpl_t *dpl_resize(MDBX_txn *txn, size_t size) {
   tASSERT(txn, (txn->flags & txn_ro_flat) == 0);
   tASSERT(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
 
@@ -80,7 +82,7 @@ int dpl_alloc(MDBX_txn *txn) {
     txn->wr.dirtylist->sorted = txn->wr.dirtylist->length = 0;
 #endif /* asertions enabled */
   if (unlikely(!txn->wr.dirtylist || txn->wr.dirtylist->detent < wanna || txn->wr.dirtylist->detent > wanna + wanna) &&
-      unlikely(!dpl_reserve(txn, wanna)))
+      unlikely(!dpl_resize(txn, wanna)))
     return MDBX_ENOMEM;
 
   /* LY: wr.dirtylist не может быть nullptr, так как либо уже выделен, либо будет выделен в dpl_reserve(). */
@@ -231,7 +233,11 @@ void dpl_remove_ex(const MDBX_txn *txn, size_t i, size_t npages) {
 int __must_check_result dpl_append(MDBX_txn *txn, pgno_t pgno, page_t *page, size_t npages) {
   tASSERT(txn, (txn->flags & txn_ro_both) == 0);
   tASSERT(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
+#if MDBX_DPL_CACHE_NPAGES
   const dp_t dp = {page, pgno, (pgno_t)npages};
+#else
+  const dp_t dp = {page, pgno};
+#endif /* MDBX_DPL_CACHE_NPAGES */
   if ((txn->flags & MDBX_WRITEMAP) == 0) {
     size_t *const ptr = ptr_disp(page, -(ptrdiff_t)sizeof(size_t));
     *ptr = txn->wr.dirtylru;
@@ -256,7 +262,7 @@ int __must_check_result dpl_append(MDBX_txn *txn, pgno_t pgno, page_t *page, siz
       return MDBX_TXN_FULL;
     }
     const size_t size = (dl->detent < MDBX_PNL_INITIAL * 42) ? dl->detent + dl->detent : dl->detent + dl->detent / 2;
-    dl = dpl_reserve(txn, size);
+    dl = dpl_resize(txn, size);
     if (unlikely(!dl))
       return MDBX_ENOMEM;
     tASSERT(txn, dl->length < dl->detent);
@@ -312,7 +318,9 @@ int __must_check_result dpl_append(MDBX_txn *txn, pgno_t pgno, page_t *page, siz
 #else
     i[1].ptr = i->ptr;
     i[1].pgno = i->pgno;
+#if MDBX_DPL_CACHE_NPAGES
     i[1].npages = i->npages;
+#endif /* MDBX_DPL_CACHE_NPAGES */
 #endif
       --i;
     }

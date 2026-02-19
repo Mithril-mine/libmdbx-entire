@@ -78,7 +78,7 @@ static bool mincore_fetch(MDBX_env *const env, const size_t unit_begin) {
 }
 #endif /* MDBX_USE_MINCORE */
 
-MDBX_MAYBE_UNUSED static inline bool mincore_probe(MDBX_env *const env, const pgno_t pgno) {
+bool env_is_page_incore(MDBX_env *const env, const pgno_t pgno) {
 #if MDBX_USE_MINCORE
   const size_t offset_aligned = floor_powerof2(pgno2bytes(env, pgno), globals.sys_pagesize);
   const unsigned unit_log2 = (env->ps2ln > globals.sys_pagesize_ln2) ? env->ps2ln : globals.sys_pagesize_ln2;
@@ -677,47 +677,67 @@ __hot static pgno_t repnl_get_single(MDBX_txn *txn) {
 #else
   /* перемещать хвост не нужно, просто усекам список */
   pnl_setsize(txn->wr.repnl, len - 1);
-#endif
+#endif /* MDBX_PNL_ASCENDING */
   return pgno;
 }
 
-__hot static pgno_t repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flags) {
+__hot pgno_t gc_repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flags) {
   const size_t len = pnl_size(txn->wr.repnl);
   pgno_t *edge = MDBX_PNL_EDGE(txn->wr.repnl);
   assert(len >= num && num > 1);
   const size_t seq = num - 1;
 #if !MDBX_PNL_ASCENDING
-  if (edge[-(ptrdiff_t)seq] - *edge == seq) {
-    if (unlikely(flags & ALLOC_RESERVE))
-      return P_INVALID;
-    assert(edge == scan4range_checker(txn->wr.repnl, seq));
-    /* перемещать хвост не нужно, просто усекам список */
-    pnl_setsize(txn->wr.repnl, len - num);
+  if (edge[-(ptrdiff_t)seq] - *edge == seq &&
+      (likely((flags & ALLOC_EXACTLY) == 0) || len == num || edge[-(ptrdiff_t)num] - *edge != num)) {
+    if (likely((flags & ALLOC_RESERVE) == 0)) {
+      assert(edge == scan4range_checker(txn->wr.repnl, seq));
+      /* перемещать хвост не нужно, просто усекам список */
+      pnl_setsize(txn->wr.repnl, len - num);
+    }
     return *edge;
   }
-#endif
+#endif /* !MDBX_PNL_ASCENDING */
   pgno_t *target = scan4seq_impl(edge, len, seq);
   assert(target == scan4range_checker(txn->wr.repnl, seq));
-  if (target) {
-    if (unlikely(flags & ALLOC_RESERVE))
-      return P_INVALID;
+  while (target) {
+    if (unlikely(flags & ALLOC_EXACTLY) && len > num) {
+      const ptrdiff_t step = MDBX_PNL_ASCENDING ? -1 : 1;
+      if (target[step] - target[0] == 1) {
+        /* последовательность продолжается, пропускаем её */
+        size_t left =
+            MDBX_PNL_ASCENDING ? target - &MDBX_PNL_FIRST(txn->wr.repnl) : &MDBX_PNL_LAST(txn->wr.repnl) - target;
+        do {
+          target += step;
+          if (--left < num)
+            /* осталось меньше чем нужно, последовательности целевой длины быть не может */
+            return 0;
+        } while (target[step] - target[0] == 1);
+        /* продолжаем поиск дальше */
+        target = scan4seq_impl(target, left, seq);
+        continue;
+      }
+      /* найденая последовательность ровно необхожимой длины */
+    }
     const pgno_t pgno = *target;
-    /* вырезаем найденную последовательность с перемещением хвоста */
-    pnl_setsize(txn->wr.repnl, len - num);
+    if (likely((flags & ALLOC_RESERVE) == 0)) {
+      /* вырезаем найденную последовательность с перемещением хвоста */
+      pnl_setsize(txn->wr.repnl, len - num);
 #if MDBX_PNL_ASCENDING
-    for (const pgno_t *const end = txn->wr.repnl + len - num; target <= end; ++target)
-      *target = target[num];
+      for (const pgno_t *const end = txn->wr.repnl + len - num; target <= end; ++target)
+        *target = target[num];
 #else
-    for (const pgno_t *const end = txn->wr.repnl + len; ++target <= end;)
-      target[-(ptrdiff_t)num] = *target;
-#endif
+      for (const pgno_t *const end = txn->wr.repnl + len; ++target <= end;)
+        target[-(ptrdiff_t)num] = *target;
+#endif /* MDBX_PNL_ASCENDING */
+    }
     return pgno;
   }
   return 0;
 }
 
 bool gc_repnl_has_span(const MDBX_txn *txn, const size_t num) {
-  return (num > 1) ? repnl_get_sequence((MDBX_txn *)txn, num, ALLOC_RESERVE) != 0 : !MDBX_PNL_IS_EMPTY(txn->wr.repnl);
+  return (num > 1) ? gc_repnl_get_sequence((MDBX_txn *)txn, num, ALLOC_RESERVE) != 0
+                   : !MDBX_PNL_IS_EMPTY(txn->wr.repnl);
 }
 
 static inline pgr_t page_alloc_finalize(MDBX_env *const env, MDBX_txn *const txn, const MDBX_cursor *const mc,
@@ -765,7 +785,7 @@ static inline pgr_t page_alloc_finalize(MDBX_env *const env, MDBX_txn *const txn
       void *const pattern = ptr_disp(env->page_auxbuf, need_clean ? env->ps : env->ps * 2);
       size_t file_offset = pgno2bytes(env, pgno);
       if (likely(num == 1)) {
-        if (!mincore_probe(env, pgno)) {
+        if (!env_is_page_incore(env, pgno)) {
           osal_pwrite(env->lazy_fd, pattern, env->ps, file_offset);
 #if MDBX_ENABLE_PGOP_STAT
           env->lck->pgops.prefault.weak += 1;
@@ -776,7 +796,7 @@ static inline pgr_t page_alloc_finalize(MDBX_env *const env, MDBX_txn *const txn
         struct iovec iov[MDBX_AUXILARY_IOV_MAX];
         size_t n = 0, cleared = 0;
         for (size_t i = 0; i < num; ++i) {
-          if (!mincore_probe(env, pgno + (pgno_t)i)) {
+          if (!env_is_page_incore(env, pgno + (pgno_t)i)) {
             ++cleared;
             iov[n].iov_len = env->ps;
             iov[n].iov_base = pattern;
@@ -910,7 +930,7 @@ pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) 
     if (pnl_size(txn->wr.repnl) >= num) {
       eASSERT(env, MDBX_PNL_LAST(txn->wr.repnl) < txn->geo.first_unallocated &&
                        MDBX_PNL_FIRST(txn->wr.repnl) < txn->geo.first_unallocated);
-      pgno = repnl_get_sequence(txn, num, flags);
+      pgno = gc_repnl_get_sequence(txn, num, flags);
       if (likely(pgno))
         goto done;
     }
@@ -1064,7 +1084,7 @@ next_gc:
           pgno = (flags & ALLOC_RESERVE) ? P_INVALID : repnl_get_single(txn);
           goto done;
         }
-        pgno = repnl_get_sequence(txn, num, flags);
+        pgno = gc_repnl_get_sequence(txn, num, flags);
         if (likely(pgno))
           goto done;
       }
@@ -1184,7 +1204,7 @@ scan:
       pgno = repnl_get_single(txn);
       goto done;
     }
-    pgno = repnl_get_sequence(txn, num, flags);
+    pgno = gc_repnl_get_sequence(txn, num, flags);
     if (likely(pgno))
       goto done;
   }

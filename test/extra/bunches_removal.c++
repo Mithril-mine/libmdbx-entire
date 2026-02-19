@@ -258,7 +258,7 @@ static bool turn(mdbx::txn txn, const case_kind &kvg, verifier &checker, const M
   if (next_iter != checker.end())
     ++next_next_iter;
 
-  size_t count = 0xDEADBEEF;
+  uint64_t count = 0xDEADBEEF;
   int err = mdbx_cursor_bunch_delete(cursor, op, &count);
   if (err != MDBX_SUCCESS)
     return failed(__LINE__);

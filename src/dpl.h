@@ -15,7 +15,9 @@ static inline size_t dpl_setlen(dpl_t *dl, size_t len) {
   dl->length = len;
   dl->items[len + 1].ptr = (page_t *)&dpl_stub_pageE;
   dl->items[len + 1].pgno = P_INVALID;
+#if MDBX_DPL_CACHE_NPAGES
   dl->items[len + 1].npages = 1;
+#endif /* MDBX_DPL_CACHE_NPAGES */
   return len;
 }
 
@@ -23,7 +25,7 @@ MDBX_INTERNAL int __must_check_result dpl_alloc(MDBX_txn *txn);
 
 MDBX_INTERNAL void dpl_free(MDBX_txn *txn);
 
-MDBX_INTERNAL dpl_t *dpl_reserve(MDBX_txn *txn, size_t size);
+MDBX_INTERNAL dpl_t *dpl_resize(MDBX_txn *txn, size_t size);
 
 MDBX_INTERNAL __noinline dpl_t *dpl_sort_slowpath(const MDBX_txn *txn);
 
@@ -42,11 +44,18 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL __noinline size_t dpl_search(const MDBX
 
 MDBX_MAYBE_UNUSED MDBX_INTERNAL const page_t *debug_dpl_find(const MDBX_txn *txn, const pgno_t pgno);
 
+MDBX_NOTHROW_PURE_FUNCTION static inline unsigned dp_npages(const dp_t *dp) {
+#if MDBX_DPL_CACHE_NPAGES
+  assert(likely((dp->ptr->flags & P_LARGE) == 0) ? 1 : dp->ptr->pages == dp->npages);
+  return dp->npages;
+#else
+  return likely((dp->ptr->flags & P_LARGE) == 0) ? 1 : dp->ptr->pages;
+#endif /* MDBX_DPL_CACHE_NPAGES */
+}
+
 MDBX_NOTHROW_PURE_FUNCTION static inline unsigned dpl_npages(const dpl_t *dl, size_t i) {
   assert(0 <= (intptr_t)i && i <= dl->length);
-  unsigned n = dl->items[i].npages;
-  assert(n == (is_largepage(dl->items[i].ptr) ? dl->items[i].ptr->pages : 1));
-  return n;
+  return dp_npages(dl->items + i);
 }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline pgno_t dpl_endpgno(const dpl_t *dl, size_t i) {
