@@ -616,8 +616,8 @@ int main(int argc, char *argv[]) {
   if (envinfo.mi_geo.current | envinfo.mi_mapsize) {
     if (envinfo.mi_geo.current) {
       err = mdbx_env_set_geometry(env, (intptr_t)envinfo.mi_geo.lower, (intptr_t)envinfo.mi_geo.current,
-                                  (intptr_t)envinfo.mi_geo.upper, (intptr_t)envinfo.mi_geo.shrink,
-                                  (intptr_t)envinfo.mi_geo.grow,
+                                  (intptr_t)envinfo.mi_geo.upper, (intptr_t)envinfo.mi_geo.grow,
+                                  (intptr_t)envinfo.mi_geo.shrink,
                                   envinfo.mi_dxb_pagesize ? (intptr_t)envinfo.mi_dxb_pagesize : -1);
     } else {
       if (envinfo.mi_mapsize > MAX_MAPSIZE) {
