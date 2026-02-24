@@ -125,10 +125,10 @@ static int dump_tbl(MDBX_txn *txn, MDBX_dbi dbi, char *name) {
   if (mode & GLOBAL) {
     mode -= GLOBAL;
     if (info.mi_geo.upper != info.mi_geo.lower)
-      printf("geometry=l%" PRIu64 ",c%" PRIu64 ",u%" PRIu64 ",s%" PRIu64 ",g%" PRIu64 "\n", info.mi_geo.lower,
-             info.mi_geo.current, info.mi_geo.upper, info.mi_geo.shrink, info.mi_geo.grow);
+      printf("geometry=l%" PRIu64 ",u%" PRIu64 ",s%" PRIu64 ",g%" PRIu64 "\n", info.mi_geo.lower, info.mi_geo.upper,
+             info.mi_geo.shrink, info.mi_geo.grow);
     printf("mapsize=%" PRIu64 "\n", info.mi_geo.upper);
-    printf("maxreaders=%u\n", info.mi_maxreaders);
+    /* printf("maxreaders=%u\n", info.mi_maxreaders); */
 
     MDBX_canary canary;
     rc = mdbx_canary_get(txn, &canary);

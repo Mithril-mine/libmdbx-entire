@@ -287,6 +287,9 @@ static int readhdr(void) {
                   "%s: line %" PRIiSIZE ": ignore values %s"
                   " for '%s' in non-global context\n",
                   prog, lineno, str, "geometry");
+      } else if (sscanf(str, "l%" PRIu64 ",u%" PRIu64 ",s%" PRIu64 ",g%" PRIu64, &envinfo.mi_geo.lower,
+                        &envinfo.mi_geo.upper, &envinfo.mi_geo.shrink, &envinfo.mi_geo.grow) == 4) {
+        envinfo.mi_geo.current = (uint64_t)INT64_C(-1);
       } else if (sscanf(str, "l%" PRIu64 ",c%" PRIu64 ",u%" PRIu64 ",s%" PRIu64 ",g%" PRIu64, &envinfo.mi_geo.lower,
                         &envinfo.mi_geo.current, &envinfo.mi_geo.upper, &envinfo.mi_geo.shrink,
                         &envinfo.mi_geo.grow) != 5) {
@@ -605,29 +608,27 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (envinfo.mi_geo.current | envinfo.mi_mapsize) {
-    if (envinfo.mi_geo.current) {
-      err = mdbx_env_set_geometry(env, (intptr_t)envinfo.mi_geo.lower, (intptr_t)envinfo.mi_geo.current,
-                                  (intptr_t)envinfo.mi_geo.upper, (intptr_t)envinfo.mi_geo.grow,
-                                  (intptr_t)envinfo.mi_geo.shrink,
-                                  envinfo.mi_dxb_pagesize ? (intptr_t)envinfo.mi_dxb_pagesize : -1);
-    } else {
-      if (envinfo.mi_mapsize > MAX_MAPSIZE) {
-        if (!quiet)
-          fprintf(stderr,
-                  "Database size is too large for current system (mapsize=%" PRIu64
-                  " is great than system-limit %zu)\n",
-                  envinfo.mi_mapsize, (size_t)MAX_MAPSIZE);
-        goto bailout;
-      }
-      err = mdbx_env_set_geometry(env, (intptr_t)envinfo.mi_mapsize, (intptr_t)envinfo.mi_mapsize,
-                                  (intptr_t)envinfo.mi_mapsize, 0, 0,
-                                  envinfo.mi_dxb_pagesize ? (intptr_t)envinfo.mi_dxb_pagesize : -1);
-    }
-    if (unlikely(err != MDBX_SUCCESS)) {
-      error("mdbx_env_set_geometry", err);
+  err = MDBX_SUCCESS;
+  if (envinfo.mi_geo.lower | envinfo.mi_geo.upper | envinfo.mi_geo.shrink | envinfo.mi_geo.grow) {
+    err = mdbx_env_set_geometry(env, (intptr_t)envinfo.mi_geo.lower, (intptr_t)envinfo.mi_geo.current,
+                                (intptr_t)envinfo.mi_geo.upper, (intptr_t)envinfo.mi_geo.grow,
+                                (intptr_t)envinfo.mi_geo.shrink,
+                                envinfo.mi_dxb_pagesize ? (intptr_t)envinfo.mi_dxb_pagesize : -1);
+  } else if (envinfo.mi_mapsize) {
+    if (envinfo.mi_mapsize > MAX_MAPSIZE) {
+      if (!quiet)
+        fprintf(stderr,
+                "Database size is too large for current system (mapsize=%" PRIu64 " is great than system-limit %zu)\n",
+                envinfo.mi_mapsize, (size_t)MAX_MAPSIZE);
       goto bailout;
     }
+    err = mdbx_env_set_geometry(env, (intptr_t)envinfo.mi_mapsize, (intptr_t)envinfo.mi_mapsize,
+                                (intptr_t)envinfo.mi_mapsize, 0, 0,
+                                envinfo.mi_dxb_pagesize ? (intptr_t)envinfo.mi_dxb_pagesize : -1);
+  }
+  if (unlikely(err != MDBX_SUCCESS)) {
+    error("mdbx_env_set_geometry", err);
+    goto bailout;
   }
 
   err = mdbx_env_open(env, envname, envflags, 0664);
