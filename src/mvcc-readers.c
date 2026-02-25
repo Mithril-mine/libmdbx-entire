@@ -347,14 +347,22 @@ __cold int mvcc_cleanup_dead(MDBX_env *env, int rdt_locked, int *dead) {
   return rc;
 }
 
-__cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler) {
+__cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler,
+                               struct gc_reclaiming_obstacle *optional_obstacle) {
   DEBUG("DB size maxed out by reading #%" PRIaTXN, straggler);
   osal_memory_fence(mo_AcquireRelease, false);
+  if (optional_obstacle) {
+    optional_obstacle->pid = 0;
+    optional_obstacle->tid = 0;
+    optional_obstacle->txnid = 0;
+  }
+
   MDBX_env *const env = txn->env;
   MDBX_hsr_func *const callback = env->hsr_callback;
   orsi_rw_t orsi;
   bool notify_eof_of_loop = false;
   int retry = 0;
+
   do {
     env->lck->rdt_refresh_flag.weak = /* force refresh */ true;
     orsi = mvcc_shapshot_oldest_rw(txn);
@@ -414,12 +422,21 @@ __cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler) {
       }
     }
 
-    if (!callback || !stucked)
+    if (!stucked)
       break;
 
     mdbx_pid_t pid = atomic_load_pid(&stucked->pid, mo_AcquireRelease);
     if (safe64_read(&stucked->txnid) != straggler || safe64_read(&stucked->tid) != stucked_tid || !pid)
       continue;
+
+    if (optional_obstacle) {
+      optional_obstacle->pid = pid;
+      optional_obstacle->tid = (mdbx_tid_t)((intptr_t)stucked_tid);
+      optional_obstacle->txnid = straggler;
+    }
+
+    if (!callback)
+      break;
 
     const meta_ptr_t recent = meta_recent(env, &env->txn->wr.troika);
     const txnid_t lag = (recent.txnid - straggler) / xMDBX_TXNID_STEP;
@@ -428,9 +445,10 @@ __cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler) {
         (recent_retired > stucked_retired) ? pgno2bytes(env, (pgno_t)(recent_retired - stucked_retired)) : 0;
     int rc = callback(env, env->txn, pid, (mdbx_tid_t)((intptr_t)stucked_tid), straggler,
                       (lag < UINT_MAX) ? (unsigned)lag : UINT_MAX, space, retry);
-    if (rc < 0)
+    if (rc < 0) {
       /* hsr returned error and/or agree MDBX_MAP_FULL error */
       break;
+    }
 
     if (rc > 0) {
       if (rc == 1) {

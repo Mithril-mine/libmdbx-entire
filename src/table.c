@@ -177,7 +177,7 @@ static void tbl_stat_add(const tree_t *db, MDBX_stat *const st) {
 }
 
 int tbl_stat_summary(const MDBX_txn *txn, MDBX_stat *st) {
-  memset(st, 0, sizeof(MDBX_stat));
+  memset(st, 0, sizeof(*st));
 
   const MDBX_env *const env = txn->env;
   st->ms_psize = env->ps;

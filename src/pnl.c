@@ -283,7 +283,7 @@ __hot pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t seq, const pgno
 #error "FIXME"
 #else
   size_t len = pnl_size(pnl);
-  for (size_t span, i = len; i >= seq && pnl[i] < defrag_detent; i -= span) {
+  for (size_t span, i = len; i >= seq && pnl[i] <= defrag_detent - seq; i -= span) {
     for (span = 1; i - span > 0 && MDBX_PNL_CONTIGUOUS(pnl[i - span], pnl[i], span); ++span)
       ;
     if (span >= seq) {
@@ -302,6 +302,7 @@ __hot pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t seq, const pgno
     pgno = pnl[best_pos];
     VERBOSE("seq %zu => %u", seq, pgno);
     assert(pnl_contains_span(pnl, pgno, seq));
+    assert(pgno + seq <= defrag_detent);
     pnl_cut(pnl, best_pos - seq + 1, seq);
   }
 #endif /* MDBX_PNL_ASCENDING */

@@ -681,6 +681,11 @@ __hot static pgno_t repnl_get_single(MDBX_txn *txn) {
   return pgno;
 }
 
+__hot pgno_t gc_repnl_get_single(MDBX_txn *txn) {
+  tASSERT(txn, (txn->flags & txn_ro_both) == 0);
+  return pnl_size(txn->wr.repnl) ? repnl_get_single(txn) : 0;
+}
+
 __hot pgno_t gc_repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flags) {
   const size_t len = pnl_size(txn->wr.repnl);
   pgno_t *edge = MDBX_PNL_EDGE(txn->wr.repnl);
@@ -1295,7 +1300,7 @@ depleted_gc:
     goto done;
   }
 
-  if (txn_basis_snapshot(txn) > txn->env->gc.detent && mvcc_kick_laggards(txn, txn->env->gc.detent))
+  if (txn_basis_snapshot(txn) > txn->env->gc.detent && mvcc_kick_laggards(txn, txn->env->gc.detent, nullptr))
     goto retry_gc_refresh_detent;
 
   //---------------------------------------------------------------------------
@@ -1337,7 +1342,7 @@ no_gc:
   const meta_ptr_t syncpoint = meta_prefer_steady(env, &txn->wr.troika);
   const txnid_t oldest_rescan = shapshot_oldest_force_rescan(txn);
   NOTICE("try growth datafile to %zu pages (+%zu), pending-txnid %" PRIu64 ", gc-reclaiming detent %" PRIu64
-         "(syncpoint %s.%" PRIu64 ", oldest-reader cached %" PRIu64 " rescan %" PRIu64 " %+zi)",
+         " (syncpoint %s.%" PRIu64 ", oldest-reader cached %" PRIu64 " rescan %" PRIu64 " %+zi)",
          aligned, aligned - txn->geo.end_pgno, txn->txnid, env->gc.detent, syncpoint.is_steady ? "steady" : "weak",
          syncpoint.txnid, oldest_cached, oldest_rescan, (intptr_t)(oldest_rescan - oldest_cached));
   ret.err = dxb_resize(env, txn->geo.first_unallocated, (pgno_t)aligned, txn->geo.upper, implicit_grow);

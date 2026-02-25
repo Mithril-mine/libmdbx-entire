@@ -5,6 +5,12 @@
 
 #include "essentials.h"
 
+struct gc_reclaiming_obstacle {
+  mdbx_pid_t pid;
+  mdbx_tid_t tid;
+  txnid_t txnid;
+};
+
 /* Гистограмма решения нарезки фрагментов для ситуации нехватки идентификаторов/слотов. */
 typedef struct gc_dense_histogram {
   /* Размер массива одновременно задаёт максимальный размер последовательностей,
@@ -72,6 +78,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline size_t gc_chunk_bytes(const size_t chun
 
 MDBX_INTERNAL bool gc_repnl_has_span(const MDBX_txn *txn, const size_t num);
 MDBX_INTERNAL pgno_t gc_repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flags);
+MDBX_INTERNAL pgno_t gc_repnl_get_single(MDBX_txn *txn);
 
 static inline bool gc_is_reclaimed(const MDBX_txn *txn, const txnid_t id) {
   return rkl_contain(&txn->wr.gc.reclaimed, id) || rkl_contain(&txn->wr.gc.comeback, id);
@@ -97,3 +104,47 @@ typedef struct gc_pnl_result {
   const char *reason;
 } glr_t;
 MDBX_INTERNAL glr_t gc_row_pnl(const MDBX_txn *const txn, const MDBX_val data);
+
+typedef struct defract_context {
+  MDBX_txn *txn;
+  dml_t *arcs;
+  pnl_t lp_reserve;
+  pnl_t temp;
+  pgno_t move_scheduled;
+  pgno_t retreat_edge;
+  pgno_t defrag_edge;
+  pgno_t remapped_edge;
+  pgno_t stumble, lp_backlog;
+  pgno_t moved_pages;
+  size_t payload_pages;
+  size_t payload_items;
+  pgno_t walk_stack[32];
+  pgno_t walk_cutoff;
+  pgno_t move_batch_size;
+  uint8_t wallclock_trottle;
+  uint8_t stumble_retry;
+  unsigned cycle;
+  pgno_t largepage_max, largepage_amountleft, largepage_count;
+  pgno_t summary_depth;
+  volatile uint32_t *stopping_reasons;
+
+#if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
+  pnl_t repnl_clone;
+#endif /* MDBX_DEBUG || MDBX_FORCE_ASSERTIONS */
+  pgno_t defrag_atleast, defrag_enough, before_defrag, gc_retained;
+  uint64_t start_timestamp;
+  uint64_t wallclock_atleast;
+  uint64_t wallclock_detent;
+  uint64_t initial_txn_gc_score;
+
+  txnid_t stopor;
+  struct gc_reclaiming_obstacle gc_obstacle;
+} dfc_t;
+
+MDBX_INTERNAL int defrag_init(dfc_t *dfc, MDBX_txn *txn, size_t defrag_atleast_pages,
+                              size_t spend_atleast_wallclock_16dot16, size_t defrag_enough_pages,
+                              size_t limit_spend_wallclock_16dot16, intptr_t preferred_move_batch_size);
+MDBX_INTERNAL void defrag_destroy(dfc_t *dfc);
+MDBX_INTERNAL int defrag_cycle(dfc_t *dfc);
+MDBX_INTERNAL bool defrag_should_continue(dfc_t *dfc);
+MDBX_INTERNAL uint64_t defrag_gc_score(const MDBX_txn *txn);

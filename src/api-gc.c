@@ -64,7 +64,7 @@ int mdbx_gc_info(MDBX_txn *txn, MDBX_gc_info_t *info, size_t bytes, MDBX_gc_iter
         continue;
 
       const size_t len = pnl_size(glr.pnl);
-      const bool is_reclaimable = id < reclaiming_detent;
+      const bool is_reclaimable = id <= reclaiming_detent;
       info->pages_gc += len;
       if (is_reclaimable)
         info->gc_reclaimable.pages += len;
@@ -89,6 +89,126 @@ int mdbx_gc_info(MDBX_txn *txn, MDBX_gc_info_t *info, size_t bytes, MDBX_gc_iter
       }
     }
     txn->cursors[FREE_DBI] = cx.outer.next;
+  }
+  return LOG_IFERR(rc);
+}
+
+int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast_pages, size_t spend_atleast_wallclock_16dot16,
+                    size_t defrag_enough_pages, size_t limit_spend_wallclock_16dot16, intptr_t acceptable_backlash,
+                    intptr_t preferred_move_batch_size, MDBX_defrag_result_t *result) {
+  if (result)
+    memset(result, 0, sizeof(*result));
+  if (unlikely(defrag_enough_pages < defrag_atleast_pages) && defrag_enough_pages)
+    return LOG_IFERR(MDBX_EINVAL);
+  if (unlikely(limit_spend_wallclock_16dot16 < spend_atleast_wallclock_16dot16) && limit_spend_wallclock_16dot16)
+    return LOG_IFERR(MDBX_EINVAL);
+
+  int rc = check_env(env, true);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  if (unlikely(env->flags & MDBX_RDONLY))
+    return LOG_IFERR(MDBX_EACCESS);
+
+  dfc_t dfc;
+  MDBX_txn *txn = env_owned_wrtxn(env);
+  if (txn) {
+    rc = check_txn_rw(txn, MDBX_TXN_BLOCKED);
+    if (rc == MDBX_SUCCESS && txn->parent)
+      rc = MDBX_BAD_TXN;
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+  } else {
+    rc = txn_basal_start(txn = env->basal_txn, MDBX_TXN_READWRITE | MDBX_TXN_NOWEAKING);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+    txn->signature = txn_signature;
+    txn->userctx = &dfc;
+  }
+
+  if (acceptable_backlash < 0)
+    acceptable_backlash = CURSOR_STACK_SIZE;
+  else
+    acceptable_backlash = ((size_t)acceptable_backlash < txn->env->maxgc_large1page) ? (size_t)acceptable_backlash
+                                                                                     : txn->env->maxgc_large1page;
+
+  rc = defrag_init(&dfc, txn, defrag_atleast_pages, spend_atleast_wallclock_16dot16, defrag_enough_pages,
+                   limit_spend_wallclock_16dot16, preferred_move_batch_size);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return LOG_IFERR(rc);
+
+  uint32_t stub_stopping_reasons = 0;
+  dfc.stopping_reasons = result ? &result->stopping_reasons : &stub_stopping_reasons;
+
+  pgno_t snap_allocated_pages = 0;
+  while ((size_t)acceptable_backlash + dfc.payload_pages < txn->geo.first_unallocated) {
+    pgno_t stumble = dfc.stumble;
+    rc = defrag_cycle(&dfc);
+
+    snap_allocated_pages = txn->geo.first_unallocated;
+#if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
+    pnl_free(dfc.repnl_clone);
+    dfc.repnl_clone = nullptr;
+#endif /* MDBX_DEBUG || MDBX_FORCE_ASSERTIONS */
+    if (result) {
+      result->moved_pages = dfc.moved_pages;
+      result->cycles += 1;
+    }
+
+    if (MDBX_IS_ERROR(rc)) {
+      txn->flags |= MDBX_TXN_ERROR;
+      *dfc.stopping_reasons |= MDBX_defrag_error;
+      break;
+    }
+
+    dfc.stumble_retry = (dfc.stumble && dfc.stumble == stumble) ? dfc.stumble_retry + 1 : 0;
+    if (dfc.stumble_retry > 3) {
+      NOTICE("bailout since stucked (unable to move) at %u in a few retries", dfc.stumble);
+      rc = txn->dbs[FREE_DBI].items ? MDBX_LAGGARD_READER : MDBX_RESULT_TRUE;
+      break;
+    }
+
+    if ((*dfc.stopping_reasons & MDBX_defrag_laggard_reader) != 0 && txn_gc_detent(txn))
+      *dfc.stopping_reasons -= MDBX_defrag_laggard_reader;
+
+    if (!defrag_should_continue(&dfc) || rc != MDBX_SUCCESS)
+      break;
+
+    rc = txn_basal_checkpoint(txn, MDBX_TXN_NOMETASYNC, nullptr);
+    if (unlikely(rc != MDBX_SUCCESS)) {
+      dfc.txn = txn = nullptr;
+      *dfc.stopping_reasons |= MDBX_defrag_error;
+      break;
+    }
+  }
+
+  defrag_destroy(&dfc);
+
+  if (txn) {
+    if (txn->userctx == &dfc) {
+      if ((txn->flags & MDBX_TXN_ERROR) == 0 && defrag_gc_score(txn) > dfc.initial_txn_gc_score) {
+        rc = txn_basal_commit(txn, nullptr);
+        snap_allocated_pages = txn->geo.first_unallocated;
+      }
+      int err = txn_basal_end(txn, true);
+      rc = (err != MDBX_SUCCESS && !MDBX_IS_ERROR(rc)) ? err : rc;
+    }
+  }
+
+  if (result) {
+    result->obstructor_txnid = dfc.stopor;
+    result->obstructor_pid = dfc.gc_obstacle.pid;
+    result->obstructor_tid = dfc.gc_obstacle.tid;
+    result->obstructor_txnid = dfc.gc_obstacle.txnid;
+    result->shrinked_pages = dfc.before_defrag - snap_allocated_pages;
+    result->spent_time_16dot16 = osal_monotime_to_16dot16(osal_monotime() - dfc.start_timestamp);
+  }
+
+  if (!MDBX_IS_ERROR(rc)) {
+    if (*dfc.stopping_reasons)
+      rc = (*dfc.stopping_reasons == MDBX_defrag_laggard_reader) ? MDBX_LAGGARD_READER : MDBX_RESULT_TRUE;
+    if (snap_allocated_pages <= dfc.defrag_enough)
+      rc = MDBX_SUCCESS;
   }
   return LOG_IFERR(rc);
 }

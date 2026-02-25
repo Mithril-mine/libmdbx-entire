@@ -1525,7 +1525,7 @@ retry:
 bailout:
   txn->cursors[FREE_DBI] = ctx->cursor.next;
 
-  pnl_setsize(txn->wr.repnl, 0);
+  pnl_clear(txn->wr.repnl);
 #if MDBX_ENABLE_PROFGC
   env->lck->pgops.gc_prof.wloops += (uint32_t)ctx->loop;
 #endif /* MDBX_ENABLE_PROFGC */

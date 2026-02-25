@@ -7223,6 +7223,36 @@ typedef struct MDBX_gc_info {
 LIBMDBX_API int mdbx_gc_info(MDBX_txn *txn, MDBX_gc_info_t *info, size_t bytes, MDBX_gc_iter_func iter_func,
                              void *iter_ctx);
 
+/** \brief FIXME */
+typedef enum MDBX_defrag_stopping_reasons {
+  MDBX_defrag_noobstacles = 0,
+  MDBX_defrag_error = 1,
+  MDBX_defrag_time_limit = 2,
+  MDBX_defrag_enough_theshold = 4,
+  MDBX_defrag_laggard_reader = 8,
+  MDBX_defrag_large_chunk = 16,
+  MDBX_defrag_user_break = 32
+} MDBX_defrag_stopping_reasons_t;
+DEFINE_ENUM_FLAG_OPERATORS(MDBX_defrag_stopping_reasons)
+
+/** \brief FIXME */
+typedef struct MDBX_defrag_result {
+  size_t shrinked_pages;
+  size_t moved_pages;
+  uint32_t cycles;
+  uint32_t stopping_reasons;
+  uint32_t spent_time_16dot16;
+  mdbx_pid_t obstructor_pid;
+  mdbx_tid_t obstructor_tid;
+  uint64_t obstructor_txnid;
+} MDBX_defrag_result_t;
+
+/** \brief FIXME */
+LIBMDBX_API int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast_pages, size_t spend_atleast_wallclock_16dot16,
+                                size_t defrag_enough_pages, size_t limit_spend_wallclock_16dot16,
+                                intptr_t acceptable_backlash, intptr_t preferred_move_batch_size,
+                                MDBX_defrag_result_t *);
+
 /** end of c_api @} */
 
 #ifdef __cplusplus

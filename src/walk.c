@@ -308,7 +308,11 @@ __cold int walk_tbl(walk_ctx_t *ctx, walk_tbl_t *tbl, pgno_t parent_page) {
   couple.outer.next = ctx->cursor;
   couple.outer.top_and_flags = z_disable_tree_search_fastpath;
   ctx->cursor = &couple.outer;
-  rc = walk_pgno(ctx, tbl, db->root, db->mod_txnid ? db->mod_txnid : ctx->txn->txnid, parent_page);
+  txnid_t mod_txnid = db->mod_txnid;
+  if (!mod_txnid || (db == &ctx->txn->dbs[FREE_DBI] && (ctx->txn->dbi_state[FREE_DBI] & DBI_DIRTY)) ||
+      (db == &ctx->txn->dbs[MAIN_DBI] && (ctx->txn->dbi_state[MAIN_DBI] & DBI_DIRTY)))
+    mod_txnid = ctx->txn->front_txnid;
+  rc = walk_pgno(ctx, tbl, db->root, mod_txnid, parent_page);
   ctx->cursor = couple.outer.next;
   return rc;
 }

@@ -251,6 +251,33 @@ int txn_basal_end(MDBX_txn *txn, bool unlock) {
   return rc;
 }
 
+/* Update table root pointers */
+int txn_basal_update_tbl_roots(MDBX_txn *txn) {
+  cursor_couple_t cx;
+  int err = MDBX_SUCCESS;
+  if (txn->n_dbi > CORE_DBS) {
+    err = cursor_init(&cx.outer, txn, MAIN_DBI);
+    if (likely(err == MDBX_SUCCESS)) {
+      cx.outer.next = txn->cursors[MAIN_DBI];
+      txn->cursors[MAIN_DBI] = &cx.outer;
+      TXN_FOREACH_DBI_USER(txn, i) {
+        if ((txn->dbi_state[i] & DBI_DIRTY) == 0)
+          continue;
+        tree_t *const db = &txn->dbs[i];
+        DEBUG("update main's entry for sub-db %zu, mod_txnid %" PRIaTXN " -> %" PRIaTXN, i, db->mod_txnid, txn->txnid);
+        /* Может быть mod_txnid > front после коммита вложенных тразакций */
+        db->mod_txnid = txn->txnid;
+        MDBX_val data = {db, sizeof(tree_t)};
+        err = cursor_put(&cx.outer, &txn->env->kvs[i].name, &data, N_TREE);
+        if (unlikely(err != MDBX_SUCCESS))
+          break;
+      }
+      txn->cursors[MAIN_DBI] = cx.outer.next;
+    }
+  }
+  return err;
+}
+
 int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
   MDBX_env *const env = txn->env;
   tASSERT(txn, txn == env->basal_txn && !txn->parent && !txn->nested);
@@ -321,30 +348,9 @@ int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
         __Wpedantic_format_voidptr(txn), __Wpedantic_format_voidptr(env), txn->dbs[MAIN_DBI].root,
         txn->dbs[FREE_DBI].root);
 
-  if (txn->n_dbi > CORE_DBS) {
-    /* Update table root pointers */
-    cursor_couple_t cx;
-    int err = cursor_init(&cx.outer, txn, MAIN_DBI);
-    if (unlikely(err != MDBX_SUCCESS))
-      return err;
-    cx.outer.next = txn->cursors[MAIN_DBI];
-    txn->cursors[MAIN_DBI] = &cx.outer;
-    TXN_FOREACH_DBI_USER(txn, i) {
-      if ((txn->dbi_state[i] & DBI_DIRTY) == 0)
-        continue;
-      tree_t *const db = &txn->dbs[i];
-      DEBUG("update main's entry for sub-db %zu, mod_txnid %" PRIaTXN " -> %" PRIaTXN, i, db->mod_txnid, txn->txnid);
-      /* Может быть mod_txnid > front после коммита вложенных тразакций */
-      db->mod_txnid = txn->txnid;
-      MDBX_val data = {db, sizeof(tree_t)};
-      err = cursor_put(&cx.outer, &env->kvs[i].name, &data, N_TREE);
-      if (unlikely(err != MDBX_SUCCESS)) {
-        txn->cursors[MAIN_DBI] = cx.outer.next;
-        return err;
-      }
-    }
-    txn->cursors[MAIN_DBI] = cx.outer.next;
-  }
+  int rc = txn_basal_update_tbl_roots(txn);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return rc;
 
   if (ts) {
     ts->prep = osal_monotime();
@@ -352,7 +358,7 @@ int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
   }
 
   gcu_t gcu_ctx;
-  int rc = gc_put_init(txn, &gcu_ctx);
+  rc = gc_put_init(txn, &gcu_ctx);
   if (likely(rc == MDBX_SUCCESS))
     rc = gc_update(txn, &gcu_ctx);
 

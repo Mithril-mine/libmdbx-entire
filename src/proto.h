@@ -15,7 +15,10 @@ MDBX_INTERNAL bsr_t mvcc_bind_slot(MDBX_env *env);
 MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t mvcc_largest_this(MDBX_env *env, pgno_t largest);
 MDBX_INTERNAL pgno_t mvcc_snapshot_largest(const MDBX_env *env, pgno_t last_used_page);
 MDBX_INTERNAL int mvcc_cleanup_dead(MDBX_env *env, int rlocked, int *dead);
-MDBX_INTERNAL bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t laggard);
+
+struct gc_reclaiming_obstacle;
+MDBX_INTERNAL bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t laggard,
+                                      struct gc_reclaiming_obstacle *optional_obstacle);
 
 typedef struct rw_oldest_readed_shapshot_into {
   txnid_t oldest_txnid, steady_txnid;
@@ -83,6 +86,7 @@ MDBX_INTERNAL int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts);
 MDBX_INTERNAL int txn_basal_end(MDBX_txn *txn, bool unlock);
 MDBX_INTERNAL int txn_basal_checkpoint(MDBX_txn *txn, MDBX_txn_flags_t weakening_durability,
                                        struct commit_timestamp *ts);
+MDBX_INTERNAL int txn_basal_update_tbl_roots(MDBX_txn *txn);
 
 MDBX_INTERNAL int txn_ro_park(MDBX_txn *txn, bool autounpark);
 MDBX_INTERNAL int txn_ro_unpark(MDBX_txn *txn);
