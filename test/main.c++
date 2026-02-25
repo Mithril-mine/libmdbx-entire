@@ -86,6 +86,7 @@ MDBX_NORETURN void usage(void) {
        "  --speculum[=yes|NO]           Use internal `speculum` to check "
        "dataset\n"
        "  --geometry-jitter[=YES|no]    Use jitter for geometry upper-limit\n"
+       "  --defrag-jitter[=YES|no]      Use jitter for defrag\n"
        "Keys and Value:\n"
        "  --keylen.min=N                Minimal keys length\n"
        "  --keylen.max=N                Miximal keys length\n"
@@ -196,6 +197,7 @@ void actor_params::set_defaults(const std::string &tmpdir) {
   global::config::progress_indicator = true;
   global::config::console_mode = osal_istty(STDERR_FILENO);
   global::config::geometry_jitter = true;
+  global::config::defrag_jitter = true;
 }
 
 namespace global {
@@ -218,6 +220,7 @@ bool failfast;
 bool progress_indicator;
 bool console_mode;
 bool geometry_jitter;
+bool defrag_jitter;
 } /* namespace config */
 
 } /* namespace global */
@@ -320,6 +323,8 @@ int main(int argc, char *const argv[]) {
     if (config::parse_option(argc, argv, narg, "console", global::config::console_mode))
       continue;
     if (config::parse_option(argc, argv, narg, "geometry-jitter", global::config::geometry_jitter))
+      continue;
+    if (config::parse_option(argc, argv, narg, "defrag-jitter", global::config::defrag_jitter))
       continue;
     if (config::parse_option(argc, argv, narg, "timeout", global::config::timeout_duration_seconds, config::duration,
                              1))

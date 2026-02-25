@@ -470,6 +470,7 @@ void dump(const char *title) {
   log_verbose("progress indicator: %s\n", global::config::progress_indicator ? "Yes" : "No");
   log_verbose("console mode: %s\n", global::config::console_mode ? "Yes" : "No");
   log_verbose("geometry jitter: %s\n", global::config::geometry_jitter ? "Yes" : "No");
+  log_verbose("defrag jitter: %s\n", global::config::defrag_jitter ? "Yes" : "No");
 }
 
 } /* namespace config */
@@ -517,6 +518,8 @@ const std::string actor_config::serialize(const char *prefix) const {
   checksum.push(global::config::console_mode);
   result.push_back(global::config::geometry_jitter ? 'Y' : 'N');
   checksum.push(global::config::geometry_jitter);
+  result.push_back(global::config::defrag_jitter ? 'Y' : 'N');
+  checksum.push(global::config::defrag_jitter);
   result.push_back('|');
 
   result.append(osal_serialize(checksum));
@@ -593,6 +596,8 @@ bool actor_config::deserialize(const char *str, actor_config &config) {
     checksum.push(global::config::console_mode);
     global::config::geometry_jitter = str[2] != 'N';
     checksum.push(global::config::geometry_jitter);
+    global::config::defrag_jitter = str[3] != 'N';
+    checksum.push(global::config::defrag_jitter);
     str = slash + 1;
 
     slash = strchr(str, '|');
