@@ -163,10 +163,14 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_search(con
   return n;
 }
 
-MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline bool pnl_contains(const const_pnl_t pnl, pgno_t pgno,
-                                                                             size_t limit) {
-  size_t n = pnl_search(pnl, pgno, limit);
-  return n > 0 && n <= pnl_size(pnl) && pnl[n] == pgno;
+MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_search_exact(const const_pnl_t pnl, pgno_t pgno) {
+  size_t n = pnl_search_nochk(pnl, pgno);
+  return (n <= pnl_size(pnl) && pnl[n] == pgno) ? n : 0;
+}
+
+MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline bool pnl_contains(const const_pnl_t pnl, pgno_t pgno) {
+  size_t n = pnl_search_nochk(pnl, pgno);
+  return n <= pnl_size(pnl) && pnl[n] == pgno;
 }
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline bool pnl_contains_span(const const_pnl_t pnl, pgno_t pgno,
