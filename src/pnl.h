@@ -24,6 +24,7 @@ typedef const pgno_t *const_pnl_t;
 #if MDBX_PNL_ASCENDING
 #define MDBX_PNL_ORDERED(first, last) ((first) < (last))
 #define MDBX_PNL_DISORDERED(first, last) ((first) >= (last))
+#define MDBX_PNL_REVERSED(first, last) ((first) > (last))
 #define MDBX_PNL_EDGE(pl) ((pl) + 1)
 #define MDBX_PNL_LEAST(pl) MDBX_PNL_FIRST(pl)
 #define MDBX_PNL_MOST(pl) MDBX_PNL_LAST(pl)
@@ -31,6 +32,7 @@ typedef const pgno_t *const_pnl_t;
 #else
 #define MDBX_PNL_ORDERED(first, last) ((first) > (last))
 #define MDBX_PNL_DISORDERED(first, last) ((first) <= (last))
+#define MDBX_PNL_REVERSED(first, last) ((first) < (last))
 #define MDBX_PNL_EDGE(pl) ((pl) + pnl_size(pl))
 #define MDBX_PNL_LEAST(pl) MDBX_PNL_LAST(pl)
 #define MDBX_PNL_MOST(pl) MDBX_PNL_FIRST(pl)
@@ -53,6 +55,8 @@ MDBX_MAYBE_UNUSED static inline void pnl_setsize(pnl_t pnl, size_t len) {
   assert(len < INT_MAX);
   pnl[0] = (pgno_t)len;
 }
+
+MDBX_MAYBE_UNUSED static inline void pnl_clear(pnl_t pnl) { pnl_setsize(pnl, 0); }
 
 #define MDBX_PNL_SIZEOF(pl) ((pnl_size(pl) + 1) * sizeof(pgno_t))
 #define MDBX_PNL_IS_EMPTY(pl) (pnl_size(pl) == 0)
@@ -201,5 +205,10 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t pnl_get_best_sequence(const pnl_t pnl, co
 MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t pnl_crop_tail_sequence(const pnl_t pnl);
 
 MDBX_MAYBE_UNUSED MDBX_INTERNAL void pnl_cut(pnl_t pnl, size_t pos, size_t len);
+
+MDBX_MAYBE_UNUSED MDBX_INTERNAL void pnl_sift(pnl_t pnl, const const_pnl_t filter_out);
+
+MDBX_MAYBE_UNUSED MDBX_INTERNAL int pnl_cut_range(__restrict pnl_t pnl, __restrict pnl_t *const pdest,
+                                                  pgno_t range_begin, pgno_t range_end);
 
 #endif /* !__cplusplus */

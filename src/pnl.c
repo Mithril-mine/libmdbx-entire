@@ -331,3 +331,67 @@ __hot void pnl_cut(pnl_t pnl, size_t pos, size_t span) {
       pnl[i] = pnl[i + span];
   }
 }
+
+void pnl_sift(__restrict pnl_t pnl, const __restrict const_pnl_t fo) {
+  if (pnl_size(pnl) && pnl_size(fo)) {
+    const intptr_t fe = pnl_size(fo) + 1;
+    const size_t len = pnl_size(pnl);
+    size_t w, r = pnl_search(pnl, fo[1], MAX_PAGENO);
+    for (intptr_t f = 1; r <= len;) { /* scan loop */
+      assert(f != fe);
+      pgno_t fo_pgno = fo[f];
+      pgno_t pl_pgno = pnl[r];
+      if (likely(pl_pgno != fo_pgno)) {
+        const bool cmp = MDBX_PNL_ORDERED(pl_pgno, fo_pgno);
+        r += cmp;
+        f += cmp ? 0 : 1;
+        if (likely(f != fe))
+          continue;
+        return;
+      }
+
+      /* update loop */
+      w = r;
+    remove:
+      ++r;
+    next:
+      ++f;
+      if (unlikely(f == fe)) {
+        while (r <= len)
+          pnl[w++] = pnl[r++];
+      } else {
+        while (r <= len) {
+          assert(f != fe);
+          fo_pgno = fo[f];
+          pl_pgno = pnl[r];
+          if (MDBX_PNL_ORDERED(pl_pgno, fo_pgno))
+            pnl[w++] = pnl[r++];
+          else if (MDBX_PNL_REVERSED(pl_pgno, fo_pgno))
+            goto next;
+          else
+            goto remove;
+        }
+      }
+      pnl_setsize(pnl, w - 1);
+      return;
+    }
+  }
+}
+
+int pnl_cut_range(__restrict pnl_t pnl, __restrict pnl_t *const pdest, pgno_t range_begin, pgno_t range_end) {
+  assert(range_begin < range_end && pnl_size(pnl) && range_end > 0);
+  const size_t from = pnl_search(pnl, MDBX_PNL_ASCENDING ? range_begin : range_end - 1, MAX_PAGENO);
+  const size_t len = pnl_size(pnl);
+  size_t to;
+  for (to = from; to <= len; ++to) {
+    pgno_t pgno = pnl[to];
+    if (MDBX_PNL_ASCENDING ? (pgno >= range_end) : (pgno < range_begin))
+      break;
+    int err = pnl_append(pdest, pgno);
+    if (unlikely(err != MDBX_SUCCESS))
+      return err;
+  }
+  if (from < to)
+    pnl_cut(pnl, from, to - from);
+  return MDBX_SUCCESS;
+}
