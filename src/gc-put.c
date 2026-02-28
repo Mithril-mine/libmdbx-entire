@@ -1405,7 +1405,7 @@ retry:
   TRACE(">> %sstart, loop %u, gc: txn-rkl %zu, detent %" PRIaTXN, (ctx->loop > 1) ? "re" : "", ctx->loop,
         rkl_len(&txn->wr.gc.reclaimed), txn->env->gc.detent);
 
-  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
   tASSERT(txn, txn_dpl_check(txn));
   if (unlikely(/* paranoia */ ctx->loop > ((MDBX_DEBUG > 0) ? 12 : 42))) {
     ERROR("txn #%" PRIaTXN " too more loops %u, bailout", txn->txnid, ctx->loop);
@@ -1428,27 +1428,17 @@ retry:
     /* come back here after each put() in case retired-list changed */
     TRACE("%s", " >> continue");
 
-    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
     err = gc_clear_reclaimed(txn, ctx);
     if (unlikely(err != MDBX_SUCCESS))
       goto bailout;
 
-    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
     tASSERT(txn, txn_dpl_check(txn));
     if (AUDIT_ENABLED()) {
       err = audit_ex(txn, ctx->retired_stored, false);
       if (unlikely(err != MDBX_SUCCESS))
         goto bailout;
-    }
-
-    /* return suitable into unallocated space */
-    if (txn_refund(txn)) {
-      tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
-      if (AUDIT_ENABLED()) {
-        err = audit_ex(txn, ctx->retired_stored, false);
-        if (unlikely(err != MDBX_SUCCESS))
-          goto bailout;
-      }
     }
 
     if (txn->wr.loose_pages) {
@@ -1460,6 +1450,16 @@ retry:
         goto bailout;
       }
       tASSERT(txn, txn->wr.loose_pages == 0);
+    }
+
+    /* return suitable into unallocated space */
+    if (txn_refund(txn)) {
+      tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+      if (AUDIT_ENABLED()) {
+        err = audit_ex(txn, ctx->retired_stored, false);
+        if (unlikely(err != MDBX_SUCCESS))
+          goto bailout;
+      }
     }
 
     if (ctx->retired_stored < pnl_size(txn->wr.retired_pages)) {

@@ -847,7 +847,7 @@ static inline pgr_t page_alloc_finalize(MDBX_env *const env, MDBX_txn *const txn
 
   ret.err = page_dirty(txn, ret.page, (pgno_t)num);
 bailout:
-  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
 #if MDBX_ENABLE_PROFGC
   size_t majflt_after;
   prof->xtime_cpu += osal_cputime(&majflt_after) - cputime_before;
@@ -872,9 +872,8 @@ const char *gc_check_rowdata(const MDBX_txn *const txn, const MDBX_val data) {
     return "invalid alignment of GC-record";
 
   const const_pnl_t pnl = data.iov_base;
-  if (unlikely(data.iov_len < MDBX_PNL_SIZEOF(pnl))) {
+  if (unlikely(data.iov_len < MDBX_PNL_SIZEOF(pnl)))
     return "trimmed GC-record";
-  }
   if (unlikely(!pnl_check(pnl, txn->geo.first_unallocated)))
     return "wrong GC-record";
 
@@ -917,7 +916,7 @@ pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) 
    *   3. num > 1 — требуется последовательность страниц для сохранения retired-страниц
    *      при выключенном MDBX_ENABLE_BIGFOOT. */
   eASSERT(env, num > 0 || (flags & ALLOC_RESERVE));
-  eASSERT(env, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+  eASSERT(env, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
 
   size_t newnext;
   const uint64_t monotime_begin = (MDBX_ENABLE_PROFGC || (num > 1 && env->options.gc_time_limit)) ? osal_monotime() : 0;
@@ -1372,7 +1371,14 @@ done:
     if (unlikely(ret.err != MDBX_SUCCESS)) {
     fail:
       eASSERT(env, ret.err != MDBX_SUCCESS);
-      eASSERT(env, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+      if ((txn->flags & MDBX_TXN_ERROR) == 0) {
+        if (MDBX_ENABLE_REFUND && pnl_size(txn->wr.repnl) &&
+            unlikely(MDBX_PNL_MOST(txn->wr.repnl) == txn->geo.first_unallocated - 1)) {
+          /* Refund suitable pages into "unallocated" space */
+          txn_refund(txn);
+        }
+        eASSERT(env, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+      }
       int level;
       if (flags & ALLOC_UNIMPORTANT)
         level = MDBX_LOG_DEBUG;

@@ -613,6 +613,10 @@ status_done:
   reclaim:
     DEBUG("reclaim %zu %s page %" PRIaPGNO, npages, "dirty", pgno);
     rc = pnl_insert_span(&txn->wr.repnl, pgno, npages);
+    if (MDBX_ENABLE_REFUND && unlikely(MDBX_PNL_MOST(txn->wr.repnl) == txn->geo.first_unallocated - 1)) {
+      /* Refund suitable pages into "unallocated" space */
+      txn_refund(txn);
+    }
     tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
     tASSERT(txn, txn_dpl_check(txn));
     return rc;
@@ -696,6 +700,11 @@ __hot int __must_check_result page_dirty(MDBX_txn *txn, page_t *mp, size_t npage
       txn->wr.dirtyroom++;
       if (!MDBX_AVOID_MSYNC || !(txn->flags & MDBX_WRITEMAP))
         page_shadow_release(txn->env, lp, 1);
+      if (MDBX_ENABLE_REFUND && pnl_size(txn->wr.repnl) &&
+          unlikely(MDBX_PNL_MOST(txn->wr.repnl) == txn->geo.first_unallocated - 1)) {
+        /* Refund suitable pages into "unallocated" space */
+        txn_refund(txn);
+      }
     } else {
       ERROR("Dirtyroom is depleted, DPL length %zu", txn->wr.dirtylist->length);
       if (!MDBX_AVOID_MSYNC || !(txn->flags & MDBX_WRITEMAP))
