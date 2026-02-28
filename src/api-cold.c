@@ -384,7 +384,7 @@ __cold int mdbx_env_set_userctx(MDBX_env *env, void *ctx) {
 
 __cold void *mdbx_env_get_userctx(const MDBX_env *env) { return env ? env->userctx : nullptr; }
 
-__cold int mdbx_env_set_assert(MDBX_env *env, MDBX_assert_func *func) {
+__cold int mdbx_env_set_assert(MDBX_env *env, MDBX_assert_func func) {
   int rc = check_env(env, false);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
@@ -398,7 +398,7 @@ __cold int mdbx_env_set_assert(MDBX_env *env, MDBX_assert_func *func) {
 #endif
 }
 
-__cold int mdbx_env_set_hsr(MDBX_env *env, MDBX_hsr_func *hsr) {
+__cold int mdbx_env_set_hsr(MDBX_env *env, MDBX_hsr_func hsr) {
   int rc = check_env(env, false);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
@@ -407,7 +407,7 @@ __cold int mdbx_env_set_hsr(MDBX_env *env, MDBX_hsr_func *hsr) {
   return MDBX_SUCCESS;
 }
 
-__cold MDBX_hsr_func *mdbx_env_get_hsr(const MDBX_env *env) {
+__cold MDBX_hsr_func mdbx_env_get_hsr(const MDBX_env *env) {
   return likely(env && env->signature.weak == env_signature) ? env->hsr_callback : nullptr;
 }
 

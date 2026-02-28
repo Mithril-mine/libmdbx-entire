@@ -7,13 +7,13 @@ int mdbx_dbi_open2(MDBX_txn *txn, const MDBX_val *name, MDBX_db_flags_t flags, M
   return LOG_IFERR(dbi_open(txn, name, flags, dbi, nullptr, nullptr));
 }
 
-int mdbx_dbi_open_ex2(MDBX_txn *txn, const MDBX_val *name, MDBX_db_flags_t flags, MDBX_dbi *dbi, MDBX_cmp_func *keycmp,
-                      MDBX_cmp_func *datacmp) {
+int mdbx_dbi_open_ex2(MDBX_txn *txn, const MDBX_val *name, MDBX_db_flags_t flags, MDBX_dbi *dbi, MDBX_cmp_func keycmp,
+                      MDBX_cmp_func datacmp) {
   return LOG_IFERR(dbi_open(txn, name, flags, dbi, keycmp, datacmp));
 }
 
 static int dbi_open_cstr(MDBX_txn *txn, const char *name_cstr, MDBX_db_flags_t flags, MDBX_dbi *dbi,
-                         MDBX_cmp_func *keycmp, MDBX_cmp_func *datacmp) {
+                         MDBX_cmp_func keycmp, MDBX_cmp_func datacmp) {
   MDBX_val thunk, *name;
   if (name_cstr == MDBX_CHK_MAIN || name_cstr == MDBX_CHK_GC || name_cstr == MDBX_CHK_META)
     name = (void *)name_cstr;
@@ -29,8 +29,8 @@ int mdbx_dbi_open(MDBX_txn *txn, const char *name, MDBX_db_flags_t flags, MDBX_d
   return LOG_IFERR(dbi_open_cstr(txn, name, flags, dbi, nullptr, nullptr));
 }
 
-int mdbx_dbi_open_ex(MDBX_txn *txn, const char *name, MDBX_db_flags_t flags, MDBX_dbi *dbi, MDBX_cmp_func *keycmp,
-                     MDBX_cmp_func *datacmp) {
+int mdbx_dbi_open_ex(MDBX_txn *txn, const char *name, MDBX_db_flags_t flags, MDBX_dbi *dbi, MDBX_cmp_func keycmp,
+                     MDBX_cmp_func datacmp) {
   return LOG_IFERR(dbi_open_cstr(txn, name, flags, dbi, keycmp, datacmp));
 }
 
@@ -237,7 +237,7 @@ __cold int mdbx_dbi_stat(const MDBX_txn *txn, MDBX_dbi dbi, MDBX_stat *dest, siz
   return MDBX_SUCCESS;
 }
 
-__cold int mdbx_enumerate_tables(const MDBX_txn *txn, MDBX_table_enum_func *func, void *ctx) {
+__cold int mdbx_enumerate_tables(const MDBX_txn *txn, MDBX_table_enum_func func, void *ctx) {
   if (unlikely(!func))
     return LOG_IFERR(MDBX_EINVAL);
 

@@ -356,12 +356,12 @@ inline unsigned env::check_readers() {
   return static_cast<unsigned>(dead_count);
 }
 
-inline env &env::set_HandleSlowReaders(MDBX_hsr_func *cb) {
+inline env &env::set_HandleSlowReaders(MDBX_hsr_func cb) {
   error::success_or_throw(::mdbx_env_set_hsr(handle_, cb));
   return *this;
 }
 
-inline MDBX_hsr_func *env::get_HandleSlowReaders() const noexcept { return ::mdbx_env_get_hsr(handle_); }
+inline MDBX_hsr_func env::get_HandleSlowReaders() const noexcept { return ::mdbx_env_get_hsr(handle_); }
 
 inline txn_managed env::start_read() const {
   ::MDBX_txn *ptr;

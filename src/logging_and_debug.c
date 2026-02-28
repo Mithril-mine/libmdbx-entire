@@ -130,7 +130,7 @@ __cold static int setup_debug(MDBX_log_level_t level, MDBX_debug_flags_t flags, 
     globals.runtime_flags = (uint8_t)flags;
   }
 
-  assert(MDBX_LOGGER_DONTCHANGE == ((MDBX_debug_func *)(intptr_t)-1));
+  assert(MDBX_LOGGER_DONTCHANGE == ((MDBX_debug_func)(intptr_t)-1));
   if (logger.ptr != (void *)((intptr_t)-1)) {
     globals.logger.ptr = logger.ptr;
     globals.logger_buffer = buffer;
@@ -141,14 +141,14 @@ __cold static int setup_debug(MDBX_log_level_t level, MDBX_debug_flags_t flags, 
   return rc;
 }
 
-__cold int mdbx_setup_debug_nofmt(MDBX_log_level_t level, MDBX_debug_flags_t flags, MDBX_debug_func_nofmt *logger,
+__cold int mdbx_setup_debug_nofmt(MDBX_log_level_t level, MDBX_debug_flags_t flags, MDBX_debug_func_nofmt logger,
                                   char *buffer, size_t buffer_size) {
   union logger_union thunk;
   thunk.nofmt = (logger && buffer && buffer_size) ? logger : MDBX_LOGGER_NOFMT_DONTCHANGE;
   return setup_debug(level, flags, thunk, buffer, buffer_size);
 }
 
-__cold int mdbx_setup_debug(MDBX_log_level_t level, MDBX_debug_flags_t flags, MDBX_debug_func *logger) {
+__cold int mdbx_setup_debug(MDBX_log_level_t level, MDBX_debug_flags_t flags, MDBX_debug_func logger) {
   union logger_union thunk;
   thunk.fmt = logger;
   return setup_debug(level, flags, thunk, nullptr, 0);

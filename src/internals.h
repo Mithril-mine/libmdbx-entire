@@ -103,8 +103,8 @@ struct dpl {
 
 /* Comparing/ordering and length constraints */
 typedef struct clc {
-  MDBX_cmp_func *cmp; /* comparator */
-  size_t lmin, lmax;  /* min/max length constraints */
+  MDBX_cmp_func cmp; /* comparator */
+  size_t lmin, lmax; /* min/max length constraints */
 } clc_t;
 
 /* Вспомогательная информация о table.
@@ -399,7 +399,7 @@ struct MDBX_env {
   unsigned maxgc_per_branch;
   mdbx_pid_t registered_reader_pid; /* have liveness lock in reader table */
   void *userctx;                    /* User-settable context */
-  MDBX_hsr_func *hsr_callback;      /* Callback for kicking laggard readers */
+  MDBX_hsr_func hsr_callback;       /* Callback for kicking laggard readers */
   size_t madv_threshold;
 
   struct {
@@ -464,7 +464,7 @@ struct MDBX_env {
   /* -------------------------------------------------------------- debugging */
 
 #if MDBX_DEBUG
-  MDBX_assert_func *assert_func; /*  Callback for assertion failures */
+  MDBX_assert_func assert_func; /*  Callback for assertion failures */
 #endif
 #ifdef ENABLE_MEMCHECK
   int valgrind_handle;

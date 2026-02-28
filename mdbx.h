@@ -971,25 +971,25 @@ DEFINE_ENUM_FLAG_OPERATORS(MDBX_debug_flags)
  *                       format-message string passed by `fmt` argument.
  *                       Maybe NULL or invalid if the format-message string
  *                       don't contain `%`-specification of arguments. */
-typedef void MDBX_debug_func(MDBX_log_level_t loglevel, const char *function, int line, const char *fmt,
-                             va_list args) MDBX_CXX17_NOEXCEPT;
+typedef void (*MDBX_debug_func)(MDBX_log_level_t loglevel, const char *function, int line, const char *fmt,
+                                va_list args) MDBX_CXX17_NOEXCEPT;
 
 /** \brief The "don't change `logger`" value for mdbx_setup_debug() */
-#define MDBX_LOGGER_DONTCHANGE ((MDBX_debug_func *)(intptr_t)-1)
-#define MDBX_LOGGER_NOFMT_DONTCHANGE ((MDBX_debug_func_nofmt *)(intptr_t)-1)
+#define MDBX_LOGGER_DONTCHANGE ((MDBX_debug_func)(intptr_t)-1)
+#define MDBX_LOGGER_NOFMT_DONTCHANGE ((MDBX_debug_func_nofmt)(intptr_t)-1)
 
 /** \brief Setup global log-level, debug options and debug logger.
  * \returns The previously `debug_flags` in the 0-15 bits
  *          and `log_level` in the 16-31 bits.
  *
  * \see MDBX_log_level_t \see MDBX_debug_flags_t */
-LIBMDBX_API int mdbx_setup_debug(MDBX_log_level_t log_level, MDBX_debug_flags_t debug_flags, MDBX_debug_func *logger);
+LIBMDBX_API int mdbx_setup_debug(MDBX_log_level_t log_level, MDBX_debug_flags_t debug_flags, MDBX_debug_func logger);
 
-typedef void MDBX_debug_func_nofmt(MDBX_log_level_t loglevel, const char *function, int line, const char *msg,
-                                   unsigned length) MDBX_CXX17_NOEXCEPT;
+typedef void (*MDBX_debug_func_nofmt)(MDBX_log_level_t loglevel, const char *function, int line, const char *msg,
+                                      unsigned length) MDBX_CXX17_NOEXCEPT;
 
 LIBMDBX_API int mdbx_setup_debug_nofmt(MDBX_log_level_t log_level, MDBX_debug_flags_t debug_flags,
-                                       MDBX_debug_func_nofmt *logger, char *logger_buffer, size_t logger_buffer_size);
+                                       MDBX_debug_func_nofmt logger, char *logger_buffer, size_t logger_buffer_size);
 
 /** \brief A callback function for most MDBX assert() failures,
  * called before printing the message and aborting.
@@ -1001,8 +1001,8 @@ LIBMDBX_API int mdbx_setup_debug_nofmt(MDBX_log_level_t log_level, MDBX_debug_fl
  *                       may be NULL.
  * \param [in] line      The line number in the source file
  *                       where the assertion check failed, may be zero. */
-typedef void MDBX_assert_func(const MDBX_env *env, const char *msg, const char *function,
-                              unsigned line) MDBX_CXX17_NOEXCEPT;
+typedef void (*MDBX_assert_func)(const MDBX_env *env, const char *msg, const char *function,
+                                 unsigned line) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Set or reset the assert() callback of the environment.
  *
@@ -1013,7 +1013,7 @@ typedef void MDBX_assert_func(const MDBX_env *env, const char *msg, const char *
  * \param [in] func  An MDBX_assert_func function, or 0.
  *
  * \returns A non-zero error value on failure and 0 on success. */
-LIBMDBX_API int mdbx_env_set_assert(MDBX_env *env, MDBX_assert_func *func);
+LIBMDBX_API int mdbx_env_set_assert(MDBX_env *env, MDBX_assert_func func);
 
 /** \brief Dump given MDBX_val to the buffer
  *
@@ -4726,7 +4726,7 @@ LIBMDBX_API int mdbx_canary_get(const MDBX_txn *txn, MDBX_canary *canary);
  *     You have been warned but still can use custom comparators knowing
  *     about the issues noted above. In this case you should ignore `deprecated`
  *     warnings or define `MDBX_DEPRECATED` macro to empty to avoid ones. */
-typedef int(MDBX_cmp_func)(const MDBX_val *a, const MDBX_val *b) MDBX_CXX17_NOEXCEPT;
+typedef int (*MDBX_cmp_func)(const MDBX_val *a, const MDBX_val *b) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Open or Create a named table in the environment.
  * \ingroup c_dbi
@@ -4845,11 +4845,11 @@ LIBMDBX_API int mdbx_dbi_open2(MDBX_txn *txn, const MDBX_val *name, MDBX_db_flag
  * \param [out] dbi    Address where the new MDBX_dbi handle will be stored.
  * \returns A non-zero error value on failure and 0 on success. */
 MDBX_DEPRECATED LIBMDBX_API int mdbx_dbi_open_ex(MDBX_txn *txn, const char *name, MDBX_db_flags_t flags, MDBX_dbi *dbi,
-                                                 MDBX_cmp_func *keycmp, MDBX_cmp_func *datacmp);
+                                                 MDBX_cmp_func keycmp, MDBX_cmp_func datacmp);
 /** \copydoc mdbx_dbi_open_ex()
  * \ingroup c_dbi */
 MDBX_DEPRECATED LIBMDBX_API int mdbx_dbi_open_ex2(MDBX_txn *txn, const MDBX_val *name, MDBX_db_flags_t flags,
-                                                  MDBX_dbi *dbi, MDBX_cmp_func *keycmp, MDBX_cmp_func *datacmp);
+                                                  MDBX_dbi *dbi, MDBX_cmp_func keycmp, MDBX_cmp_func datacmp);
 
 /** \brief Renames the table using the DBI descriptor.
  *
@@ -4884,8 +4884,8 @@ LIBMDBX_API int mdbx_dbi_rename2(MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *na
  *
  * \returns Zero if an enumeration step is successful and should be continues,
  * if another value is returned, it will be immediately returned to the caller without continuing an enumeration. */
-typedef int(MDBX_table_enum_func)(void *ctx, const MDBX_txn *txn, const MDBX_val *name, MDBX_db_flags_t flags,
-                                  const struct MDBX_stat *stat, MDBX_dbi dbi) MDBX_CXX17_NOEXCEPT;
+typedef int (*MDBX_table_enum_func)(void *ctx, const MDBX_txn *txn, const MDBX_val *name, MDBX_db_flags_t flags,
+                                    const struct MDBX_stat *stat, MDBX_dbi dbi) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Enumerates user's named tables in a database.
  *
@@ -4904,7 +4904,7 @@ typedef int(MDBX_table_enum_func)(void *ctx, const MDBX_txn *txn, const MDBX_val
  * \param [in] ctx     A pointer to some context that will be passed to the `func()` function as it is.
  *
  * \returns A non-zero error value on failure and 0 on success. */
-LIBMDBX_API int mdbx_enumerate_tables(const MDBX_txn *txn, MDBX_table_enum_func *func, void *ctx);
+LIBMDBX_API int mdbx_enumerate_tables(const MDBX_txn *txn, MDBX_table_enum_func func, void *ctx);
 
 /** \defgroup value2key Value-to-Key functions
  * \brief Value-to-Key functions to
@@ -5936,7 +5936,7 @@ LIBMDBX_API int mdbx_cursor_ignord(MDBX_cursor *cursor);
  *
  * \see mdbx_cursor_scan()
  * \see mdbx_cursor_scan_from() */
-typedef int(MDBX_predicate_func)(void *context, MDBX_val *key, MDBX_val *value, void *arg) MDBX_CXX17_NOEXCEPT;
+typedef int (*MDBX_predicate_func)(void *context, MDBX_val *key, MDBX_val *value, void *arg) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Scans the table using the passed predicate, reducing the associated overhead.
  * \ingroup c_crud
@@ -5989,7 +5989,7 @@ typedef int(MDBX_predicate_func)(void *context, MDBX_val *key, MDBX_val *value, 
  *                           the end of the data has been reached during the search, or there is no data to search for.
  * \retval OTHERWISE any other value other than \ref MDBX_RESULT_TRUE and \ref MDBX_RESULT_FALSE is an error code
  *         during positioning the cursor or a user-defined code for stopping the search or an user-defined error. */
-LIBMDBX_API int mdbx_cursor_scan(MDBX_cursor *cursor, MDBX_predicate_func *predicate, void *context,
+LIBMDBX_API int mdbx_cursor_scan(MDBX_cursor *cursor, MDBX_predicate_func predicate, void *context,
                                  MDBX_cursor_op start_op, MDBX_cursor_op turn_op, void *arg);
 
 /** Scans a table using the given predicate, starting with the given key-value pair,
@@ -6061,7 +6061,7 @@ LIBMDBX_API int mdbx_cursor_scan(MDBX_cursor *cursor, MDBX_predicate_func *predi
  *                           the end of the data has been reached during the search, or there is no data to search for.
  * \retval OTHERWISE any other value other than \ref MDBX_RESULT_TRUE and \ref MDBX_RESULT_FALSE is an error code
  *         during positioning the cursor or a user-defined code for stopping the search or an user-defined error. */
-LIBMDBX_API int mdbx_cursor_scan_from(MDBX_cursor *cursor, MDBX_predicate_func *predicate, void *context,
+LIBMDBX_API int mdbx_cursor_scan_from(MDBX_cursor *cursor, MDBX_predicate_func predicate, void *context,
                                       MDBX_cursor_op from_op, MDBX_val *from_key, MDBX_val *from_value,
                                       MDBX_cursor_op turn_op, void *arg);
 
@@ -6560,7 +6560,7 @@ MDBX_NOTHROW_PURE_FUNCTION LIBMDBX_API int mdbx_cmp(const MDBX_txn *txn, MDBX_db
 
 /** \brief Returns default internal key's comparator for given table flags.
  * \ingroup c_extra */
-MDBX_NOTHROW_CONST_FUNCTION LIBMDBX_API MDBX_cmp_func *mdbx_get_keycmp(MDBX_db_flags_t flags);
+MDBX_NOTHROW_CONST_FUNCTION LIBMDBX_API MDBX_cmp_func mdbx_get_keycmp(MDBX_db_flags_t flags);
 
 /** \brief Compare two data items according to a particular table.
  * \ingroup c_crud
@@ -6582,7 +6582,7 @@ MDBX_NOTHROW_PURE_FUNCTION LIBMDBX_API int mdbx_dcmp(const MDBX_txn *txn, MDBX_d
 
 /** \brief Returns default internal data's comparator for given table flags
  * \ingroup c_extra */
-MDBX_NOTHROW_CONST_FUNCTION LIBMDBX_API MDBX_cmp_func *mdbx_get_datacmp(MDBX_db_flags_t flags);
+MDBX_NOTHROW_CONST_FUNCTION LIBMDBX_API MDBX_cmp_func mdbx_get_datacmp(MDBX_db_flags_t flags);
 
 /** \brief A callback function used to enumerate the reader lock table.
  * \ingroup c_statinfo
@@ -6609,8 +6609,8 @@ MDBX_NOTHROW_CONST_FUNCTION LIBMDBX_API MDBX_cmp_func *mdbx_get_datacmp(MDBX_db_
  *                            for reuse by completion read transaction.
  *
  * \returns < 0 on failure, >= 0 on success. \see mdbx_reader_list() */
-typedef int(MDBX_reader_list_func)(void *ctx, int num, int slot, mdbx_pid_t pid, mdbx_tid_t thread, uint64_t txnid,
-                                   uint64_t lag, size_t bytes_used, size_t bytes_retained) MDBX_CXX17_NOEXCEPT;
+typedef int (*MDBX_reader_list_func)(void *ctx, int num, int slot, mdbx_pid_t pid, mdbx_tid_t thread, uint64_t txnid,
+                                     uint64_t lag, size_t bytes_used, size_t bytes_retained) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Enumerate the entries in the reader lock table.
  *
@@ -6623,7 +6623,7 @@ typedef int(MDBX_reader_list_func)(void *ctx, int num, int slot, mdbx_pid_t pid,
  *
  * \returns A non-zero error value on failure and 0 on success,
  * or \ref MDBX_RESULT_TRUE if the reader lock table is empty. */
-LIBMDBX_API int mdbx_reader_list(const MDBX_env *env, MDBX_reader_list_func *func, void *ctx);
+LIBMDBX_API int mdbx_reader_list(const MDBX_env *env, MDBX_reader_list_func func, void *ctx);
 
 /** \brief Check for stale entries in the reader lock table.
  * \ingroup c_extra
@@ -6757,8 +6757,8 @@ LIBMDBX_API int mdbx_thread_unregister(const MDBX_env *env);
  * \retval 2 or great  The reader process was terminated or killed,
  *                     and libmdbx should entirely reset reader registration.
  */
-typedef int(MDBX_hsr_func)(const MDBX_env *env, const MDBX_txn *txn, mdbx_pid_t pid, mdbx_tid_t tid, uint64_t laggard,
-                           unsigned gap, size_t space, int retry) MDBX_CXX17_NOEXCEPT;
+typedef int (*MDBX_hsr_func)(const MDBX_env *env, const MDBX_txn *txn, mdbx_pid_t pid, mdbx_tid_t tid, uint64_t laggard,
+                             unsigned gap, size_t space, int retry) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Sets a Handle-Slow-Readers callback to resolve database full/overflow
  * issue due to a reader(s) which prevents the old data from being recycled.
@@ -6778,7 +6778,7 @@ typedef int(MDBX_hsr_func)(const MDBX_env *env, const MDBX_txn *txn, mdbx_pid_t 
  *                             or NULL to disable.
  *
  * \returns A non-zero error value on failure and 0 on success. */
-LIBMDBX_API int mdbx_env_set_hsr(MDBX_env *env, MDBX_hsr_func *hsr_callback);
+LIBMDBX_API int mdbx_env_set_hsr(MDBX_env *env, MDBX_hsr_func hsr_callback);
 
 /** \brief Gets current Handle-Slow-Readers callback used to resolve database
  * full/overflow issue due to a reader(s) which prevents the old data from being
@@ -6792,7 +6792,7 @@ LIBMDBX_API int mdbx_env_set_hsr(MDBX_env *env, MDBX_hsr_func *hsr_callback);
  *
  * \returns A MDBX_hsr_func function or NULL if disabled
  *          or something wrong. */
-MDBX_NOTHROW_PURE_FUNCTION LIBMDBX_API MDBX_hsr_func *mdbx_env_get_hsr(const MDBX_env *env);
+MDBX_NOTHROW_PURE_FUNCTION LIBMDBX_API MDBX_hsr_func mdbx_env_get_hsr(const MDBX_env *env);
 
 /** \defgroup chk Checking and Recovery
  * Basically this is internal API for `mdbx_chk` tool, etc.
@@ -7167,8 +7167,8 @@ LIBMDBX_API const char *mdbx_ratio2percents(uint64_t value, uint64_t whole, char
  *
  * \returns Zero if an enumeration step is successful and should be continues,
  * if another value is returned, it will be immediately returned to the caller without continuing an enumeration. */
-typedef int(MDBX_gc_iter_func)(void *ctx, const MDBX_txn *txn, uint64_t span_txnid, size_t span_pgno,
-                               size_t span_length, bool span_is_reclaimable) MDBX_CXX17_NOEXCEPT;
+typedef int (*MDBX_gc_iter_func)(void *ctx, const MDBX_txn *txn, uint64_t span_txnid, size_t span_pgno,
+                                 size_t span_length, bool span_is_reclaimable) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Information about Garbage Collection and page usage.
  * \ingroup c_statinfo

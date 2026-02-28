@@ -126,10 +126,10 @@ static inline uint32_t dbi_seq_next(const MDBX_env *const env, size_t dbi) {
 }
 
 MDBX_INTERNAL int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDBX_dbi *dbi,
-                           MDBX_cmp_func *keycmp, MDBX_cmp_func *datacmp);
+                           MDBX_cmp_func keycmp, MDBX_cmp_func datacmp);
 
-MDBX_INTERNAL int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func *keycmp,
-                           MDBX_cmp_func *datacmp);
+MDBX_INTERNAL int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func keycmp,
+                           MDBX_cmp_func datacmp);
 
 typedef struct defer_free_item {
   struct defer_free_item *next;

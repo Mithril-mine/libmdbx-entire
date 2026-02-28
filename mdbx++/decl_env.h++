@@ -613,13 +613,13 @@ public:
   ///    transaction;
   ///
   /// \see long-lived-read
-  inline env &set_HandleSlowReaders(MDBX_hsr_func *);
+  inline env &set_HandleSlowReaders(MDBX_hsr_func);
 
   /// \brief Returns the current Handle-Slow-Readers callback used to resolve
   /// database full/overflow issue due to a reader(s) which prevents the old
   /// data from being recycled.
   /// \see set_HandleSlowReaders()
-  inline MDBX_hsr_func *get_HandleSlowReaders() const noexcept;
+  inline MDBX_hsr_func get_HandleSlowReaders() const noexcept;
 
   /// \brief Starts read (read-only) transaction.
   inline txn_managed start_read() const;

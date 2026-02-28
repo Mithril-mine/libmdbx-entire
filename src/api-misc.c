@@ -116,9 +116,9 @@ int mdbx_dcmp(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *a, const MDBX_v
   return txn->env->kvs[dbi].clc.v.cmp(a, b);
 }
 
-__cold MDBX_cmp_func *mdbx_get_keycmp(MDBX_db_flags_t flags) { return builtin_keycmp(flags); }
+__cold MDBX_cmp_func mdbx_get_keycmp(MDBX_db_flags_t flags) { return builtin_keycmp(flags); }
 
-__cold MDBX_cmp_func *mdbx_get_datacmp(MDBX_db_flags_t flags) { return builtin_datacmp(flags); }
+__cold MDBX_cmp_func mdbx_get_datacmp(MDBX_db_flags_t flags) { return builtin_datacmp(flags); }
 
 /*----------------------------------------------------------------------------*/
 

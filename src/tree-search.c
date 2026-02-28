@@ -94,7 +94,7 @@ __hot __noinline size_t tree_search_branch(MDBX_cursor *mc, const MDBX_val *key)
   DKBUF_DEBUG;
   DEBUG("searching %zu keys in branch-page %" PRIaPGNO, nkeys, mp->pgno);
 
-  MDBX_cmp_func *comparator = mc->clc->k.cmp;
+  MDBX_cmp_func comparator = mc->clc->k.cmp;
   if (MDBX_UNALIGNED_OK < 4 && comparator == cmp_int_align2)
     /* Branch pages have no data, so if using integer keys,
      * alignment is guaranteed. Use faster cmp_int_align4(). */

@@ -247,7 +247,7 @@ int dbi_update(MDBX_txn *txn, bool keep) {
   return MDBX_SUCCESS;
 }
 
-int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func *keycmp, MDBX_cmp_func *datacmp) {
+int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func keycmp, MDBX_cmp_func datacmp) {
   const MDBX_env *const env = txn->env;
   eASSERT(env, dbi < txn->n_dbi && dbi < env->n_dbi);
   eASSERT(env, dbi_state(txn, dbi) & DBI_LINDO);
@@ -342,8 +342,8 @@ static inline size_t dbi_namelen(const MDBX_val name) {
   return (name.iov_len > sizeof(defer_free_item_t)) ? name.iov_len : sizeof(defer_free_item_t);
 }
 
-static int dbi_open_locked(MDBX_txn *txn, cursor_couple_t *maindb_cx, unsigned user_flags, MDBX_cmp_func *keycmp,
-                           MDBX_cmp_func *datacmp, MDBX_val name, const size_t fastpath_slot,
+static int dbi_open_locked(MDBX_txn *txn, cursor_couple_t *maindb_cx, unsigned user_flags, MDBX_cmp_func keycmp,
+                           MDBX_cmp_func datacmp, MDBX_val name, const size_t fastpath_slot,
                            defer_free_item_t **defer_chain) {
   MDBX_env *const env = txn->env;
   *defer_chain = nullptr;
@@ -536,8 +536,8 @@ bailout:
   return rc;
 }
 
-int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDBX_dbi *dbi, MDBX_cmp_func *keycmp,
-             MDBX_cmp_func *datacmp) {
+int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDBX_dbi *dbi, MDBX_cmp_func keycmp,
+             MDBX_cmp_func datacmp) {
   if (unlikely(!dbi))
     return MDBX_EINVAL;
   *dbi = 0;
@@ -585,7 +585,7 @@ int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDB
     struct dbi_snap_result snap = dbi_snap(env, slot);
     const MDBX_val snap_name = env->kvs[slot].name;
     const uint32_t main_seq = atomic_load32(&env->dbi_seqs[MAIN_DBI], mo_AcquireRelease);
-    MDBX_cmp_func *const snap_cmp = env->kvs[MAIN_DBI].clc.k.cmp;
+    const MDBX_cmp_func snap_cmp = env->kvs[MAIN_DBI].clc.k.cmp;
     if (unlikely(!(snap.flags & DB_VALID) || !snap_name.iov_base || !snap_name.iov_len || !snap_cmp))
       /* похоже на столкновение с параллельно работающим обновлением */
       goto slowpath_locking;

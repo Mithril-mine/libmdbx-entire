@@ -305,7 +305,7 @@ __hot struct node_search_result node_search(MDBX_cursor *mc, const MDBX_val *key
   }
 
   intptr_t i;
-  MDBX_cmp_func *cmp = mc->clc->k.cmp;
+  MDBX_cmp_func cmp = mc->clc->k.cmp;
   MDBX_val nodekey;
   if (unlikely(is_dupfix_leaf(mp))) {
     cASSERT(mc, mp->dupfix_ksize == mc->tree->dupfix_size);

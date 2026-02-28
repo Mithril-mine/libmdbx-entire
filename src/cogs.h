@@ -387,11 +387,11 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_equal_or_greater(const MDBX_val
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_equal_or_wrong(const MDBX_val *a, const MDBX_val *b);
 
-static inline MDBX_cmp_func *builtin_keycmp(MDBX_db_flags_t flags) {
+static inline MDBX_cmp_func builtin_keycmp(MDBX_db_flags_t flags) {
   return (flags & MDBX_REVERSEKEY) ? cmp_reverse : (flags & MDBX_INTEGERKEY) ? cmp_int_align2 : cmp_lexical;
 }
 
-static inline MDBX_cmp_func *builtin_datacmp(MDBX_db_flags_t flags) {
+static inline MDBX_cmp_func builtin_datacmp(MDBX_db_flags_t flags) {
   return !(flags & MDBX_DUPSORT)
              ? cmp_lenfast
              : ((flags & MDBX_INTEGERDUP) ? cmp_int_unaligned

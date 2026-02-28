@@ -92,8 +92,8 @@ typedef union bin128 {
 
 union logger_union {
   void *ptr;
-  MDBX_debug_func *fmt;
-  MDBX_debug_func_nofmt *nofmt;
+  MDBX_debug_func fmt;
+  MDBX_debug_func_nofmt nofmt;
 };
 
 struct libmdbx_globals {

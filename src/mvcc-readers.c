@@ -358,7 +358,7 @@ __cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler,
   }
 
   MDBX_env *const env = txn->env;
-  MDBX_hsr_func *const callback = env->hsr_callback;
+  MDBX_hsr_func const callback = env->hsr_callback;
   orsi_rw_t orsi;
   bool notify_eof_of_loop = false;
   int retry = 0;

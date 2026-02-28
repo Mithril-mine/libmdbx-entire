@@ -6,7 +6,7 @@
 /*------------------------------------------------------------------------------
  * Readers API */
 
-__cold int mdbx_reader_list(const MDBX_env *env, MDBX_reader_list_func *func, void *ctx) {
+__cold int mdbx_reader_list(const MDBX_env *env, MDBX_reader_list_func func, void *ctx) {
   int rc = check_env(env, true);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
