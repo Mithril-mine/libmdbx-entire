@@ -154,7 +154,7 @@ __cold static int walk_pgno(walk_ctx_t *ctx, walk_tbl_t *tbl, const pgno_t pgno,
   int rc = ctx->visitor(pgno, 1, ctx->userctx, ctx->deep, tbl, ctx->txn->env->ps, type, mp->txnid, err, nentries,
                         payload_size, header_size, unused_size + align_bytes, parent_pgno);
   if (unlikely(rc != MDBX_SUCCESS))
-    return (rc == MDBX_RESULT_TRUE) ? MDBX_SUCCESS : rc;
+    return rc;
 
   for (size_t i = 0; err == MDBX_SUCCESS && i < nentries; ++i) {
     if (type == page_dupfix_leaf)
@@ -164,13 +164,10 @@ __cold static int walk_pgno(walk_ctx_t *ctx, walk_tbl_t *tbl, const pgno_t pgno,
     if (type == page_branch) {
       assert(err == MDBX_SUCCESS);
       ctx->deep += 1;
-      err = walk_pgno(ctx, tbl, node_pgno(node), mp->txnid, pgno);
+      rc = walk_pgno(ctx, tbl, node_pgno(node), mp->txnid, pgno);
       ctx->deep -= 1;
-      if (unlikely(err != MDBX_SUCCESS)) {
-        if (err == MDBX_RESULT_TRUE)
-          break;
-        return err;
-      }
+      if (unlikely(rc != MDBX_SUCCESS))
+        return rc;
       continue;
     }
 
@@ -193,7 +190,7 @@ __cold static int walk_pgno(walk_ctx_t *ctx, walk_tbl_t *tbl, const pgno_t pgno,
       rc = ctx->visitor(large_pgno, npages, ctx->userctx, ctx->deep + 1, tbl, pagesize, page_large, lp.page->txnid, err,
                         1, over_payload, over_header, over_unused, pgno);
       if (unlikely(rc != MDBX_SUCCESS))
-        return (rc == MDBX_RESULT_TRUE) ? MDBX_SUCCESS : rc;
+        return rc;
     } break;
 
     case N_TREE /* sub-db */:
@@ -208,8 +205,10 @@ __cold static int walk_pgno(walk_ctx_t *ctx, walk_tbl_t *tbl, const pgno_t pgno,
         table.internal = &aligned_db;
         assert(err == MDBX_SUCCESS);
         ctx->deep += 1;
-        err = walk_tbl(ctx, &table, pgno);
+        rc = walk_tbl(ctx, &table, pgno);
         ctx->deep -= 1;
+        if (unlikely(rc != MDBX_SUCCESS))
+          return rc;
       }
       break;
 
@@ -229,12 +228,14 @@ __cold static int walk_pgno(walk_ctx_t *ctx, walk_tbl_t *tbl, const pgno_t pgno,
           ctx->cursor = &ctx->cursor->subcur->cursor;
           ctx->deep += 1;
           tbl->nested = &aligned_db;
-          err = walk_pgno(ctx, tbl, aligned_db.root, mp->txnid, pgno);
+          rc = walk_pgno(ctx, tbl, aligned_db.root, mp->txnid, pgno);
           tbl->nested = nullptr;
           ctx->deep -= 1;
           subcur_t *inner_xcursor = container_of(ctx->cursor, subcur_t, cursor);
           cursor_couple_t *couple = container_of(inner_xcursor, cursor_couple_t, inner);
           ctx->cursor = &couple->outer;
+          if (unlikely(rc != MDBX_SUCCESS))
+            return rc;
         }
       }
       break;
@@ -282,13 +283,13 @@ __cold static int walk_pgno(walk_ctx_t *ctx, walk_tbl_t *tbl, const pgno_t pgno,
         rc = ctx->visitor(pgno, 0, ctx->userctx, ctx->deep + 1, tbl, node_data_size, subtype, sp->txnid, err, nsubkeys,
                           subpayload_size, subheader_size, subunused_size + subalign_bytes, pgno);
         if (unlikely(rc != MDBX_SUCCESS))
-          return (rc == MDBX_RESULT_TRUE) ? MDBX_SUCCESS : rc;
+          return rc;
       }
       break;
     }
   }
 
-  return MDBX_SUCCESS;
+  return err;
 }
 
 __cold int walk_tbl(walk_ctx_t *ctx, walk_tbl_t *tbl, pgno_t parent_page) {
@@ -326,7 +327,7 @@ __cold int walk_pages(MDBX_txn *txn, walk_func *visitor, void *user, walk_option
   walk_tbl_t tbl = {.name = {.iov_base = MDBX_CHK_GC}, .internal = &txn->dbs[FREE_DBI]};
   if ((options & dont_walk_GC) == 0)
     rc = walk_tbl(&ctx, &tbl, 0);
-  if ((options & dont_walk_MAIN) == 0 && !MDBX_IS_ERROR(rc)) {
+  if ((options & dont_walk_MAIN) == 0 && rc == MDBX_SUCCESS) {
     tbl.name.iov_base = MDBX_CHK_MAIN;
     tbl.internal = &txn->dbs[MAIN_DBI];
     rc = walk_tbl(&ctx, &tbl, 0);

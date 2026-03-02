@@ -240,10 +240,15 @@ __cold static MDBX_chk_line_t *chk_print_pages_percent_bb(MDBX_chk_line_t *line,
 
 __cold static int chk_error_rc(MDBX_chk_scope_t *const scope, int err, const char *subj) {
   MDBX_chk_line_t *line = chk_line_begin(scope, MDBX_chk_error);
+  MDBX_chk_internal_t *const chk = scope->internal;
+  const char *msg =
+      ((err == MDBX_RESULT_TRUE || err == MDBX_EINTR) && chk->cb->check_break && chk->cb->check_break(chk->usr))
+          ? "user break"
+          : mdbx_strerror(err);
   if (line)
-    chk_line_end(chk_flush(chk_print(line, "%s() failed, error %s (%d)", subj, mdbx_strerror(err), err)));
+    chk_line_end(chk_flush(chk_print(line, "%s() failed, error %s (%d)", subj, msg, err)));
   else
-    debug_log(MDBX_LOG_ERROR, "mdbx_env_chk", 0, "%s() failed, error %s (%d)", subj, mdbx_strerror(err), err);
+    debug_log(MDBX_LOG_ERROR, "mdbx_env_chk", 0, "%s() failed, error %s (%d)", subj, msg, err);
   return err;
 }
 
@@ -840,8 +845,10 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
    * to avoid MDBX_CORRUPTED in case custom comparators were used */
   usr->result.processed_pages = NUM_METAS;
   int err = walk_pages(txn, chk_pgvisitor, scope, dont_check_keys_ordering);
-  if (MDBX_IS_ERROR(err) && err != MDBX_EINTR)
+  if (err != MDBX_SUCCESS) {
     chk_error_rc(scope, err, "walk_pages");
+    return err;
+  }
 
   for (size_t n = NUM_METAS; n < usr->result.alloc_pages; ++n)
     if (!chk->pagemap[n])
