@@ -9,20 +9,9 @@ typedef struct defrag_arc {
   pgno_t key_or_pgno;
   pgno_t parent;
   pgno_t mapped;
-  pgno_t npages_and_gc_flag;
+  pgno_t npages : 31;
+  bool gc : 1;
 } da_t;
-
-MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline pgno_t arc_npages(const da_t *arc) {
-  return arc->npages_and_gc_flag >> 1;
-}
-
-MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool arc_is_gc(const da_t *arc) {
-  return arc->npages_and_gc_flag & 1;
-}
-
-MDBX_MAYBE_UNUSED static inline void arc_set_npages_and_gc(da_t *arc, pgno_t npages, bool is_gc) {
-  arc->npages_and_gc_flag = (npages << 1) + (is_gc ? 1 : 0);
-}
 
 typedef struct defrag_map_list {
   size_t length;

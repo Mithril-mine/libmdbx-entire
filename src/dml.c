@@ -69,11 +69,9 @@ da_t *dml_append(dml_t **pdml, pgno_t key) {
     *pdml = dml;
   }
   assert(dml->length < dml->limit);
-  da_t *dm = &dml->items[dml->length++];
-  dm->key_or_pgno = key;
-  dm->parent = 0;
-  dm->mapped = 0;
-  dm->npages_and_gc_flag = 0;
+
+  da_t *dm = &dml->items[dml->length++], init = {.key_or_pgno = key};
+  *dm = init;
   return dm;
 }
 
