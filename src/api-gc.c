@@ -144,13 +144,13 @@ __cold int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast, size_t time_atl
   dfc.user_ctx = ctx;
   dfc.user_callback = progress_callback;
 
-  pgno_t snap_allocated_pages = 0;
-  while ((size_t)acceptable_backlash + dfc.payload_pages < txn->geo.first_unallocated &&
-         defrag_should_continue(&dfc, 0)) {
+  while ((size_t)acceptable_backlash + dfc.payload_pages < txn->geo.first_unallocated) {
+    if (!defrag_should_continue(&dfc, 0))
+      goto skip;
+
     const pgno_t prev_stumble = dfc.stumble_pgno;
     rc = defrag_cycle(&dfc);
 
-    snap_allocated_pages = txn->geo.first_unallocated;
 #if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
     pnl_free(dfc.repnl_clone);
     dfc.repnl_clone = nullptr;
@@ -191,10 +191,9 @@ __cold int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast, size_t time_atl
 
   if (txn && txn->userctx == &dfc) {
     if ((txn->flags & MDBX_TXN_ERROR) == 0) {
-      snap_allocated_pages = txn->geo.first_unallocated;
-      if (defrag_score(&dfc, snap_allocated_pages) > dfc.cycle_initial_score) {
+      if (defrag_score(&dfc, dfc.last_allocated = txn->geo.first_unallocated) > dfc.cycle_initial_score) {
         rc = txn_basal_commit(txn, nullptr);
-        snap_allocated_pages = txn->geo.first_unallocated;
+        dfc.last_allocated = txn->geo.first_unallocated;
       }
     }
     dfc.txn = nullptr;
@@ -202,15 +201,20 @@ __cold int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast, size_t time_atl
     rc = (err != MDBX_SUCCESS && !MDBX_IS_ERROR(rc)) ? err : rc;
   }
 
-  if (result)
-    defrag_result(&dfc, snap_allocated_pages, result, 0);
+  defrag_should_continue(&dfc, 0);
+skip:
+
+  if (result) {
+    defrag_result(&dfc, result, 0);
+    result->pages_moved = dfc.total_pages_moved;
+  }
 
   defrag_destroy(&dfc);
 
   if (!MDBX_IS_ERROR(rc)) {
     if (dfc.stopping_reasons)
       rc = (dfc.stopping_reasons == MDBX_defrag_laggard_reader) ? MDBX_LAGGARD_READER : MDBX_RESULT_TRUE;
-    if (snap_allocated_pages <= dfc.defrag_enough)
+    if (dfc.last_allocated <= dfc.defrag_enough)
       rc = MDBX_SUCCESS;
   }
   return LOG_IFERR(rc);

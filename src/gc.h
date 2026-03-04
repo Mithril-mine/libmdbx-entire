@@ -121,12 +121,12 @@ typedef struct defract_context {
   size_t progress_counter;
   uint8_t wallclock_trottle;
   uint8_t stumble_retry;
+  uint8_t stopping_reasons;
   unsigned cycle;
   size_t total_pages_moved;
   size_t payload_pages;
   pgno_t largepage_max, largepage_amountleft, largepage_count;
   pgno_t summary_depth;
-  volatile uint32_t stopping_reasons;
   void *user_ctx;
   MDBX_defrag_notify_func user_callback;
 
@@ -137,7 +137,7 @@ typedef struct defract_context {
 #if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
   pnl_t repnl_clone;
 #endif /* MDBX_DEBUG || MDBX_FORCE_ASSERTIONS */
-  pgno_t defrag_atleast, defrag_enough, before_defrag;
+  pgno_t defrag_atleast, defrag_enough, before_defrag, last_allocated;
   pgno_t gc_tree_pages, gc_retained_pages;
   uint64_t start_timestamp;
   uint64_t wallclock_atleast;
@@ -155,5 +155,4 @@ MDBX_INTERNAL void defrag_destroy(dfc_t *dfc);
 MDBX_INTERNAL int defrag_cycle(dfc_t *dfc);
 MDBX_INTERNAL bool defrag_should_continue(dfc_t *dfc, size_t progress_increment);
 MDBX_INTERNAL uint64_t defrag_score(dfc_t *dfc, size_t allocated_pages);
-MDBX_INTERNAL uint64_t defrag_result(const dfc_t *dfc, const intptr_t pages_allocated, MDBX_defrag_result_t *out,
-                                     uint64_t now_cache);
+MDBX_INTERNAL uint64_t defrag_result(dfc_t *dfc, MDBX_defrag_result_t *out, uint64_t now_cache);
