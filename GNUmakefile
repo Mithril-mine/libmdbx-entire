@@ -872,6 +872,7 @@ CROSS_LIST = \
 # sparc64-linux-gnu-gcc       - fails mmap/BAD_ADDRESS (previously: qemu-coredump sice mmap-troubles, qemu fails fcntl for F_SETLK/F_GETLK)
 # alpha-linux-gnu-gcc         - qemu-coredump (qemu mmap-troubles)
 # powerpc-linux-gnu-gcc       - fails mmap/BAD_ADDRESS (previously: qemu-coredump sice mmap-troubles, qemu fails fcntl for F_SETLK/F_GETLK)
+# mips*-linux-gnuabi*-gcc     - unavailable since 2026
 CROSS_LIST_NOQEMU = sparc64-linux-gnu-gcc alpha-linux-gnu-gcc powerpc-linux-gnu-gcc
 
 cross-gcc:
