@@ -3,7 +3,6 @@ TODO
 ----
 
  - Предоставление информации о размере рагруженной/кешируемой в ОЗУ части БД и её использование для управления упреждающим чтением.
- - Optional page-get and operation statistics for cursors.
  - split ASSERT() to CHECK{0,1,2,3} and basal `assert()`.
  - [SWIG](https://www.swig.org/).
  - Интеграция c DTrace и аналогами.
@@ -22,10 +21,12 @@ In development
 --------------
  - Extended example of using the C++ API, which can also be used as a simple smoke-test.
  - Ultra-fast deletion of consecutive elements by cutting off b-tree branches.
- - digging/refactoring/optimizing page splitting and tree rebalance.
+ - add CLI-options to mdbx_defrag and mdbx_load.
+ - Optional page-get and operation statistics for cursors.
 
 Done
 ----
+ - digging/refactoring/optimizing page splitting and tree rebalance.
  - Явная уплотнение/дефрагментация и mdbx_defrag.
  - get-cached API.
  - Cloning read transactions.

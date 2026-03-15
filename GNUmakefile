@@ -453,7 +453,7 @@ define uname2titer
   esac
 endef
 
-DIST_EXTRA := LICENSE NOTICE COPYRIGHT README.md CMakeLists.txt GNUmakefile Makefile ChangeLog.md VERSION.json config.h.in ntdll.def \
+DIST_EXTRA := LICENSE NOTICE COPYRIGHT README.md TODO.md CMakeLists.txt GNUmakefile Makefile ChangeLog.md VERSION.json config.h.in ntdll.def \
 	$(addprefix man1/, $(MANPAGES)) cmake/compiler.cmake cmake/profile.cmake cmake/utils.cmake \
 	$(addprefix ut_and_examples/, CMakeLists.txt example-mdbx.c++ example-mdbx.c pcrf/pcrf_simulator.c README.md) \
 	$(addprefix packages/, archlinux/PKGBUILD archlinux/.SRCINFO buildroot/0001-package-libmdbx.patch)
