@@ -514,6 +514,18 @@ public:
     writethrough_threshold = MDBX_opt_writethrough_threshold,
     /// \copydoc MDBX_opt_prefault_write_enable
     prefault_write_enable = MDBX_opt_prefault_write_enable,
+    /// \copydoc MDBX_opt_gc_time_limit
+    gc_time_limit = MDBX_opt_gc_time_limit,
+    /// \copydoc MDBX_opt_prefer_waf_insteadof_balance
+    prefer_waf_insteadof_balance = MDBX_opt_prefer_waf_insteadof_balance,
+    /// \copydoc MDBX_opt_subpage_limit
+    subpage_limit = MDBX_opt_subpage_limit,
+    /// \copydoc MDBX_opt_subpage_room_threshold
+    subpage_room_threshold = MDBX_opt_subpage_room_threshold,
+    /// \copydoc MDBX_opt_subpage_reserve_prereq
+    subpage_reserve_prereq = MDBX_opt_subpage_reserve_prereq,
+    /// \copydoc MDBX_opt_subpage_reserve_limit
+    subpage_reserve_limit = MDBX_opt_subpage_reserve_limit
   };
 
   /// \copybrief mdbx_env_set_option()
