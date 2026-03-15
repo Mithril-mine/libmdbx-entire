@@ -360,6 +360,8 @@ MDBX_INTERNAL int __must_check_result cursor_dupsort_setup(MDBX_cursor *mc, cons
 
 MDBX_INTERNAL int __must_check_result cursor_touch(MDBX_cursor *const mc, const MDBX_val *key, const MDBX_val *data);
 
+MDBX_INTERNAL MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *couple);
+
 /*----------------------------------------------------------------------------*/
 
 /* Update sub-page pointer, if any, in mc->subcur.

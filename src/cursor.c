@@ -397,6 +397,35 @@ bailout:
 
 /*----------------------------------------------------------------------------*/
 
+MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *couple) {
+  cASSERT(csrc, csrc->txn->txnid >= csrc->txn->env->lck->cached_oldest_txnid.weak);
+  couple->outer.next = nullptr;
+  couple->outer.backup = nullptr;
+  couple->outer.subcur = nullptr;
+  couple->outer.clc = nullptr;
+  couple->outer.txn = csrc->txn;
+  couple->outer.dbi_state = csrc->dbi_state;
+  couple->outer.checking = z_pagecheck;
+  couple->outer.tree = nullptr;
+  couple->outer.top_and_flags = 0;
+
+  MDBX_cursor *cdst = &couple->outer;
+  if (is_inner(csrc)) {
+    couple->inner.cursor.next = nullptr;
+    couple->inner.cursor.backup = nullptr;
+    couple->inner.cursor.subcur = nullptr;
+    couple->inner.cursor.txn = csrc->txn;
+    couple->inner.cursor.dbi_state = csrc->dbi_state;
+    couple->outer.subcur = &couple->inner;
+    cdst = &couple->inner.cursor;
+  }
+
+  cdst->checking = csrc->checking;
+  cdst->tree = csrc->tree;
+  cdst->clc = csrc->clc;
+  return cursor_cpstk(csrc, cdst);
+}
+
 MDBX_cursor *cursor_cpstk(const MDBX_cursor *csrc, MDBX_cursor *cdst) {
   cASSERT(cdst, cdst->txn == csrc->txn);
   cASSERT(cdst, cdst->tree == csrc->tree);

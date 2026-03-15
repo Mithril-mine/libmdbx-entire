@@ -44,6 +44,7 @@
 #include "page-get.c"
 #include "page-iov.c"
 #include "page-ops.c"
+#include "page-split.c"
 #include "pnl.c"
 #include "refund.c"
 #include "rkl.c"
