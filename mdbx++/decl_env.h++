@@ -508,8 +508,8 @@ public:
     spill_min_denominator = MDBX_opt_spill_min_denominator,
     /// \copydoc MDBX_opt_spill_parent4child_denominator
     spill_parent4child_denominator = MDBX_opt_spill_parent4child_denominator,
-    /// \copydoc MDBX_opt_merge_threshold_16dot16_percent
-    merge_threshold_16dot16_percent = MDBX_opt_merge_threshold_16dot16_percent,
+    /// \copydoc MDBX_opt_merge_threshold
+    merge_threshold_dot16 = MDBX_opt_merge_threshold,
     /// \copydoc MDBX_opt_writethrough_threshold
     writethrough_threshold = MDBX_opt_writethrough_threshold,
     /// \copydoc MDBX_opt_prefault_write_enable

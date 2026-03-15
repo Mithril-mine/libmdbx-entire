@@ -39,8 +39,7 @@ static MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *coupl
 
 void recalculate_merge_thresholds(MDBX_env *env) {
   const size_t whole_page_space = page_space(env);
-  env->merge_threshold =
-      (uint16_t)(whole_page_space - (whole_page_space * env->options.merge_threshold_16dot16_percent >> 16));
+  env->merge_threshold = (uint16_t)(whole_page_space - (whole_page_space * env->options.merge_threshold_dot16 >> 16));
   eASSERT(env, env->merge_threshold >= whole_page_space / 2u && env->merge_threshold <= whole_page_space * 63u / 64u);
 }
 

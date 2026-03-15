@@ -75,7 +75,7 @@ static uint16_t default_subpage_reserve_limit(const MDBX_env *env) {
   return 2753 /* 4.2% */;
 }
 
-static uint16_t default_merge_threshold_16dot16_percent(const MDBX_env *env) {
+static uint16_t default_merge_threshold_dot16(const MDBX_env *env) {
   (void)env;
   return 65536 / 3 /* 33% */;
 }
@@ -119,7 +119,7 @@ void env_options_init(MDBX_env *env) {
   env->options.spill_min_denominator = default_spill_min_denominator(env);
   env->options.spill_parent4child_denominator = default_spill_parent4child_denominator(env);
   env->options.dp_loose_limit = default_dp_loose_limit(env);
-  env->options.merge_threshold_16dot16_percent = default_merge_threshold_16dot16_percent(env);
+  env->options.merge_threshold_dot16 = default_merge_threshold_dot16(env);
   if (default_prefer_waf_insteadof_balance(env))
     env->options.prefer_waf_insteadof_balance = true;
 
@@ -370,12 +370,12 @@ __cold int mdbx_env_set_option(MDBX_env *env, const MDBX_option_t option, uint64
     env->options.dp_loose_limit = (uint8_t)value;
     break;
 
-  case MDBX_opt_merge_threshold_16dot16_percent:
+  case MDBX_opt_merge_threshold:
     if (value == /* default */ UINT64_MAX)
-      value = default_merge_threshold_16dot16_percent(env);
+      value = default_merge_threshold_dot16(env);
     if (unlikely(value < 8192 || value > 32768))
       return LOG_IFERR(MDBX_EINVAL);
-    env->options.merge_threshold_16dot16_percent = (unsigned)value;
+    env->options.merge_threshold_dot16 = (unsigned)value;
     recalculate_merge_thresholds(env);
     break;
 
@@ -534,8 +534,8 @@ __cold int mdbx_env_get_option(const MDBX_env *env, const MDBX_option_t option, 
     *pvalue = env->options.dp_loose_limit;
     break;
 
-  case MDBX_opt_merge_threshold_16dot16_percent:
-    *pvalue = env->options.merge_threshold_16dot16_percent;
+  case MDBX_opt_merge_threshold:
+    *pvalue = env->options.merge_threshold_dot16;
     break;
 
   case MDBX_opt_writethrough_threshold:

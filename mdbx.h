@@ -2293,7 +2293,7 @@ typedef enum MDBX_option {
    * to 50% (half empty page) which corresponds to the range from 8192 and
    * to 32768 in units respectively.
    * \see MDBX_opt_prefer_waf_insteadof_balance */
-  MDBX_opt_merge_threshold_16dot16_percent,
+  MDBX_opt_merge_threshold,
 
   /** \brief Controls the choosing between use write-through disk writes and
    * usual ones with followed flush by the `fdatasync()` syscall.
@@ -2351,7 +2351,7 @@ typedef enum MDBX_option {
    * of modified and written-to-filesystem pages.
    *
    * \details After deletion operations, pages containing less than the minimum number of keys, or those emptied before
-   * \ref MDBX_opt_merge_threshold_16dot16_percent, must be merged with one of the neighboring ones. If a pages to the
+   * \ref MDBX_opt_merge_threshold, must be merged with one of the neighboring ones. If a pages to the
    * right and left of the current one are both "dirty" (it were modified during the transaction and must be written to
    * filesystem) or both are "clean" (it were not changed in the current transaction), then the less populated page is
    * always chosen as the target for merging. When only one of the neighboring ones is "dirty" and the other is "clean",
@@ -2366,7 +2366,7 @@ typedef enum MDBX_option {
    *    INCREASE the number of modified pages and the amount of writing to filesystem when the current transaction is
    *    committed, but on average it will REDUCE the unevenness of pages filling/density.
    *
-   * \see MDBX_opt_merge_threshold_16dot16_percent */
+   * \see MDBX_opt_merge_threshold */
   MDBX_opt_prefer_waf_insteadof_balance,
 
   /** \brief Specifies, in % of a usual page, the maximum size of nested pages used to accommodate a small number of
