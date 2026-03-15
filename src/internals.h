@@ -412,7 +412,8 @@ struct MDBX_env {
     uint8_t spill_max_denominator;
     uint8_t spill_min_denominator;
     uint8_t spill_parent4child_denominator;
-    unsigned merge_threshold_dot16;
+    uint16_t merge_threshold_dot16;
+    uint16_t split_reserve_dot16;
 #if !(defined(_WIN32) || defined(_WIN64))
     unsigned writethrough_threshold;
 #endif /* Windows */

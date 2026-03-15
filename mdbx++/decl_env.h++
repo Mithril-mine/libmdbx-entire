@@ -525,7 +525,9 @@ public:
     /// \copydoc MDBX_opt_subpage_reserve_prereq
     subpage_reserve_prereq = MDBX_opt_subpage_reserve_prereq,
     /// \copydoc MDBX_opt_subpage_reserve_limit
-    subpage_reserve_limit = MDBX_opt_subpage_reserve_limit
+    subpage_reserve_limit = MDBX_opt_subpage_reserve_limit,
+    /// \copydoc MDBX_opt_split_reserve
+    split_reserve = MDBX_opt_split_reserve
   };
 
   /// \copybrief mdbx_env_set_option()

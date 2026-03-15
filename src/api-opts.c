@@ -464,6 +464,15 @@ __cold int mdbx_env_set_option(MDBX_env *env, const MDBX_option_t option, uint64
     }
     break;
 
+  case MDBX_opt_split_reserve:
+    if (value == /* default */ UINT64_MAX)
+      env->options.split_reserve_dot16 = 0;
+    else if (value > 32768)
+      err = MDBX_EINVAL;
+    else
+      env->options.split_reserve_dot16 = (uint16_t)value;
+    break;
+
   default:
     return LOG_IFERR(MDBX_EINVAL);
   }
@@ -568,6 +577,10 @@ __cold int mdbx_env_get_option(const MDBX_env *env, const MDBX_option_t option, 
 
   case MDBX_opt_subpage_reserve_limit:
     *pvalue = env->options.subpage.reserve_limit;
+    break;
+
+  case MDBX_opt_split_reserve:
+    *pvalue = env->options.split_reserve_dot16;
     break;
 
   default:

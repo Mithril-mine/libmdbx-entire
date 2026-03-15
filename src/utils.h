@@ -45,6 +45,33 @@ MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t branchless_ab
   return ((size_t)value + expanded_sign) ^ expanded_sign;
 }
 
+MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline intptr_t max_signed(intptr_t a, intptr_t b) {
+  return (a > b) ? a : b;
+}
+
+MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline intptr_t min_signed(intptr_t a, intptr_t b) {
+  return (a < b) ? a : b;
+}
+
+MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline intptr_t clamp_signed(intptr_t v, intptr_t min,
+                                                                                  intptr_t max) {
+  assert(min <= max);
+  return min_signed(max_signed(v, min), max);
+}
+
+MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t max_unsigned(size_t a, size_t b) {
+  return (a > b) ? a : b;
+}
+
+MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t min_unsigned(size_t a, size_t b) {
+  return (a < b) ? a : b;
+}
+
+MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t clamp_unsigned(size_t v, size_t min, size_t max) {
+  assert(min <= max);
+  return min_unsigned(max_unsigned(v, min), max);
+}
+
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline bool is_powerof2(size_t x) { return (x & (x - 1)) == 0; }
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t floor_powerof2(size_t value, size_t granularity) {

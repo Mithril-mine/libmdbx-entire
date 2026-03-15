@@ -2408,7 +2408,29 @@ typedef enum MDBX_option {
    *
    * The option value is specified in units of 1/65536 of the page size: minimal 0, maximal 100% (65535),
    * default is 4.2% (2753). */
-  MDBX_opt_subpage_reserve_limit
+  MDBX_opt_subpage_reserve_limit,
+
+  /** \brief Sets the space reservation in 1/65536 of page size when splitting page along the edge.
+   *
+   * By default, pages are split along the edges when multiple entries are inserted strictly in ascending or descending
+   * (in reverse) order, as this leads to dense page filling in the case of mass ordered inserts and, consequently, to a
+   * smaller increase in the size of the database. For example, when loading data from a dump or an ordered external
+   * source, the most dense filling of the pages and the minimum size of the database will be ensured.
+   * However, with such dense padding, any subsequent inserts will require splitting pages immediately, which will lead
+   * to a doubling of ones, an increase in database size, and a decrease in performance. In other words, initially dense
+   * padding greatly slows down subsequent inserts, as it requires splitting each database page.
+   *
+   * This option allows you to set additional space in % of the page size, which will be reserved when splitting the
+   * page, which helps to smooth out the effect described above of slowing down subsequent inserts:
+   *  - with the minimum/zero value, the most densely filled pages will be formed during a mass ordered inserts;
+   *  - with the maximum/32768 (means the 50% reservation), a pages will be split in the middle, not on the edge.
+   *
+   * Thus this option also allows to minor manage the trade-off between volume and balance of the b-tree forming while
+   * inserting data.
+   *
+   * The option value is specified in units of 1/65536 of the page size: minimal 0, maximal 50% (32768),
+   * default is 0. */
+  MDBX_opt_split_reserve
 } MDBX_option_t;
 
 /** \brief Sets the value of a extra runtime options for an environment.
