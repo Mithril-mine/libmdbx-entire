@@ -99,6 +99,13 @@
 #error MDBX_ENABLE_PGOP_STAT must be defined as 0 or 1
 #endif /* MDBX_ENABLE_PGOP_STAT */
 
+/** Controls the collection of statistics on pages access operations for each transaction. */
+#ifndef MDBX_ENABLE_PGET_STAT
+#define MDBX_ENABLE_PGET_STAT 1
+#elif !(MDBX_ENABLE_PGET_STAT == 0 || MDBX_ENABLE_PGET_STAT == 1)
+#error MDBX_ENABLE_PGET_STAT must be defined as 0 or 1
+#endif /* MDBX_ENABLE_PGET_STAT */
+
 /** Controls using Unix' mincore() to determine whether DB-pages
  * are resident in memory. */
 #ifndef MDBX_USE_MINCORE

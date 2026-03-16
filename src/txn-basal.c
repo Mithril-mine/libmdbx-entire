@@ -132,6 +132,9 @@ static int basal_start_locked(MDBX_txn *txn, unsigned flags) {
   tASSERT(txn, rkl_empty(&txn->wr.gc.ready4reuse));
   tASSERT(txn, rkl_empty(&txn->wr.gc.comeback));
   txn->env->gc.detent = 0;
+#if MDBX_ENABLE_PGET_STAT
+  txn->ops_pget = 0;
+#endif /* MDBX_ENABLE_PGET_STAT */
 
   txn->wr.troika = meta_tap(env);
   const meta_ptr_t head = meta_recent(env, &txn->wr.troika);

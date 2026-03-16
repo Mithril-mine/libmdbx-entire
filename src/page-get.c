@@ -427,6 +427,11 @@ __hot pgr_t page_get_unchecked(MDBX_txn *const txn, const pgno_t pgno, const txn
 
   eASSERT(txn->env, ((txn->flags ^ txn->env->flags) & MDBX_WRITEMAP) == 0);
   r.page = pgno2page(txn->env, pgno);
+
+#if MDBX_ENABLE_PGET_STAT
+  txn->ops_pget += 1;
+#endif /* MDBX_ENABLE_PGET_STAT */
+
   if ((txn->flags & (txn_ro_flat | MDBX_WRITEMAP)) == 0) {
     const MDBX_txn *spiller = txn;
     do {

@@ -391,6 +391,9 @@ static int nested_start(MDBX_txn *const nested, MDBX_txn *parent) {
 #endif /* MDBX_ENABLE_REFUND */
   nested->wr.dirtyroom = parent->wr.dirtyroom;
   nested->wr.dirtylru = parent->wr.dirtylru;
+#if MDBX_ENABLE_PGET_STAT
+  nested->ops_pget = 0;
+#endif /* MDBX_ENABLE_PGET_STAT */
 
   txn_dpl_sort(parent);
   if (parent->wr.spilled.list)

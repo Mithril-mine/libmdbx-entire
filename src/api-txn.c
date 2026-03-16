@@ -520,6 +520,13 @@ int mdbx_txn_info(const MDBX_txn *txn, MDBX_txn_info *info, bool scan_rlt) {
 
   info->txn_id = txn->txnid;
   info->txn_space_used = pgno2bytes(env, txn->geo.first_unallocated);
+  info->txn_pget =
+#if MDBX_ENABLE_PGET_STAT
+      txn->ops_pget
+#else
+      0
+#endif /* MDBX_ENABLE_PGET_STAT */
+      ;
 
   if (txn->flags & txn_ro_flat) {
     meta_ptr_t head;

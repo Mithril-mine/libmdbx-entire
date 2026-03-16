@@ -4074,6 +4074,10 @@ struct MDBX_txn_info {
      For WRITE transaction: The summarized size of the dirty database
      pages that generated during this transaction. */
   uint64_t txn_space_dirty;
+
+  /** Number of page get operations within this transaction
+     if corresponding statistics enabled via \ref MDBX_ENABLE_PGET_STAT build option. */
+  uint64_t txn_pget;
 };
 #ifndef __cplusplus
 /** \ingroup c_statinfo */

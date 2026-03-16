@@ -219,6 +219,11 @@ struct MDBX_txn {
   /* User-settable context */
   void *userctx;
 
+#if MDBX_ENABLE_PGET_STAT
+  /* Counter of page get operations */
+  uint64_t ops_pget;
+#endif /* MDBX_ENABLE_PGET_STAT */
+
   union {
     struct {
       /* For read txns: This thread/txn's slot table slot, or nullptr. */
