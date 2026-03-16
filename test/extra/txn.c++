@@ -504,6 +504,7 @@ static bool proble_cloning(const mdbx::txn_managed &txn, const mdbx::map_handle 
       if (mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)))
         ok = false;
       clone_txn_info = clone.get_info();
+      clone_txn_info.txn_pget = txn_info.txn_pget;
       if (mdbx::memcmp(&clone_txn_info, &txn_info, sizeof(txn_info)))
         ok = false;
       clone.reset_reading();
