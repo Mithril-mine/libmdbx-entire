@@ -39,7 +39,7 @@ static void print_stat(const MDBX_stat *ms) {
   printf("  Tree depth: %u\n", ms->ms_depth);
   printf("  Branch pages: %" PRIu64 "\n", ms->ms_branch_pages);
   printf("  Leaf pages: %" PRIu64 "\n", ms->ms_leaf_pages);
-  printf("  Overflow pages: %" PRIu64 "\n", ms->ms_overflow_pages);
+  printf("  Large/Overflow pages: %" PRIu64 "\n", ms->ms_overflow_pages);
   printf("  Entries: %" PRIu64 "\n", ms->ms_entries);
 }
 
