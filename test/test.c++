@@ -186,7 +186,6 @@ void testcase::db_open() {
   if (unlikely(err != MDBX_SUCCESS) && err != MDBX_BUSY)
     failure_perror("mdbx_env_set_syncbytes()", err);
 
-
   if (config.params.random_treeopts) {
     bool prefer_waf_insteadof_balance = flipcoin();
     log_verbose("prefer-waf-insteadof-balance: %s\n", prefer_waf_insteadof_balance ? "Yes" : "No");

@@ -49,7 +49,7 @@ int doit() {
   bool ok = true;
   txn = env.start_write();
   unsigned prev_height = 0;
-  for(uint64_t order = INT16_MAX; order > 0; --order) {
+  for (uint64_t order = INT16_MAX; order > 0; --order) {
     char buf[32];
     size_t kl = snprintf(buf, sizeof(buf), "%04lx", order);
     const auto kv = mdbx::default_buffer_pair(mdbx::slice(buf, kl), "");
@@ -68,7 +68,7 @@ int doit() {
 
   txn = env.start_write();
   prev_height = 0;
-  for(uint64_t order = 0; order < INT16_MAX; ++order) {
+  for (uint64_t order = 0; order < INT16_MAX; ++order) {
     char buf[32];
     size_t kl = snprintf(buf, sizeof(buf), "%04lx", order);
     const auto kv = mdbx::default_buffer_pair(mdbx::slice(buf, kl), "");
@@ -87,7 +87,7 @@ int doit() {
 
   txn = env.start_write();
   prev_height = 0;
-  for(uint64_t order = 0; order < INT16_MAX; ++order) {
+  for (uint64_t order = 0; order < INT16_MAX; ++order) {
     const auto kv = mdbx::default_buffer_pair("key", mdbx::slice::wrap(order));
     std::cout << "+" << kv << "\n";
     txn.upsert(map3, kv);
@@ -104,7 +104,7 @@ int doit() {
 
   txn = env.start_write();
   prev_height = 0;
-  for(uint64_t order = INT16_MAX; order > 0; --order) {
+  for (uint64_t order = INT16_MAX; order > 0; --order) {
     const auto kv = mdbx::default_buffer_pair("key", mdbx::slice::wrap(order));
     std::cout << "+" << kv << "\n";
     txn.upsert(map4, kv);
