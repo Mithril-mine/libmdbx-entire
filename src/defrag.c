@@ -1137,12 +1137,13 @@ void defrag_destroy(dfc_t *dfc) {
   dfc->lp_reserve = nullptr;
 }
 
-int defrag_init(dfc_t *dfc, MDBX_txn *txn, size_t defrag_atleast_pages, size_t spend_atleast_wallclock_16dot16,
-                size_t defrag_enough_pages, size_t limit_spend_wallclock_16dot16, intptr_t preferred_move_batch_size) {
+int defrag_init(dfc_t *dfc, MDBX_txn *txn, size_t defrag_atleast_pages, size_t spend_atleast_wallclock_dot16,
+                size_t defrag_enough_pages, size_t limit_spend_wallclock_dot16, intptr_t preferred_move_batch_size) {
   memset(dfc, 0, sizeof(*dfc));
+  dfc->start_timestamp = osal_monotime();
   if (preferred_move_batch_size < 0) {
     preferred_move_batch_size = 0;
-    if (limit_spend_wallclock_16dot16) {
+    if (limit_spend_wallclock_dot16) {
       /* TODO: подстроить размер (возможно динамически на каждом цикле) так, чтобы время записи порции не превышало
        * 5-10% от таймаута. */
       preferred_move_batch_size = bytes2pgno(txn->env, 64 * MEGABYTE);
@@ -1155,11 +1156,10 @@ int defrag_init(dfc_t *dfc, MDBX_txn *txn, size_t defrag_atleast_pages, size_t s
   dfc->txn = txn;
   dfc->before_defrag = txn->geo.first_unallocated;
   dfc->last_allocated = dfc->before_defrag;
-  if (limit_spend_wallclock_16dot16)
-    dfc->wallclock_detent = dfc->start_timestamp + osal_16dot16_to_monotime(limit_spend_wallclock_16dot16);
-  if (spend_atleast_wallclock_16dot16)
-    dfc->wallclock_atleast = dfc->start_timestamp + osal_16dot16_to_monotime(spend_atleast_wallclock_16dot16);
-  dfc->start_timestamp = osal_monotime();
+  if (limit_spend_wallclock_dot16)
+    dfc->wallclock_detent = dfc->start_timestamp + osal_16dot16_to_monotime(limit_spend_wallclock_dot16);
+  if (spend_atleast_wallclock_dot16)
+    dfc->wallclock_atleast = dfc->start_timestamp + osal_16dot16_to_monotime(spend_atleast_wallclock_dot16);
 
   /* Загружаем информацию о всех таблицах. */
   MDBX_stat stat;
