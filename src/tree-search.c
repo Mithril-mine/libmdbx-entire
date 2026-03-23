@@ -172,3 +172,84 @@ __hot __noinline int tree_search_finalize(MDBX_cursor *mc, const MDBX_val *key, 
      be_filled(mc); */
   return MDBX_SUCCESS;
 }
+
+__hot fsr_t tree_search_foliage(MDBX_cursor *mc, const MDBX_val *key) {
+  page_t *mp = mc->pg[mc->top];
+  const intptr_t nkeys = page_numkeys(mp);
+  DKBUF_DEBUG;
+
+  DEBUG("searching %zu keys in %s %spage %" PRIaPGNO, nkeys, is_leaf(mp) ? "leaf" : "branch",
+        is_subpage(mp) ? "sub-" : "", mp->pgno);
+
+  fsr_t ret;
+  ret.exact = false;
+  STATIC_ASSERT(P_BRANCH == 1);
+  intptr_t low = mp->flags & P_BRANCH;
+  intptr_t high = nkeys - 1;
+  if (unlikely(high < low)) {
+    mc->ki[mc->top] = 0;
+    ret.node = nullptr;
+    return ret;
+  }
+
+  intptr_t i;
+  MDBX_cmp_func cmp = mc->clc->k.cmp;
+  MDBX_val nodekey;
+  if (unlikely(is_dupfix_leaf(mp))) {
+    cASSERT(mc, mp->dupfix_ksize == mc->tree->dupfix_size);
+    nodekey.iov_len = mp->dupfix_ksize;
+    do {
+      i = (low + high) >> 1;
+      nodekey.iov_base = page_dupfix_ptr(mp, i, nodekey.iov_len);
+      cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(nodekey.iov_base, nodekey.iov_len));
+      int cr = cmp(key, &nodekey);
+      DEBUG("found leaf index %zu [%s], rc = %i", i, DKEY_DEBUG(&nodekey), cr);
+      if (cr > 0)
+        low = ++i;
+      else if (cr < 0)
+        high = i - 1;
+      else {
+        ret.exact = true;
+        break;
+      }
+    } while (likely(low <= high));
+
+    /* store the key index */
+    mc->ki[mc->top] = (indx_t)i;
+    ret.node = (i < nkeys) ? /* fake for DUPFIX */ (node_t *)(intptr_t)-1
+                           : /* There is no entry larger or equal to the key. */ nullptr;
+    return ret;
+  }
+
+  if (MDBX_UNALIGNED_OK < 4 && is_branch(mp) && cmp == cmp_int_align2)
+    /* Branch pages have no data, so if using integer keys,
+     * alignment is guaranteed. Use faster cmp_int_align4(). */
+    cmp = cmp_int_align4;
+
+  node_t *node;
+  do {
+    i = (low + high) >> 1;
+    node = page_node(mp, i);
+    nodekey.iov_len = node_ks(node);
+    nodekey.iov_base = node_key(node);
+    cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(nodekey.iov_base, nodekey.iov_len));
+    int cr = cmp(key, &nodekey);
+    if (is_leaf(mp))
+      DEBUG("found leaf index %zu [%s], rc = %i", i, DKEY_DEBUG(&nodekey), cr);
+    else
+      DEBUG("found branch index %zu [%s -> %" PRIaPGNO "], rc = %i", i, DKEY_DEBUG(&nodekey), node_pgno(node), cr);
+    if (cr > 0)
+      low = ++i;
+    else if (cr < 0)
+      high = i - 1;
+    else {
+      ret.exact = true;
+      break;
+    }
+  } while (likely(low <= high));
+
+  /* store the key index */
+  mc->ki[mc->top] = (indx_t)i;
+  ret.node = (i < nkeys) ? page_node(mp, i) : /* There is no entry larger or equal to the key. */ nullptr;
+  return ret;
+}

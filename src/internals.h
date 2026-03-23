@@ -41,11 +41,6 @@ typedef struct page_get_result {
   int err;
 } pgr_t;
 
-typedef struct node_search_result {
-  node_t *node;
-  bool exact;
-} nsr_t;
-
 typedef struct bind_reader_slot_result {
   int err;
   reader_slot_t *slot;

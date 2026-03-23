@@ -1881,9 +1881,9 @@ continue_other_pages:
 
 search_node:
   cASSERT(mc, is_pointed(mc) && !inner_pointed(mc));
-  struct node_search_result nsr = node_search(mc, &aligned.key);
-  node = nsr.node;
-  ret.exact = nsr.exact;
+  fsr_t sr = tree_search_foliage(mc, &aligned.key);
+  node = sr.node;
+  ret.exact = sr.exact;
   if (!ret.exact) {
     if (op < MDBX_SET_RANGE)
       goto target_not_found;

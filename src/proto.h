@@ -112,6 +112,24 @@ MDBX_INTERNAL void env_options_adjust_defaults(MDBX_env *env);
 MDBX_INTERNAL void env_options_adjust_dp_limit(MDBX_env *env);
 MDBX_INTERNAL pgno_t default_dp_limit(const MDBX_env *env);
 
+MDBX_INTERNAL int __must_check_result tree_search_finalize(MDBX_cursor *mc, const MDBX_val *key, int flags);
+MDBX_INTERNAL int tree_search_lowest(MDBX_cursor *mc);
+MDBX_INTERNAL size_t tree_search_branch(MDBX_cursor *mc, const MDBX_val *key);
+
+typedef struct foliage_search_result {
+  node_t *node;
+  bool exact;
+} fsr_t;
+MDBX_INTERNAL fsr_t tree_search_foliage(MDBX_cursor *mc, const MDBX_val *key);
+
+enum page_search_flags {
+  Z_MODIFY = 1,
+  Z_ROOTONLY = 2,
+  Z_FIRST = 4,
+  Z_LAST = 8,
+};
+MDBX_INTERNAL int __must_check_result tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags);
+
 MDBX_INTERNAL int tree_drop(MDBX_cursor *mc, const bool may_have_tables);
 MDBX_INTERNAL int __must_check_result tree_rebalance(MDBX_cursor *mc);
 MDBX_INTERNAL int __must_check_result tree_propagate_key(MDBX_cursor *mc, const MDBX_val *key);
