@@ -569,6 +569,8 @@ __cold int dxb_setup(MDBX_env *env, const int lck_rc, const mdbx_mode_t mode_bit
   env->kvs[FREE_DBI].clc.v.cmp = cmp_lenfast;
   env->kvs[FREE_DBI].clc.v.lmin = 4;
   env->kvs[FREE_DBI].clc.v.lmax = mdbx_env_get_maxvalsize_ex(env, MDBX_INTEGERKEY);
+  clc_reset_methods(&env->kvs[FREE_DBI].clc.k);
+  clc_reset_methods(&env->kvs[FREE_DBI].clc.v);
 
   if (env->ps != header.pagesize)
     env_setup_pagesize(env, header.pagesize);

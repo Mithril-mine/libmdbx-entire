@@ -301,8 +301,8 @@ int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func
       const uint32_t seq = dbi_seq_next(env, dbi);
       const uint16_t db_flags = user_flags & DB_PERSISTENT_FLAGS;
       eASSERT(env, txn->dbs[dbi].height == 0 && txn->dbs[dbi].items == 0 && txn->dbs[dbi].root == P_INVALID);
-      env->kvs[dbi].clc.k.cmp = keycmp ? keycmp : builtin_keycmp(user_flags);
-      env->kvs[dbi].clc.v.cmp = datacmp ? datacmp : builtin_datacmp(user_flags);
+      env->kvs[dbi].clc.k.cmp = keycmp;
+      env->kvs[dbi].clc.v.cmp = datacmp;
       txn->dbs[dbi].flags = db_flags;
       txn->dbs[dbi].dupfix_size = 0;
       if (unlikely(tbl_setup(env, &env->kvs[dbi], &txn->dbs[dbi]))) {
@@ -316,6 +316,7 @@ int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func
       txn->dbi_seqs[dbi] = seq;
       txn->dbi_state[dbi] = DBI_LINDO | DBI_VALID | DBI_CREAT | DBI_DIRTY;
       txn->flags |= MDBX_TXN_DIRTY;
+      return MDBX_SUCCESS;
     }
   }
 
@@ -325,6 +326,7 @@ int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func
     if (env->dbs_flags[dbi] & DB_VALID)
       return MDBX_EINVAL;
     env->kvs[dbi].clc.k.cmp = keycmp;
+    clc_reset_methods(&env->kvs[dbi].clc.k);
   }
 
   if (!datacmp)
@@ -333,6 +335,7 @@ int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func
     if (env->dbs_flags[dbi] & DB_VALID)
       return MDBX_EINVAL;
     env->kvs[dbi].clc.v.cmp = datacmp;
+    clc_reset_methods(&env->kvs[dbi].clc.v);
   }
 
   return MDBX_SUCCESS;

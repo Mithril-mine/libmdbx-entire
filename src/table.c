@@ -23,6 +23,8 @@ int tbl_setup(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *cons
 
   kvx->clc.k.lmin = keysize_min(db->flags);
   kvx->clc.k.lmax = env_keysize_max(env, db->flags);
+  clc_reset_methods(&kvx->clc.k);
+  clc_reset_methods(&kvx->clc.v);
   if (unlikely(!kvx->clc.k.cmp)) {
     kvx->clc.v.cmp = builtin_datacmp(db->flags);
     kvx->clc.k.cmp = builtin_keycmp(db->flags);

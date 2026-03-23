@@ -398,6 +398,11 @@ static inline MDBX_cmp_func builtin_datacmp(MDBX_db_flags_t flags) {
                                           : ((flags & MDBX_REVERSEDUP) ? cmp_reverse : cmp_lexical));
 }
 
+static inline void clc_reset_methods(volatile clc_t *clc) {
+  clc->search_branch = tree_search_branch_default;
+  clc->search_foliage = tree_search_foliage_default;
+}
+
 /*----------------------------------------------------------------------------*/
 
 MDBX_INTERNAL uint32_t combine_durability_flags(const uint32_t a, const uint32_t b);

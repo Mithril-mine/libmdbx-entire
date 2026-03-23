@@ -84,7 +84,7 @@ __hot int tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags) {
   return tree_search_continue(mc, key, flags);
 }
 
-__hot size_t tree_search_branch(MDBX_cursor *mc, const MDBX_val *key) {
+__hot size_t tree_search_branch_default(const MDBX_cursor *mc, const MDBX_val *key) {
   page_t *mp = mc->pg[mc->top];
   cASSERT(mc, (page_type(mp) & P_TYPE) == P_BRANCH);
   const size_t nkeys = page_numkeys(mp);
@@ -94,8 +94,7 @@ __hot size_t tree_search_branch(MDBX_cursor *mc, const MDBX_val *key) {
 
   MDBX_cmp_func comparator = mc->clc->k.cmp;
   if (MDBX_UNALIGNED_OK < 4 && comparator == cmp_int_align2)
-    /* Branch pages have no data, so if using integer keys,
-     * alignment is guaranteed. Use faster cmp_int_align4(). */
+    /* Branch pages have no data, so if using integer keys, alignment is guaranteed. Use faster cmp_int_align4(). */
     comparator = cmp_int_align4;
 
   if (unlikely(nkeys < 2))
@@ -171,7 +170,7 @@ __hot __noinline int tree_search_continue(MDBX_cursor *mc, const MDBX_val *key, 
   return MDBX_SUCCESS;
 }
 
-__hot fsr_t tree_search_foliage(MDBX_cursor *mc, const MDBX_val *key) {
+__hot fsr_t tree_search_foliage_default(MDBX_cursor *mc, const MDBX_val *key) {
   page_t *mp = mc->pg[mc->top];
   const intptr_t nkeys = page_numkeys(mp);
   DKBUF_DEBUG;

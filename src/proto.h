@@ -114,13 +114,8 @@ MDBX_INTERNAL pgno_t default_dp_limit(const MDBX_env *env);
 
 MDBX_INTERNAL int __must_check_result tree_search_continue(MDBX_cursor *mc, const MDBX_val *key, int flags);
 MDBX_INTERNAL int tree_search_lowest(MDBX_cursor *mc);
-MDBX_INTERNAL size_t tree_search_branch(MDBX_cursor *mc, const MDBX_val *key);
-
-typedef struct foliage_search_result {
-  node_t *node;
-  bool exact;
-} fsr_t;
-MDBX_INTERNAL fsr_t tree_search_foliage(MDBX_cursor *mc, const MDBX_val *key);
+MDBX_INTERNAL size_t tree_search_branch_default(const MDBX_cursor *mc, const MDBX_val *key);
+MDBX_INTERNAL fsr_t tree_search_foliage_default(MDBX_cursor *mc, const MDBX_val *key);
 
 enum page_search_flags {
   Z_MODIFY = 1,
@@ -129,6 +124,14 @@ enum page_search_flags {
   Z_LAST = 8,
 };
 MDBX_INTERNAL int __must_check_result tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags);
+
+static inline size_t tree_search_branch(const MDBX_cursor *mc, const MDBX_val *key) {
+  return mc->clc->k.search_branch(mc, key);
+}
+
+static inline fsr_t tree_search_foliage(MDBX_cursor *mc, const MDBX_val *key) {
+  return mc->clc->k.search_foliage(mc, key);
+}
 
 MDBX_INTERNAL int tree_drop(MDBX_cursor *mc, const bool may_have_tables);
 MDBX_INTERNAL int __must_check_result tree_rebalance(MDBX_cursor *mc);
