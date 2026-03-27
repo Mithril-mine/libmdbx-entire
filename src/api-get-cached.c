@@ -243,7 +243,7 @@ __hot static MDBX_cache_result_t cache_get(const MDBX_txn *txn, MDBX_dbi dbi, co
     if (mp->txnid < entry->trunk_txnid) {
       /* Попали на более старую страницу, такое может быть только при "схлопывании" b-tree,
        * когда целевой ключ был удален вместе с ведущими к нему branch-страницами. */
-      tASSERT(txn, !node_search(&cx.outer, &aligned.key).exact);
+      tASSERT(txn, !tree_search_foliage(&cx.outer, &aligned.key).exact);
       goto notfound_elevate_trunk;
     }
 
@@ -263,24 +263,24 @@ __hot static MDBX_cache_result_t cache_get(const MDBX_txn *txn, MDBX_dbi dbi, co
      * В зоне branch-страниц дерева следовало-бы продолжить поиск, но в случае листовой страницы можно
      * быть уверенным что ключ отсутствует, так он больше последнего ключа на этой странице и меньше
      * первого на следующей, а таких ключей нет физически. */
-    tASSERT(txn, !node_search(&cx.outer, &aligned.key).exact);
+    tASSERT(txn, !tree_search_foliage(&cx.outer, &aligned.key).exact);
     goto notfound_elevate_trunk;
   }
 
   trunk_txnid = mp->txnid;
-  struct node_search_result nsr = node_search(&cx.outer, &aligned.key);
-  if (!nsr.exact) {
+  sfr_t sfr = tree_search_foliage(&cx.outer, &aligned.key);
+  if (!sfr.exact) {
     tASSERT(txn, !entry->offset || trunk_txnid > entry->trunk_txnid);
     goto not_found;
   }
 
-  if (unlikely(node_flags(nsr.node) & N_DUP)) {
+  if (unlikely(node_flags(sfr.node) & N_DUP)) {
     /* TODO: It is possible to implement support for multivalues, but need to think through the usage scenarios. */
     err = MDBX_EMULTIVAL;
     return cache_error(LOG_IFERR(err));
   }
 
-  err = node_read(&cx.outer, nsr.node, data, mp);
+  err = node_read(&cx.outer, sfr.node, data, mp);
   if (unlikely(err != MDBX_SUCCESS))
     return cache_error(LOG_IFERR(err));
 

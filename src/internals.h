@@ -41,11 +41,6 @@ typedef struct page_get_result {
   int err;
 } pgr_t;
 
-typedef struct node_search_result {
-  node_t *node;
-  bool exact;
-} nsr_t;
-
 typedef struct bind_reader_slot_result {
   int err;
   reader_slot_t *slot;
@@ -101,10 +96,22 @@ struct dpl {
 /*----------------------------------------------------------------------------*/
 /* Internal structures */
 
+typedef struct search_foliage_result {
+  node_t *node;
+  bool exact;
+} sfr_t;
+
+typedef size_t (*MDBX_search_branch)(const MDBX_cursor *mc, const MDBX_val *key);
+typedef sfr_t (*MDBX_search_foliage)(MDBX_cursor *mc, const MDBX_val *key);
+
 /* Comparing/ordering and length constraints */
 typedef struct clc {
   MDBX_cmp_func cmp; /* comparator */
   size_t lmin, lmax; /* min/max length constraints */
+  MDBX_search_branch search_branch;
+  MDBX_search_foliage search_foliage;
+  void *reserve_node_add;
+  void *reserve_node_del;
 } clc_t;
 
 /* Вспомогательная информация о table.
@@ -131,7 +138,7 @@ typedef struct clc {
  *    а clc[1] для значений, причем компаратор значений для dupsort-курсора
  *    будет попадать на MDBX_val с именем, что приведет к SIGSEGV при попытке
  *    использования такого компаратора.
- *  - размер kvx_t становится равным 8 словам.
+ *  - размер kvx_t становится равным 8 словам (16 словам после добавление функций поиска и т.п).
  *
  * Трюки и прочая экономия на спичках:
  *  - не храним dbi внутри курсора, вместо этого вычисляем его как разницу между
@@ -140,13 +147,13 @@ typedef struct clc {
  *    так как dbi требуется для последующего доступа к массивам в транзакции,
  *    т.е. при вычислении dbi разыменовывается тот-же указатель на txn
  *    и читается та же кэш-линия с указателями. */
-typedef struct clc2 {
+typedef struct clc_couple {
   clc_t k; /* для ключей */
   clc_t v; /* для значений */
-} clc2_t;
+} clc_couple_t;
 
 struct kvx {
-  clc2_t clc;
+  clc_couple_t clc;
   MDBX_val name; /* имя table */
 };
 
@@ -319,13 +326,28 @@ struct MDBX_cursor {
   /* Указывает на tree->dbs[] для DBI этого курсора. */
   tree_t *tree;
   /* Указывает на env->kvs[] для DBI этого курсора. */
-  clc2_t *clc;
+  clc_couple_t *clc;
   subcur_t *__restrict subcur;
   page_t *pg[CURSOR_STACK_SIZE]; /* stack of pushed pages */
   indx_t ki[CURSOR_STACK_SIZE];  /* stack of page indices */
   MDBX_cursor *next;
   /* Состояние на момент старта вложенной транзакции */
   MDBX_cursor *backup;
+#ifndef MDBX_DEBUG_SEARCH_DISPATCHING
+#define MDBX_DEBUG_SEARCH_DISPATCHING MDBX_DEBUG
+#endif /* MDBX_DEBUG_SEARCH_DISPATCHING */
+
+#if MDBX_DEBUG_SEARCH_DISPATCHING
+  unsigned search_step_counter;
+#define MDBX_CURSOR_STC_INC(cursor)                                                                                    \
+  do                                                                                                                   \
+    ((MDBX_cursor *)(cursor))->search_step_counter += 1;                                                               \
+  while (0)
+#define MDBX_CURSOR_STC_GET(cursor) ((cursor)->search_step_counter)
+#else
+#define MDBX_CURSOR_STC_INC(cursor) __noop
+#define MDBX_CURSOR_STC_GET(cursor) (0)
+#endif /* MDBX_DEBUG_SEARCH_DISPATCHING */
 };
 
 struct inner_cursor {
@@ -572,10 +594,10 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
   STATIC_ASSERT(NODESIZE == offsetof(node_t, payload));
   STATIC_ASSERT(PAGEHDRSZ == offsetof(page_t, entries));
 #endif /* FLEXIBLE_ARRAY_MEMBERS */
-  STATIC_ASSERT(sizeof(clc_t) == 3 * sizeof(void *));
-  STATIC_ASSERT(sizeof(kvx_t) == 8 * sizeof(void *));
+  STATIC_ASSERT(sizeof(clc_t) == 7 * sizeof(void *));
+  STATIC_ASSERT(sizeof(kvx_t) == 16 * sizeof(void *));
 
-#define KVX_SIZE_LN2 MDBX_WORDBITS_LN2
+#define KVX_SIZE_LN2 (MDBX_WORDBITS_LN2 + 1)
   STATIC_ASSERT(sizeof(kvx_t) == (1u << KVX_SIZE_LN2));
 }
 #endif /* Disabled for MSVC 19.0 (VisualStudio 2015) */

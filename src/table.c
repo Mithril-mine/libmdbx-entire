@@ -23,6 +23,8 @@ int tbl_setup(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *cons
 
   kvx->clc.k.lmin = keysize_min(db->flags);
   kvx->clc.k.lmax = env_keysize_max(env, db->flags);
+  clc_reset_methods(&kvx->clc.k);
+  clc_reset_methods(&kvx->clc.v);
   if (unlikely(!kvx->clc.k.cmp)) {
     kvx->clc.v.cmp = builtin_datacmp(db->flags);
     kvx->clc.k.cmp = builtin_keycmp(db->flags);
@@ -49,8 +51,8 @@ int tbl_fetch(MDBX_txn *txn, MDBX_cursor *mc, size_t dbi, const MDBX_val *name, 
     return err;
   }
 
-  struct node_search_result nsr = node_search(mc, name);
-  if (unlikely(!nsr.exact)) {
+  sfr_t sr = tree_search_foliage(mc, name);
+  if (unlikely(!sr.exact)) {
   notfound:
     if (dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID) && !(wanna_flags & MDBX_CREATE))
       NOTICE("dbi %zu refs to non-existing table `%.*s` for txn %" PRIaTXN " (err %d)", dbi, (int)name->iov_len,
@@ -58,14 +60,14 @@ int tbl_fetch(MDBX_txn *txn, MDBX_cursor *mc, size_t dbi, const MDBX_val *name, 
     return MDBX_NOTFOUND;
   }
 
-  if (unlikely((node_flags(nsr.node) & (N_DUP | N_TREE)) != N_TREE)) {
+  if (unlikely((node_flags(sr.node) & (N_DUP | N_TREE)) != N_TREE)) {
     NOTICE("dbi %zu refs to not a named table `%.*s` for txn %" PRIaTXN " (%s)", dbi, (int)name->iov_len,
            (const char *)name->iov_base, txn->txnid, "wrong node-flags");
     return MDBX_INCOMPATIBLE /* not a named DB */;
   }
 
   MDBX_val data;
-  err = node_read(mc, nsr.node, &data, mc->pg[mc->top]);
+  err = node_read(mc, sr.node, &data, mc->pg[mc->top]);
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 

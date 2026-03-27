@@ -87,8 +87,6 @@ static inline int __must_check_result node_read(MDBX_cursor *mc, const node_t *n
 
 /*----------------------------------------------------------------------------*/
 
-MDBX_INTERNAL nsr_t node_search(MDBX_cursor *mc, const MDBX_val *key);
-
 MDBX_INTERNAL int __must_check_result node_add_branch(MDBX_cursor *mc, size_t indx, const MDBX_val *key, pgno_t pgno);
 
 MDBX_INTERNAL int __must_check_result node_add_leaf(MDBX_cursor *mc, size_t indx, const MDBX_val *key, MDBX_val *data,
