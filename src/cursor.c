@@ -1513,6 +1513,8 @@ __hot int cursor_put_checklen(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *da
       cASSERT(mc, !"key-size is invalid for MDBX_INTEGERKEY");
       return MDBX_BAD_VALSIZE;
     }
+    if (unlikely(mc->clc->k.lmin != mc->clc->k.lmax))
+      mc->clc->k.lmin = mc->clc->k.lmax = key->iov_len;
   }
   if (mc->tree->flags & MDBX_INTEGERDUP) {
     if (data->iov_len == 8) {
@@ -1544,6 +1546,8 @@ __hot int cursor_put_checklen(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *da
       cASSERT(mc, !"data-size is invalid for MDBX_INTEGERKEY");
       return MDBX_BAD_VALSIZE;
     }
+    if (unlikely(mc->clc->v.lmin != mc->clc->v.lmax))
+      mc->clc->v.lmin = mc->clc->v.lmax = data->iov_len;
   }
   return cursor_put(mc, key, data, flags);
 }
@@ -1881,7 +1885,7 @@ continue_other_pages:
 
 search_node:
   cASSERT(mc, is_pointed(mc) && !inner_pointed(mc));
-  fsr_t sr = tree_search_foliage(mc, &aligned.key);
+  sfr_t sr = tree_search_foliage(mc, &aligned.key);
   node = sr.node;
   ret.exact = sr.exact;
   if (!ret.exact) {

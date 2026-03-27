@@ -96,13 +96,13 @@ struct dpl {
 /*----------------------------------------------------------------------------*/
 /* Internal structures */
 
-typedef struct foliage_search_result {
+typedef struct search_foliage_result {
   node_t *node;
   bool exact;
-} fsr_t;
+} sfr_t;
 
-typedef size_t (* /* MDBX_NOTHROW_PURE_FUNCTION */ MDBX_search_branch)(const MDBX_cursor *mc, const MDBX_val *key);
-typedef fsr_t (* /* MDBX_NOTHROW_PURE_FUNCTION */ MDBX_search_foliage)(MDBX_cursor *mc, const MDBX_val *key);
+typedef size_t (*MDBX_search_branch)(const MDBX_cursor *mc, const MDBX_val *key);
+typedef sfr_t (*MDBX_search_foliage)(MDBX_cursor *mc, const MDBX_val *key);
 
 /* Comparing/ordering and length constraints */
 typedef struct clc {
@@ -333,6 +333,21 @@ struct MDBX_cursor {
   MDBX_cursor *next;
   /* Состояние на момент старта вложенной транзакции */
   MDBX_cursor *backup;
+#ifndef MDBX_DEBUG_SEARCH_DISPATCHING
+#define MDBX_DEBUG_SEARCH_DISPATCHING MDBX_DEBUG
+#endif /* MDBX_DEBUG_SEARCH_DISPATCHING */
+
+#if MDBX_DEBUG_SEARCH_DISPATCHING
+  unsigned search_step_counter;
+#define MDBX_CURSOR_STC_INC(cursor)                                                                                    \
+  do                                                                                                                   \
+    ((MDBX_cursor *)(cursor))->search_step_counter += 1;                                                               \
+  while (0)
+#define MDBX_CURSOR_STC_GET(cursor) ((cursor)->search_step_counter)
+#else
+#define MDBX_CURSOR_STC_INC(cursor) __noop
+#define MDBX_CURSOR_STC_GET(cursor) (0)
+#endif /* MDBX_DEBUG_SEARCH_DISPATCHING */
 };
 
 struct inner_cursor {

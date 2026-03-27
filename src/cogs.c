@@ -112,41 +112,74 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION pgno_t pgno_ceil2os_pgno(const MDBX
 
 /*----------------------------------------------------------------------------*/
 
-MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_int_inline(const size_t expected_alignment, const MDBX_val *a,
-                                                                     const MDBX_val *b) {
+MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint_inline(const size_t expected_alignment,
+                                                                      const MDBX_val *a, const MDBX_val *b) {
   if (likely(a->iov_len == b->iov_len)) {
     if (sizeof(size_t) > 7 && likely(a->iov_len == 8))
-      return CMP2INT(unaligned_peek_u64(expected_alignment, a->iov_base),
-                     unaligned_peek_u64(expected_alignment, b->iov_base));
+      return cmp_uint64_unchecked(expected_alignment, a, b);
     if (likely(a->iov_len == 4))
-      return CMP2INT(unaligned_peek_u32(expected_alignment, a->iov_base),
-                     unaligned_peek_u32(expected_alignment, b->iov_base));
+      return cmp_uint32_unchecked(expected_alignment, a, b);
     if (sizeof(size_t) < 8 && likely(a->iov_len == 8))
-      return CMP2INT(unaligned_peek_u64(expected_alignment, a->iov_base),
-                     unaligned_peek_u64(expected_alignment, b->iov_base));
+      return cmp_uint64_unchecked(expected_alignment, a, b);
   }
   ERROR("mismatch and/or invalid size %p.%zu/%p.%zu for INTEGERKEY/INTEGERDUP", a->iov_base, a->iov_len, b->iov_base,
         b->iov_len);
   return 0;
 }
 
-MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_int_unaligned(const MDBX_val *a, const MDBX_val *b) {
-  return cmp_int_inline(1, a, b);
+MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint32_inline(const size_t expected_alignment,
+                                                                        const MDBX_val *a, const MDBX_val *b) {
+  if (likely(a->iov_len == b->iov_len && a->iov_len == 4))
+    return cmp_uint32_unchecked(expected_alignment, a, b);
+  ERROR("mismatch and/or invalid size %p.%zu/%p.%zu for INTEGERKEY/INTEGERDUP", a->iov_base, a->iov_len, b->iov_base,
+        b->iov_len);
+  return 0;
 }
 
-#ifndef cmp_int_align2
+MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint64_inline(const size_t expected_alignment,
+                                                                        const MDBX_val *a, const MDBX_val *b) {
+  if (likely(a->iov_len == b->iov_len && a->iov_len == 8))
+    return cmp_uint64_unchecked(expected_alignment, a, b);
+  ERROR("mismatch and/or invalid size %p.%zu/%p.%zu for INTEGERKEY/INTEGERDUP", a->iov_base, a->iov_len, b->iov_base,
+        b->iov_len);
+  return 0;
+}
+
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint_unaligned(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint_inline(1, a, b);
+}
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint32_unaligned(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint32_inline(1, a, b);
+}
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint64_unaligned(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint64_inline(1, a, b);
+}
+
+#ifndef cmp_uint_align2
 /* Compare two items pointing at 2-byte aligned unsigned int's. */
-MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_int_align2(const MDBX_val *a, const MDBX_val *b) {
-  return cmp_int_inline(2, a, b);
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint_align2(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint_inline(2, a, b);
 }
-#endif /* cmp_int_align2 */
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint32_align2(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint32_inline(2, a, b);
+}
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint64_align2(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint64_inline(2, a, b);
+}
+#endif /* cmp_uint_align2 */
 
-#ifndef cmp_int_align4
+#ifndef cmp_uint_align4
 /* Compare two items pointing at 4-byte aligned unsigned int's. */
-MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_int_align4(const MDBX_val *a, const MDBX_val *b) {
-  return cmp_int_inline(4, a, b);
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint_align4(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint_inline(4, a, b);
 }
-#endif /* cmp_int_align4 */
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint32_align4(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint32_inline(4, a, b);
+}
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint64_align4(const MDBX_val *a, const MDBX_val *b) {
+  return cmp_uint64_inline(4, a, b);
+}
+#endif /* cmp_uint_align4 */
 
 MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_len(size_t a, size_t b) {
   const intptr_t diff_len = a - b;

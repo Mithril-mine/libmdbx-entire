@@ -268,19 +268,19 @@ __hot static MDBX_cache_result_t cache_get(const MDBX_txn *txn, MDBX_dbi dbi, co
   }
 
   trunk_txnid = mp->txnid;
-  fsr_t sr = tree_search_foliage(&cx.outer, &aligned.key);
-  if (!sr.exact) {
+  sfr_t sfr = tree_search_foliage(&cx.outer, &aligned.key);
+  if (!sfr.exact) {
     tASSERT(txn, !entry->offset || trunk_txnid > entry->trunk_txnid);
     goto not_found;
   }
 
-  if (unlikely(node_flags(sr.node) & N_DUP)) {
+  if (unlikely(node_flags(sfr.node) & N_DUP)) {
     /* TODO: It is possible to implement support for multivalues, but need to think through the usage scenarios. */
     err = MDBX_EMULTIVAL;
     return cache_error(LOG_IFERR(err));
   }
 
-  err = node_read(&cx.outer, sr.node, data, mp);
+  err = node_read(&cx.outer, sfr.node, data, mp);
   if (unlikely(err != MDBX_SUCCESS))
     return cache_error(LOG_IFERR(err));
 

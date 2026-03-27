@@ -51,7 +51,7 @@ int tbl_fetch(MDBX_txn *txn, MDBX_cursor *mc, size_t dbi, const MDBX_val *name, 
     return err;
   }
 
-  fsr_t sr = tree_search_foliage(mc, name);
+  sfr_t sr = tree_search_foliage(mc, name);
   if (unlikely(!sr.exact)) {
   notfound:
     if (dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID) && !(wanna_flags & MDBX_CREATE))

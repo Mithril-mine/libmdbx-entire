@@ -564,7 +564,7 @@ __cold int dxb_setup(MDBX_env *env, const int lck_rc, const mdbx_mode_t mode_bit
     return MDBX_INCOMPATIBLE;
   }
   env->dbs_flags[FREE_DBI] = DB_VALID | MDBX_INTEGERKEY;
-  env->kvs[FREE_DBI].clc.k.cmp = cmp_int_align4; /* aligned MDBX_INTEGERKEY */
+  env->kvs[FREE_DBI].clc.k.cmp = cmp_uint_align4; /* aligned MDBX_INTEGERKEY */
   env->kvs[FREE_DBI].clc.k.lmax = env->kvs[FREE_DBI].clc.k.lmin = 8;
   env->kvs[FREE_DBI].clc.v.cmp = cmp_lenfast;
   env->kvs[FREE_DBI].clc.v.lmin = 4;
