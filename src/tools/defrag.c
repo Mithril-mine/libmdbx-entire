@@ -6,7 +6,7 @@
 /// mdbx_defrag.c - memory-mapped database defragmentation tool
 ///
 
-#define xMDBX_TOOLS /* Avoid using internal eASSERT(), etc */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
   if (!quiet) {
     fprintf(stdout, "mdbx_defrag %s (%s, T-%s)\nRunning for %s...\n", mdbx_version.git.describe,
             mdbx_version.git.datetime, mdbx_version.git.tree, db_pathname);
-    if (verbosity > MDBX_LOG_VERBOSE && !MDBX_DEBUG)
+    if (verbosity > MDBX_LOG_VERBOSE && MDBX_DEBUG < 1)
       printf("Verbosity level %u exposures only to"
              " a debug/extra-logging-enabled builds (with NDEBUG undefined"
              " or MDBX_DEBUG > 0)\n",

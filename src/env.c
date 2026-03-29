@@ -53,8 +53,8 @@ __cold unsigned env_setup_pagesize(MDBX_env *env, const size_t pagesize) {
   env->leaf_nodemax = (uint16_t)leaf_nodemax;
   env->branch_nodemax = (uint16_t)branch_nodemax;
   env->ps2ln = (uint8_t)log2n_powerof2(pagesize);
-  eASSERT(env, pgno2bytes(env, 1) == pagesize);
-  eASSERT(env, bytes2pgno(env, pagesize + pagesize) == 2);
+  eASSERT0(env, pgno2bytes(env, 1) == pagesize);
+  eASSERT0(env, bytes2pgno(env, pagesize + pagesize) == 2);
   recalculate_merge_thresholds(env);
   recalculate_subpage_thresholds(env);
   env_options_adjust_dp_limit(env);
@@ -116,7 +116,7 @@ retry:;
       int err;
       /* pre-sync to avoid latency for writer */
       if (unsynced_pages > /* FIXME: define threshold */ 42 && (flags & MDBX_SAFE_NOSYNC) == 0) {
-        eASSERT(env, ((flags ^ env->flags) & MDBX_WRITEMAP) == 0);
+        eASSERT0(env, ((flags ^ env->flags) & MDBX_WRITEMAP) == 0);
         if (flags & MDBX_WRITEMAP) {
           /* Acquire guard to avoid collision with remap */
 #if defined(_WIN32) || defined(_WIN64)
@@ -153,17 +153,17 @@ retry:;
       if (MDBX_ENABLE_PGOP_STAT)
         env->lck->pgops.wops.weak += wops;
       env->basal_txn->wr.troika = meta_tap(env);
-      eASSERT(env, !env->txn && !env->basal_txn->nested);
+      eASSERT0(env, !env->txn && !env->basal_txn->nested);
       goto retry;
     }
-    eASSERT(env, head.txnid == recent_committed_txnid(env));
+    eASSERT1(env, head.txnid == recent_committed_txnid(env));
     env->basal_txn->txnid = head.txnid;
     txn_gc_detent(env->basal_txn);
     flags |= txn_shrink_allowed;
   }
 
-  eASSERT(env, txn_owned || should_unlock);
-  eASSERT(env, !txn_owned || (flags & txn_shrink_allowed) == 0);
+  eASSERT0(env, txn_owned || should_unlock);
+  eASSERT0(env, !txn_owned || (flags & txn_shrink_allowed) == 0);
 
   if (!head.is_steady && unlikely(env->stuck_meta >= 0) && troika.recent != (uint8_t)env->stuck_meta) {
     NOTICE("skip %s since wagering meta-page (%u) is mispatch the recent "
@@ -305,7 +305,7 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
   env->lck_lock_event = CreateEventW(nullptr, true, false, nullptr);
   if (unlikely(!env->lck_lock_event))
     return (int)GetLastError();
-  eASSERT(env, env->ioring.overlapped_fd == 0);
+  eASSERT0(env, env->ioring.overlapped_fd == 0);
   bool ior_direct = false;
   if (!(env->flags & (MDBX_RDONLY | MDBX_SAFE_NOSYNC | MDBX_NOMETASYNC | MDBX_EXCLUSIVE))) {
     if (MDBX_AVOID_MSYNC && (env->flags & MDBX_WRITEMAP)) {
@@ -367,7 +367,7 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
   if (env->lck_mmap.fd != INVALID_HANDLE_VALUE)
     osal_fseek(env->lck_mmap.fd, safe_parking_lot_offset);
 
-  eASSERT(env, env->dsync_fd == INVALID_HANDLE_VALUE);
+  eASSERT0(env, env->dsync_fd == INVALID_HANDLE_VALUE);
   if (!(env->flags & (MDBX_RDONLY | MDBX_SAFE_NOSYNC | DEPRECATED_MAPASYNC
 #if defined(_WIN32) || defined(_WIN64)
                       | MDBX_EXCLUSIVE
@@ -537,7 +537,7 @@ __cold int env_close(MDBX_env *env, bool resurrect_after_fork) {
   }
 
 #if defined(_WIN32) || defined(_WIN64)
-  eASSERT(env, !env->ioring.overlapped_fd || env->ioring.overlapped_fd == INVALID_HANDLE_VALUE);
+  eASSERT0(env, !env->ioring.overlapped_fd || env->ioring.overlapped_fd == INVALID_HANDLE_VALUE);
   if (env->dxb_lock_event != INVALID_HANDLE_VALUE) {
     CloseHandle(env->dxb_lock_event);
     env->dxb_lock_event = INVALID_HANDLE_VALUE;
@@ -546,7 +546,7 @@ __cold int env_close(MDBX_env *env, bool resurrect_after_fork) {
     CloseHandle(env->lck_lock_event);
     env->lck_lock_event = INVALID_HANDLE_VALUE;
   }
-  eASSERT(env, !resurrect_after_fork);
+  eASSERT0(env, !resurrect_after_fork);
   if (env->pathname_char) {
     osal_free(env->pathname_char);
     env->pathname_char = nullptr;

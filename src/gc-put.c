@@ -145,7 +145,7 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline size_t gc_reclaimed_m
    *
    * Поэтому пока используем только при нехватке слотов. */
   const size_t maxspan = pnl_maxspan(txn->wr.repnl);
-  tASSERT(txn, maxspan > 0);
+  cASSERT0(txn, maxspan > 0);
   size_t start_lp = txn->env->maxgc_large1page /* начало набольшой страницы, с заголовком */;
   size_t tail_lp =
       ((maxspan - 1) << txn->env->ps2ln) / sizeof(txnid_t) /* продолжение большой страницы, без заголовка */;
@@ -186,7 +186,7 @@ static int gc_clean_stored_retired(MDBX_txn *txn, gcu_t *ctx) {
 }
 
 static int gc_touch(gcu_t *ctx) {
-  tASSERT(ctx->cursor.txn, is_pointed(&ctx->cursor) || ctx->cursor.txn->dbs[FREE_DBI].leaf_pages == 0);
+  cASSERT0(ctx->cursor.txn, is_pointed(&ctx->cursor) || ctx->cursor.txn->dbs[FREE_DBI].leaf_pages == 0);
   MDBX_val key, val;
   key.iov_base = val.iov_base = nullptr;
   key.iov_len = sizeof(txnid_t);
@@ -214,7 +214,7 @@ static inline int gc_reserve4stockpile(MDBX_txn *txn, gcu_t *ctx) {
 
 static int gc_prepare_stockpile(MDBX_txn *txn, gcu_t *ctx, const size_t for_retired) {
   for (;;) {
-    tASSERT(txn, is_pointed(&ctx->cursor) || txn->dbs[FREE_DBI].leaf_pages == 0);
+    cASSERT0(txn, is_pointed(&ctx->cursor) || txn->dbs[FREE_DBI].leaf_pages == 0);
 
     const size_t for_cow = txn->dbs[FREE_DBI].height;
     const size_t for_rebalance = for_cow + 1 + (txn->dbs[FREE_DBI].height + 1ul >= txn->dbs[FREE_DBI].branch_pages);
@@ -245,7 +245,7 @@ static int gc_prepare_stockpile(MDBX_txn *txn, gcu_t *ctx, const size_t for_reti
       }
       err = gc_reserve4retired(txn, ctx, for_retired);
       TRACE("== after-4linear, stockpile %zu, err %d", gc_stockpile(txn), err);
-      cASSERT(&ctx->cursor, gc_stockpile(txn) >= for_retired || err != MDBX_SUCCESS);
+      cASSERT1(&ctx->cursor, gc_stockpile(txn) >= for_retired || err != MDBX_SUCCESS);
     }
 
     while (gc_stockpile(txn) < for_all_after_touch && err == MDBX_SUCCESS)
@@ -287,7 +287,7 @@ static int gc_prepare_stockpile4retired(MDBX_txn *txn, gcu_t *ctx) {
 }
 
 int gc_merge_loose(MDBX_txn *txn) {
-  tASSERT(txn, txn->wr.loose_count > 0);
+  cASSERT0(txn, txn->wr.loose_count > 0);
   /* Return loose page numbers to wr.repnl, though usually none are left at this point.
    * The pages themselves remain in dirtylist. */
   if (unlikely(!(txn->dbi_state[FREE_DBI] & DBI_DIRTY)) && txn->wr.loose_count < 3 + (unsigned)txn->dbs->height * 2) {
@@ -310,12 +310,12 @@ int gc_merge_loose(MDBX_txn *txn) {
     pnl_t loose = txn->wr.repnl + pnl_alloclen(txn->wr.repnl) - txn->wr.loose_count - 1;
     size_t count = 0;
     for (page_t *lp = txn->wr.loose_pages; lp; lp = page_next(lp)) {
-      tASSERT(txn, lp->flags == P_LOOSE);
+      cASSERT0(txn, lp->flags == P_LOOSE);
       loose[++count] = lp->pgno;
       MDBX_ASAN_UNPOISON_MEMORY_REGION(&page_next(lp), sizeof(page_t *));
       VALGRIND_MAKE_MEM_DEFINED(&page_next(lp), sizeof(page_t *));
     }
-    tASSERT(txn, count == txn->wr.loose_count);
+    cASSERT0(txn, count == txn->wr.loose_count);
     pnl_setsize(loose, count);
     pnl_sort(loose, txn->geo.first_unallocated);
     pnl_merge(txn->wr.repnl, loose);
@@ -324,34 +324,34 @@ int gc_merge_loose(MDBX_txn *txn) {
   /* filter-out list of dirty-pages from loose-pages */
   dpl_t *const dl = txn->wr.dirtylist;
   if (dl) {
-    tASSERT(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
-    tASSERT(txn, dl->sorted <= dl->length);
+    cASSERT0(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
+    cASSERT0(txn, dl->sorted <= dl->length);
     size_t w = 0, sorted_out = 0;
     for (size_t r = w; ++r <= dl->length;) {
       page_t *dp = dl->items[r].ptr;
-      tASSERT(txn, dp->flags == P_LOOSE || is_modifable(txn, dp));
-      tASSERT(txn, dpl_endpgno(dl, r) <= txn->geo.first_unallocated);
+      cASSERT0(txn, dp->flags == P_LOOSE || is_modifable(txn, dp));
+      cASSERT0(txn, dpl_endpgno(dl, r) <= txn->geo.first_unallocated);
       if ((dp->flags & P_LOOSE) == 0) {
         if (++w != r)
           dl->items[w] = dl->items[r];
       } else {
-        tASSERT(txn, dp->flags == P_LOOSE);
+        cASSERT0(txn, dp->flags == P_LOOSE);
         sorted_out += dl->sorted >= r;
         if (!MDBX_AVOID_MSYNC || !(txn->flags & MDBX_WRITEMAP))
           page_shadow_release(txn->env, dp, 1);
       }
     }
     TRACE("filtered-out loose-pages from %zu -> %zu dirty-pages", dl->length, w);
-    tASSERT(txn, txn->wr.loose_count == dl->length - w);
+    cASSERT0(txn, txn->wr.loose_count == dl->length - w);
     dl->sorted -= sorted_out;
-    tASSERT(txn, dl->sorted <= w);
+    cASSERT0(txn, dl->sorted <= w);
     dpl_setlen(dl, w);
     dl->pages_including_loose -= txn->wr.loose_count;
     txn->wr.dirtyroom += txn->wr.loose_count;
-    tASSERT(txn, txn->wr.dirtyroom + txn->wr.dirtylist->length ==
-                     (txn->parent ? txn->parent->wr.dirtyroom : txn->env->options.dp_limit));
+    cASSERT0(txn, txn->wr.dirtyroom + txn->wr.dirtylist->length ==
+                      (txn->parent ? txn->parent->wr.dirtyroom : txn->env->options.dp_limit));
   } else {
-    tASSERT(txn, (txn->flags & MDBX_WRITEMAP) != 0 && !MDBX_AVOID_MSYNC);
+    cASSERT0(txn, (txn->flags & MDBX_WRITEMAP) != 0 && !MDBX_AVOID_MSYNC);
   }
   txn->wr.loose_pages = nullptr;
   txn->wr.loose_count = 0;
@@ -373,7 +373,7 @@ static int gc_store_retired(MDBX_txn *txn, gcu_t *ctx) {
       err = gc_clean_stored_retired(txn, ctx);
       if (unlikely(err != MDBX_SUCCESS))
         return err;
-      tASSERT(txn, ctx->bigfoot <= txn->txnid);
+      cASSERT0(txn, ctx->bigfoot <= txn->txnid);
     }
 
     err = gc_prepare_stockpile4retired(txn, ctx);
@@ -456,7 +456,7 @@ static int gc_store_retired(MDBX_txn *txn, gcu_t *ctx) {
 
   ctx->retired_stored = pnl_size(txn->wr.retired_pages);
   pnl_sort(txn->wr.retired_pages, txn->geo.first_unallocated);
-  tASSERT(txn, data.iov_len == MDBX_PNL_SIZEOF(txn->wr.retired_pages));
+  cASSERT0(txn, data.iov_len == MDBX_PNL_SIZEOF(txn->wr.retired_pages));
   memcpy(data.iov_base, txn->wr.retired_pages, data.iov_len);
 
   TRACE("%s: put-retired #%zu @ %" PRIaTXN, dbg_prefix(ctx), ctx->retired_stored, txn->txnid);
@@ -476,7 +476,7 @@ static int gc_remove_rkl(MDBX_txn *txn, gcu_t *ctx, rkl_t *rkl) {
     txnid_t id = rkl_edge(rkl, is_lifo(txn));
     if (ctx->gc_first == id)
       ctx->gc_first = 0;
-    tASSERT(txn, id <= txn->env->lck->cached_oldest_txnid.weak);
+    cASSERT0(txn, id <= txn->env->lck->cached_oldest_txnid.weak);
 #ifndef _MSC_VER
     MDBX_val key = {.iov_base = &id, .iov_len = sizeof(id)};
 #else
@@ -486,7 +486,7 @@ static int gc_remove_rkl(MDBX_txn *txn, gcu_t *ctx, rkl_t *rkl) {
     key.iov_len = sizeof(id);
 #endif
     int err = cursor_seek(&ctx->cursor, &key, nullptr, MDBX_SET).err;
-    tASSERT(txn, id == rkl_edge(rkl, is_lifo(txn)));
+    cASSERT0(txn, id == rkl_edge(rkl, is_lifo(txn)));
     if (err == MDBX_NOTFOUND) {
       err = rkl_push(&txn->wr.gc.ready4reuse, rkl_pop(rkl, is_lifo(txn)));
       WARNING("unexpected %s for gc-id %" PRIaTXN ", ignore and continue, push-err %d", "MDBX_NOTFOUND", id, err);
@@ -508,7 +508,7 @@ static int gc_remove_rkl(MDBX_txn *txn, gcu_t *ctx, rkl_t *rkl) {
     if (unlikely(err != MDBX_SUCCESS))
       return err;
     ENSURE_OBJ(txn->env, id == rkl_pop(rkl, is_lifo(txn)));
-    tASSERT(txn, id <= txn->env->lck->cached_oldest_txnid.weak);
+    cASSERT0(txn, id <= txn->env->lck->cached_oldest_txnid.weak);
     err = rkl_push(&txn->wr.gc.ready4reuse, id);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
@@ -528,8 +528,8 @@ static inline int gc_clear_returned(MDBX_txn *txn, gcu_t *ctx) {
 }
 
 static int gc_push_sequel(MDBX_txn *txn, gcu_t *ctx, txnid_t id) {
-  tASSERT(txn, id > 0 && id <= txn->env->gc.detent);
-  tASSERT(txn, !rkl_contain(&txn->wr.gc.comeback, id) && !rkl_contain(&txn->wr.gc.ready4reuse, id));
+  cASSERT0(txn, id > 0 && id <= txn->env->gc.detent);
+  tASSERT1(txn, !rkl_contain(&txn->wr.gc.comeback, id) && !rkl_contain(&txn->wr.gc.ready4reuse, id));
   TRACE("id %" PRIaTXN ", return-left %zi", id, ctx->return_left);
   int err = rkl_push(&ctx->sequel, id);
   if (unlikely(err != MDBX_SUCCESS)) {
@@ -607,7 +607,7 @@ typedef struct sr_state {
 
 /* Пытается отъесть n кусков длиной len, двигаясь по гистограмме от больших элементов к меньшим. */
 static bool consume_stack(sr_state_t *const st, const size_t len, size_t n) {
-  assert(len > 1 && n > 0);
+  ASSERT(len > 1 && n > 0);
   while (st->hist.end >= len) {
     if (st->hist.array[st->hist.end - 1] < 1)
       st->hist.end -= 1;
@@ -661,7 +661,7 @@ static bool consume_remaining(const sr_context_t *const ct, sr_state_t *const st
     } else {
       st->hist.end -= 1;
       if (len > st->hist.end) {
-        assert(len == st->hist.end + 1);
+        ASSERT(len == st->hist.end + 1);
         len = st->hist.end;
         per_chunk -= ct->other_pages;
         solution[len - 1] = 0;
@@ -673,7 +673,7 @@ static bool consume_remaining(const sr_context_t *const ct, sr_state_t *const st
 
 /* Поиск оптимального решения путем жадного бинарного деления и рекурсивного спуска по уже посчитанной гистограмме. */
 static bool solve_recursive(const sr_context_t *const ct, sr_state_t *const st, size_t len) {
-  assert(st->left_slots >= 1);
+  ASSERT(st->left_slots >= 1);
   size_t per_chunk = ct->first_page + ct->other_pages * (len - 1);
   if (len > ct->factor && st->left_slots > 1 && st->left_volume > per_chunk) {
     unsigned lo = 0, hi = st->left_slots - 1, n = lo;
@@ -685,7 +685,7 @@ static bool solve_recursive(const sr_context_t *const ct, sr_state_t *const st, 
           n = (hi + lo) / 2;
           continue;
         }
-        assert(local.left_slots > n);
+        ASSERT(local.left_slots > n);
         local.left_slots -= n;
         local.left_volume = (local.left_volume > n * per_chunk) ? local.left_volume - n * per_chunk : 0;
       }
@@ -709,7 +709,7 @@ static bool solve_recursive(const sr_context_t *const ct, sr_state_t *const st, 
 static int gc_dense_solve(MDBX_txn *txn, gcu_t *ctx, gc_dense_histogram_t *const solution) {
   sr_state_t st = {
       .left_slots = rkl_len(&txn->wr.gc.ready4reuse), .left_volume = ctx->return_left, .hist = ctx->dense_histogram};
-  assert(st.left_slots > 0 && st.left_volume > 0 && pnl_size(txn->wr.repnl) > 0);
+  ASSERT(st.left_slots > 0 && st.left_volume > 0 && pnl_size(txn->wr.repnl) > 0);
   if (unlikely(!st.left_slots || !st.left_volume)) {
     ERROR("%s/%d: %s", "MDBX_PROBLEM", MDBX_PROBLEM, "recursive-solving preconditions violated");
     return MDBX_PROBLEM;
@@ -738,7 +738,7 @@ static int gc_dense_solve(MDBX_txn *txn, gcu_t *ctx, gc_dense_histogram_t *const
     }
 
     if (unlikely(volume < (size_t)ctx->return_left || items > rkl_len(&txn->wr.gc.ready4reuse))) {
-      assert(!"recursive-solving failure");
+      ASSERT(!"recursive-solving failure");
       ERROR("%s/%d: %s", "MDBX_PROBLEM", MDBX_PROBLEM, "recursive-solving failure");
       return MDBX_PROBLEM;
     }
@@ -757,7 +757,7 @@ static int gc_dense_solve(MDBX_txn *txn, gcu_t *ctx, gc_dense_histogram_t *const
 //                    .left_volume = 8463,
 //                    .hist = {.end = 31, .array = {6493, 705, 120, 14, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
 //                                                  0,    0,   0,   0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}}};
-//   assert(st.left_slots > 0 && st.left_volume > 0 && pnl_size(txn->wr.repnl) > 0);
+//   ASSERT(st.left_slots > 0 && st.left_volume > 0 && pnl_size(txn->wr.repnl) > 0);
 //   if (unlikely(!st.left_slots || !st.left_volume)) {
 //     ERROR("%s/%d: %s", "MDBX_PROBLEM", MDBX_PROBLEM, "recursive-solving preconditions violated");
 //     return MDBX_PROBLEM;
@@ -786,7 +786,7 @@ static int gc_dense_solve(MDBX_txn *txn, gcu_t *ctx, gc_dense_histogram_t *const
 //     }
 //
 //     if (unlikely(volume < (size_t)ctx->return_left || items > rkl_len(&txn->wr.gc.ready4reuse))) {
-//       assert(!"recursive-solving failure");
+//       ASSERT(!"recursive-solving failure");
 //       ERROR("%s/%d: %s", "MDBX_PROBLEM", MDBX_PROBLEM, "recursive-solving failure");
 //       return MDBX_PROBLEM;
 //     }
@@ -814,8 +814,8 @@ static int gc_dense_solve(MDBX_txn *txn, gcu_t *ctx, gc_dense_histogram_t *const
  * Таким образом, потребность в поиске возникает редко и в большинстве случаев необходимо найти 1-2 свободных
  * слота/идентификатора. Если же требуется много слотов, то нет смысла экономить на поиске. */
 static int gc_search_holes(MDBX_txn *txn, gcu_t *ctx) {
-  tASSERT(txn, ctx->return_left > 0 && txn->env->gc.detent);
-  tASSERT(txn, rkl_empty(&txn->wr.gc.reclaimed));
+  cASSERT0(txn, ctx->return_left > 0 && txn->env->gc.detent);
+  cASSERT0(txn, rkl_empty(&txn->wr.gc.reclaimed));
   if (!ctx->gc_first) {
     ctx->gc_first = txn->env->gc.detent;
     if (txn->dbs[FREE_DBI].items) {
@@ -898,10 +898,10 @@ static int gc_search_holes(MDBX_txn *txn, gcu_t *ctx) {
       goto scan;
     } else {
       begin = txnid_max(scan_lo, txnid_max(hole_ready4reuse.begin, hole_comeback.begin));
-      tASSERT(txn, begin <= scan_hi && begin > 0);
+      cASSERT0(txn, begin <= scan_hi && begin > 0);
       while (--end >= begin) {
         err = gc_push_sequel(txn, ctx, end);
-        tASSERT(txn, (ctx->return_left > 0) == (err != MDBX_RESULT_TRUE));
+        cASSERT0(txn, (ctx->return_left > 0) == (err != MDBX_RESULT_TRUE));
         if (err != MDBX_SUCCESS) {
           return err;
         }
@@ -954,8 +954,8 @@ static inline int gc_reserve4return(MDBX_txn *txn, gcu_t *ctx, const size_t chun
   txnid_t reservation_id = rkl_pop(&txn->wr.gc.ready4reuse, true);
   TRACE("%s: slots-ready4reuse-left %zu, reservation-id %" PRIaTXN, dbg_prefix(ctx), rkl_len(&txn->wr.gc.ready4reuse),
         reservation_id);
-  tASSERT(txn, reservation_id >= MIN_TXNID && reservation_id < txn->txnid);
-  tASSERT(txn, reservation_id <= txn->env->lck->cached_oldest_txnid.weak);
+  cASSERT0(txn, reservation_id >= MIN_TXNID && reservation_id < txn->txnid);
+  cASSERT0(txn, reservation_id <= txn->env->lck->cached_oldest_txnid.weak);
   if (unlikely(reservation_id < MIN_TXNID ||
                reservation_id > atomic_load64(&txn->env->lck->cached_oldest_txnid, mo_Relaxed))) {
     ERROR("** internal error (reservation gc-id %" PRIaTXN ")", reservation_id);
@@ -979,7 +979,7 @@ static inline int gc_reserve4return(MDBX_txn *txn, gcu_t *ctx, const size_t chun
         ctx->return_reserved_lo + 1, ctx->return_reserved_hi + chunk_hi + 1, err);
   gc_prepare_stockpile4update(txn, ctx);
   err = cursor_put(&ctx->cursor, &key, &data, MDBX_RESERVE | MDBX_NOOVERWRITE);
-  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+  tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 
@@ -1165,7 +1165,7 @@ static int gc_rerere(MDBX_txn *txn, gcu_t *ctx) {
 
   // gc_solve_test(txn, ctx);
 
-  tASSERT(txn, rkl_empty(&txn->wr.gc.reclaimed));
+  cASSERT0(txn, rkl_empty(&txn->wr.gc.reclaimed));
   const size_t amount = pnl_size(txn->wr.repnl);
   if (ctx->return_reserved_hi >= amount) {
     if (unlikely(ctx->dense)) {
@@ -1198,7 +1198,7 @@ static int gc_rerere(MDBX_txn *txn, gcu_t *ctx) {
       /* Слотов нет, либо не хватает для нарезки возвращаемых страниц кусками по goodchunk */
       ctx->return_left = left_max;
       int err = gc_search_holes(txn, ctx);
-      tASSERT(txn, (ctx->return_left <= 0) == (err == MDBX_RESULT_TRUE));
+      cASSERT0(txn, (ctx->return_left <= 0) == (err == MDBX_RESULT_TRUE));
       if (unlikely(MDBX_IS_ERROR(err)))
         return err;
 
@@ -1229,7 +1229,7 @@ static int gc_rerere(MDBX_txn *txn, gcu_t *ctx) {
           return gc_handle_dense(txn, ctx, left_min, left_max);
         }
       }
-      tASSERT(txn, rkl_empty(&txn->wr.gc.reclaimed));
+      cASSERT0(txn, rkl_empty(&txn->wr.gc.reclaimed));
     }
   }
 
@@ -1253,14 +1253,14 @@ static int gc_rerere(MDBX_txn *txn, gcu_t *ctx) {
   const size_t chunk_hi = (((left_max + 1) | 3) > chunk_inpage) ? txn->env->maxgc_large1page : ((left_max + 1) | 3);
 
   TRACE("%s: chunk %zu...%zu, gc-per-ovpage %u", dbg_prefix(ctx), chunk_lo, chunk_hi, txn->env->maxgc_large1page);
-  tASSERT(txn, chunk_lo > 0 && chunk_lo <= chunk_hi && chunk_hi > 1);
+  cASSERT0(txn, chunk_lo > 0 && chunk_lo <= chunk_hi && chunk_hi > 1);
   return gc_reserve4return(txn, ctx, chunk_lo, chunk_hi);
 }
 
 /* Заполняет зарезервированные записи номерами возвращаемых в GC страниц. */
 static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
-  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
-  tASSERT(txn, txn_dpl_check(txn));
+  tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+  tASSERT1(txn, txn_dpl_check(txn));
 
   /* Уже есть набор зарезервированных записей GC, id которых собраны в txn->wr.gc.comeback. При этом текущее
    * кол-вол возвращаемых страниц (оставшихся после расходов на резервирование) точно помещается в
@@ -1277,7 +1277,7 @@ static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
    * к распределению излишков резерва по записям с учётом их размера, а далее просто к записи данных.
    * При этом желательно обойтись без каких-то сложных операций типа деления и т.п. */
   const size_t amount = pnl_size(txn->wr.repnl);
-  tASSERT(txn, amount > 0 && amount <= ctx->return_reserved_hi && !rkl_empty(&txn->wr.gc.comeback));
+  cASSERT0(txn, amount > 0 && amount <= ctx->return_reserved_hi && !rkl_empty(&txn->wr.gc.comeback));
   const size_t slots = rkl_len(&txn->wr.gc.comeback);
   if (likely(slots == 1)) {
     /* самый простой и частый случай */
@@ -1296,7 +1296,7 @@ static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
       pgno_t *const from = MDBX_PNL_BEGIN(txn->wr.repnl), *const to = MDBX_PNL_END(txn->wr.repnl);
       TRACE("%s: fill %zu [ %zu:%" PRIaPGNO "...%zu:%" PRIaPGNO "] @%" PRIaTXN " (%s)", dbg_prefix(ctx),
             pnl_size(txn->wr.repnl), from - txn->wr.repnl, from[0], to - txn->wr.repnl, to[-1], id, "at-once");
-      tASSERT(txn, data.iov_len >= gc_chunk_bytes(pnl_size(txn->wr.repnl)));
+      cASSERT0(txn, data.iov_len >= gc_chunk_bytes(pnl_size(txn->wr.repnl)));
       if (unlikely(data.iov_len - gc_chunk_bytes(pnl_size(txn->wr.repnl)) >= txn->env->ps * 2)) {
         NOTICE("too long %s-comeback-reserve @%" PRIaTXN ", have %zu bytes, need %zu bytes", "single", id, data.iov_len,
                gc_chunk_bytes(pnl_size(txn->wr.repnl)));
@@ -1319,7 +1319,7 @@ static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
 
   do {
     const size_t left = amount - stored;
-    tASSERT(txn, left > 0 && left <= amount);
+    cASSERT0(txn, left > 0 && left <= amount);
     txnid_t id = rkl_turn(&iter, is_lifo(txn));
     if (unlikely(!id)) {
       ERROR("reserve depleted (used %zu slots, left %zu loop %u)", rkl_len(&txn->wr.gc.comeback), left, ctx->loop);
@@ -1338,9 +1338,9 @@ static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
     if (unlikely(err != MDBX_SUCCESS))
       return err;
 
-    tASSERT(txn, data.iov_len >= sizeof(pgno_t) * 2);
+    cASSERT0(txn, data.iov_len >= sizeof(pgno_t) * 2);
     const size_t chunk_hi = data.iov_len / sizeof(pgno_t) - 1;
-    tASSERT(txn, chunk_hi >= 2);
+    cASSERT0(txn, chunk_hi >= 2);
     size_t chunk = left;
     if (chunk > chunk_hi) {
       chunk = chunk_hi;
@@ -1348,14 +1348,14 @@ static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
       if (surplus && left_slots) {
         /* Единственный путь выполнения (набор условий) когда нужно распределять избыток резерва. */
         const size_t hole = (size_t)((chunk_hi * factor) >> 32);
-        tASSERT(txn, hole < chunk_hi && hole <= surplus);
+        cASSERT0(txn, hole < chunk_hi && hole <= surplus);
         chunk = chunk_hi - hole;
-        tASSERT(txn, chunk > 0 && chunk <= chunk_hi && surplus >= hole);
-        tASSERT(txn, surplus - hole >= (left + surplus - chunk_hi) * factor >> 32);
+        cASSERT0(txn, chunk > 0 && chunk <= chunk_hi && surplus >= hole);
+        cASSERT0(txn, surplus - hole >= (left + surplus - chunk_hi) * factor >> 32);
         if (chunk > 1 && surplus - hole > (left + surplus - chunk_hi) * factor >> 32)
           chunk -= 1;
       }
-      tASSERT(txn, chunk <= chunk_hi && surplus >= chunk_hi - chunk && chunk <= left);
+      cASSERT0(txn, chunk <= chunk_hi && surplus >= chunk_hi - chunk && chunk <= left);
     }
     surplus -= chunk_hi - chunk;
 
@@ -1366,7 +1366,7 @@ static int gc_fill_returned(MDBX_txn *txn, gcu_t *ctx) {
           chunk, chunk_hi - chunk, from - txn->wr.repnl, from[0], to - txn->wr.repnl, to[-1], id, "series");
     TRACE("%s: left %zu, surplus %zu, slots %zu", dbg_prefix(ctx), amount - (stored + chunk), surplus,
           rkl_left(&iter, is_lifo(txn)));
-    tASSERT(txn, chunk > 0 && chunk <= chunk_hi && chunk <= left);
+    cASSERT0(txn, chunk > 0 && chunk <= chunk_hi && chunk <= left);
     if (unlikely(data.iov_len - gc_chunk_bytes(chunk) >= txn->env->ps)) {
       NOTICE("too long %s-comeback-reserve @%" PRIaTXN ", have %zu bytes, need %zu bytes", "multi", id, data.iov_len,
              gc_chunk_bytes(chunk));
@@ -1391,11 +1391,8 @@ int gc_update(MDBX_txn *txn, gcu_t *ctx) {
   if (unlikely(!txn->env->gc.detent))
     txn_gc_detent(txn);
 
-  if (AUDIT_ENABLED()) {
-    err = audit_ex(txn, 0, false);
-    if (unlikely(err != MDBX_SUCCESS))
-      goto bailout;
-  }
+  if (CHECKS2_ENABLED())
+    ENSURE_OBJ(txn, audit_ex(txn, 0, false) == MDBX_SUCCESS);
 
   /* The txn->wr.repnl[] can grow and shrink during this call.
    * The txn->wr.gc.reclaimed[] can grow, then migrate into txn->wr.gc.ready4reuse and later to txn->wr.gc.comeback[].
@@ -1405,8 +1402,8 @@ retry:
   TRACE(">> %sstart, loop %u, gc: txn-rkl %zu, detent %" PRIaTXN, (ctx->loop > 1) ? "re" : "", ctx->loop,
         rkl_len(&txn->wr.gc.reclaimed), txn->env->gc.detent);
 
-  tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
-  tASSERT(txn, txn_dpl_check(txn));
+  tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
+  tASSERT1(txn, txn_dpl_check(txn));
   if (unlikely(/* paranoia */ ctx->loop > ((MDBX_DEBUG > 0) ? 12 : 42))) {
     ERROR("txn #%" PRIaTXN " too more loops %u, bailout", txn->txnid, ctx->loop);
     err = MDBX_PROBLEM;
@@ -1428,18 +1425,15 @@ retry:
     /* come back here after each put() in case retired-list changed */
     TRACE("%s", " >> continue");
 
-    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
+    tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
     err = gc_clear_reclaimed(txn, ctx);
     if (unlikely(err != MDBX_SUCCESS))
       goto bailout;
 
-    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
-    tASSERT(txn, txn_dpl_check(txn));
-    if (AUDIT_ENABLED()) {
-      err = audit_ex(txn, ctx->retired_stored, false);
-      if (unlikely(err != MDBX_SUCCESS))
-        goto bailout;
-    }
+    tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated));
+    tASSERT1(txn, txn_dpl_check(txn));
+    if (CHECKS2_ENABLED())
+      ENSURE_OBJ(txn, audit_ex(txn, ctx->retired_stored, false) == MDBX_SUCCESS);
 
     if (txn->wr.loose_pages) {
       /* merge loose pages into the reclaimed- either retired-list */
@@ -1449,17 +1443,14 @@ retry:
           continue;
         goto bailout;
       }
-      tASSERT(txn, txn->wr.loose_pages == 0);
+      cASSERT0(txn, txn->wr.loose_pages == 0);
     }
 
     /* return suitable into unallocated space */
     if (txn_refund(txn)) {
-      tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
-      if (AUDIT_ENABLED()) {
-        err = audit_ex(txn, ctx->retired_stored, false);
-        if (unlikely(err != MDBX_SUCCESS))
-          goto bailout;
-      }
+      tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+      if (CHECKS2_ENABLED())
+        ENSURE_OBJ(txn, audit_ex(txn, ctx->retired_stored, false) == MDBX_SUCCESS);
     }
 
     if (ctx->retired_stored < pnl_size(txn->wr.retired_pages)) {
@@ -1470,13 +1461,10 @@ retry:
       continue;
     }
 
-    tASSERT(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
-    tASSERT(txn, txn->wr.loose_count == 0);
-    if (AUDIT_ENABLED()) {
-      err = audit_ex(txn, ctx->retired_stored, false);
-      if (unlikely(err != MDBX_SUCCESS))
-        goto bailout;
-    }
+    tASSERT1(txn, pnl_check_allocated(txn->wr.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
+    cASSERT0(txn, txn->wr.loose_count == 0);
+    if (CHECKS2_ENABLED())
+      ENSURE_OBJ(txn, audit_ex(txn, ctx->retired_stored, false) == MDBX_SUCCESS);
 
     if (unlikely(pnl_size(txn->wr.repnl) + env->maxgc_large1page <= ctx->return_reserved_lo) && !ctx->dense) {
       /* после резервирования было израсходованно слишком много страниц и получилось слишком много резерва */
@@ -1511,12 +1499,9 @@ retry:
     break;
   }
 
-  tASSERT(txn, err == MDBX_SUCCESS);
-  if (AUDIT_ENABLED()) {
-    err = audit_ex(txn, ctx->retired_stored + pnl_size(txn->wr.repnl), true);
-    if (unlikely(err != MDBX_SUCCESS))
-      goto bailout;
-  }
+  cASSERT0(txn, err == MDBX_SUCCESS);
+  if (CHECKS2_ENABLED())
+    ENSURE_OBJ(txn, audit_ex(txn, ctx->retired_stored + pnl_size(txn->wr.repnl), true) == MDBX_SUCCESS);
   if (unlikely(txn->wr.loose_count > 0)) {
     DEBUG("** restart: got %zu loose pages", txn->wr.loose_count);
     goto retry;

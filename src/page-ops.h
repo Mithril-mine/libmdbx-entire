@@ -64,23 +64,23 @@ static inline int page_touch(MDBX_cursor *mc) {
   page_t *const mp = mc->pg[mc->top];
   MDBX_txn *txn = mc->txn;
 
-  tASSERT(txn, mc->txn->flags & MDBX_TXN_DIRTY);
-  tASSERT(txn, F_ISSET(*cursor_dbi_state(mc), DBI_LINDO | DBI_VALID | DBI_DIRTY));
-  tASSERT(txn, !is_largepage(mp));
-  if (ASSERT_ENABLED()) {
+  cASSERT0(txn, mc->txn->flags & MDBX_TXN_DIRTY);
+  cASSERT0(txn, F_ISSET(*cursor_dbi_state(mc), DBI_LINDO | DBI_VALID | DBI_DIRTY));
+  cASSERT0(txn, !is_largepage(mp));
+  if (CHECKS1_ENABLED()) {
     if (mc->flags & z_inner) {
       subcur_t *mx = container_of(mc->tree, subcur_t, nested_tree);
       cursor_couple_t *couple = container_of(mx, cursor_couple_t, inner);
-      tASSERT(txn, mc->tree == &couple->outer.subcur->nested_tree);
-      tASSERT(txn, &mc->clc->k == &couple->outer.clc->v);
-      tASSERT(txn, *couple->outer.dbi_state & DBI_DIRTY);
+      tASSERT0(txn, mc->tree == &couple->outer.subcur->nested_tree);
+      tASSERT0(txn, &mc->clc->k == &couple->outer.clc->v);
+      tASSERT0(txn, *couple->outer.dbi_state & DBI_DIRTY);
     }
-    tASSERT(txn, txn_dpl_check(txn));
+    tASSERT0(txn, txn_dpl_check(txn));
   }
 
   if (is_modifable(txn, mp)) {
     if (!txn->wr.dirtylist) {
-      tASSERT(txn, (txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC);
+      cASSERT0(txn, (txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC);
       return MDBX_SUCCESS;
     }
     return is_subpage(mp) ? MDBX_SUCCESS : page_touch_modifable(txn, mp);
@@ -101,25 +101,25 @@ MDBX_INTERNAL int page_retire_ex(MDBX_cursor *mc, const pgno_t pgno, page_t *mp 
 static inline int page_retire(MDBX_cursor *mc, page_t *mp) { return page_retire_ex(mc, mp->pgno, mp, mp->flags); }
 
 static inline void page_wash(MDBX_txn *txn, size_t di, page_t *const mp, const size_t npages) {
-  tASSERT(txn, (txn->flags & txn_ro_both) == 0);
+  cASSERT0(txn, (txn->flags & txn_ro_both) == 0);
   mp->txnid = INVALID_TXNID;
   mp->flags = P_BAD;
 
   if (txn->wr.dirtylist) {
-    tASSERT(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
-    tASSERT(txn, MDBX_AVOID_MSYNC || (di && txn->wr.dirtylist->items[di].ptr == mp));
+    cASSERT0(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
+    cASSERT0(txn, MDBX_AVOID_MSYNC || (di && txn->wr.dirtylist->items[di].ptr == mp));
     if (!MDBX_AVOID_MSYNC || di) {
       txn_dpl_remove_ex(txn, di, npages);
       txn->wr.dirtyroom++;
-      tASSERT(txn, txn->wr.dirtyroom + txn->wr.dirtylist->length ==
-                       (txn->parent ? txn->parent->wr.dirtyroom : txn->env->options.dp_limit));
+      cASSERT0(txn, txn->wr.dirtyroom + txn->wr.dirtylist->length ==
+                        (txn->parent ? txn->parent->wr.dirtyroom : txn->env->options.dp_limit));
       if (!MDBX_AVOID_MSYNC || !(txn->flags & MDBX_WRITEMAP)) {
         page_shadow_release(txn->env, mp, npages);
         return;
       }
     }
   } else {
-    tASSERT(txn, (txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC && !di);
+    cASSERT0(txn, (txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC && !di);
     txn->wr.writemap_dirty_npages -= (txn->wr.writemap_dirty_npages > npages) ? npages : txn->wr.writemap_dirty_npages;
   }
   VALGRIND_MAKE_MEM_UNDEFINED(mp, PAGEHDRSZ);

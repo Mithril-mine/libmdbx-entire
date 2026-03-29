@@ -6,7 +6,7 @@
 /// mdbx_dump.c - memory-mapped database dump tool
 ///
 
-#define xMDBX_TOOLS /* Avoid using internal eASSERT(), etc */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
 #include <ctype.h>
@@ -383,7 +383,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (alldbs) {
-    assert(dbi == MAIN_DBI);
+    ASSERT(dbi == MAIN_DBI);
 
     MDBX_cursor *cursor;
     err = mdbx_cursor_open(txn, MAIN_DBI, &cursor);

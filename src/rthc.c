@@ -7,7 +7,7 @@ typedef struct rthc_entry {
   MDBX_env *env;
 } rthc_entry_t;
 
-#if MDBX_DEBUG
+#if MDBX_DEBUG > 0
 #define RTHC_INITIAL_LIMIT 1
 #else
 #define RTHC_INITIAL_LIMIT 16

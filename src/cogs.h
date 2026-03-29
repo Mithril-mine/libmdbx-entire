@@ -59,7 +59,7 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL bool pv2pages_verify(void);
 #define MAX_GC1OVPAGE(pagesize) (PAGESPACE(pagesize) / sizeof(pgno_t) - 1)
 
 MDBX_NOTHROW_CONST_FUNCTION static inline size_t keysize_max(size_t pagesize, MDBX_db_flags_t flags) {
-  assert(pagesize >= MDBX_MIN_PAGESIZE && pagesize <= MDBX_MAX_PAGESIZE && is_powerof2(pagesize));
+  ASSERT(pagesize >= MDBX_MIN_PAGESIZE && pagesize <= MDBX_MAX_PAGESIZE && is_powerof2(pagesize));
   STATIC_ASSERT(BRANCH_NODE_MAX(MDBX_MIN_PAGESIZE) - NODESIZE >= 8);
   if (flags & MDBX_INTEGERKEY)
     return 8 /* sizeof(uint64_t) */;
@@ -90,7 +90,7 @@ MDBX_NOTHROW_CONST_FUNCTION static inline size_t env_keysize_max(const MDBX_env 
     } else
       size_max = max_branch_key;
   }
-  eASSERT(env, size_max == keysize_max(env->ps, flags));
+  eASSERT0(env, size_max == keysize_max(env->ps, flags));
   return size_max;
 }
 
@@ -108,7 +108,7 @@ MDBX_NOTHROW_CONST_FUNCTION static inline size_t valsize_min(MDBX_db_flags_t fla
 }
 
 MDBX_NOTHROW_CONST_FUNCTION static inline size_t valsize_max(size_t pagesize, MDBX_db_flags_t flags) {
-  assert(pagesize >= MDBX_MIN_PAGESIZE && pagesize <= MDBX_MAX_PAGESIZE && is_powerof2(pagesize));
+  ASSERT(pagesize >= MDBX_MIN_PAGESIZE && pagesize <= MDBX_MAX_PAGESIZE && is_powerof2(pagesize));
 
   if (flags & MDBX_INTEGERDUP)
     return 8 /* sizeof(uint64_t) */;
@@ -139,7 +139,7 @@ MDBX_NOTHROW_CONST_FUNCTION static inline size_t env_valsize_max(const MDBX_env 
     const size_t limit = (hard_pages < pages_limit) ? hard : (pages_limit << env->ps2ln);
     size_max = (limit < MAX_MAPSIZE / 2) ? limit : MAX_MAPSIZE / 2;
   }
-  eASSERT(env, size_max == valsize_max(env->ps, flags));
+  eASSERT0(env, size_max == valsize_max(env->ps, flags));
   return size_max;
 }
 
@@ -213,7 +213,7 @@ MDBX_MAYBE_UNUSED static inline int tbl_refresh_absent2baddbi(MDBX_txn *txn, siz
 /*----------------------------------------------------------------------------*/
 
 MDBX_NOTHROW_PURE_FUNCTION static inline size_t pgno2bytes(const MDBX_env *env, size_t pgno) {
-  eASSERT(env, (1u << env->ps2ln) == env->ps);
+  eASSERT0(env, (1u << env->ps2ln) == env->ps);
   return pgno << env->ps2ln;
 }
 
@@ -222,7 +222,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline page_t *pgno2page(const MDBX_env *env, 
 }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline pgno_t bytes2pgno(const MDBX_env *env, size_t bytes) {
-  eASSERT(env, (env->ps >> env->ps2ln) == 1);
+  eASSERT0(env, (env->ps >> env->ps2ln) == 1);
   return (pgno_t)(bytes >> env->ps2ln);
 }
 
@@ -250,11 +250,8 @@ typedef struct alignkey {
 static inline int check_key(const MDBX_cursor *mc, const MDBX_val *key, alignkey_t *alignkey) {
   /* coverity[logical_vs_bitwise] */
   if (unlikely(key->iov_len < mc->clc->k.lmin ||
-               (key->iov_len > mc->clc->k.lmax &&
-                (mc->clc->k.lmin == mc->clc->k.lmax || MDBX_DEBUG || MDBX_FORCE_ASSERTIONS)))) {
-    cASSERT(mc, !"Invalid key-size");
+               (key->iov_len > mc->clc->k.lmax && (mc->clc->k.lmin == mc->clc->k.lmax))))
     return MDBX_BAD_VALSIZE;
-  }
 
   alignkey->key = *key;
   if (mc->tree->flags & MDBX_INTEGERKEY) {
@@ -266,10 +263,8 @@ static inline int check_key(const MDBX_cursor *mc, const MDBX_val *key, alignkey
       if (unlikely(3 & (uintptr_t)alignkey->key.iov_base))
         /* copy instead of return error to avoid break compatibility */
         alignkey->key.iov_base = bcopy_4(&alignkey->intbuf, alignkey->key.iov_base);
-    } else {
-      cASSERT(mc, !"key-size is invalid for MDBX_INTEGERKEY");
+    } else
       return MDBX_BAD_VALSIZE;
-    }
   }
   return MDBX_SUCCESS;
 }
@@ -294,8 +289,8 @@ MDBX_NOTHROW_PURE_FUNCTION static inline const page_t *payload2page(const void *
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline const page_t *ptr2page(const MDBX_env *env,
                                                                                   const void *ptr) {
-  eASSERT(env,
-          ptr_dist(ptr, env->dxb_mmap.base) >= 0 && (size_t)ptr_dist(ptr, env->dxb_mmap.base) < env->dxb_mmap.limit);
+  eASSERT0(env,
+           ptr_dist(ptr, env->dxb_mmap.base) >= 0 && (size_t)ptr_dist(ptr, env->dxb_mmap.base) < env->dxb_mmap.limit);
   const uintptr_t mask = env->ps - 1;
   return (page_t *)((uintptr_t)ptr & ~mask);
 }
@@ -303,12 +298,12 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline const page_t *ptr2pag
 MDBX_NOTHROW_PURE_FUNCTION static inline meta_t *page_meta(page_t *mp) { return (meta_t *)page2payload(mp); }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline size_t page_numkeys(const page_t *mp) {
-  assert(mp->lower <= mp->upper);
+  ASSERT(mp->lower <= mp->upper);
   return mp->lower >> 1;
 }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline size_t page_room(const page_t *mp) {
-  assert(mp->lower <= mp->upper);
+  ASSERT(mp->lower <= mp->upper);
   return mp->upper - mp->lower;
 }
 
@@ -329,14 +324,14 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline unsigned page_fill_pe
 }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline node_t *page_node(const page_t *mp, size_t i) {
-  assert(page_type_compat(mp) == P_LEAF || page_type(mp) == P_BRANCH);
-  assert(page_numkeys(mp) > i);
-  assert(mp->entries[i] % 2 == 0);
+  ASSERT(page_type_compat(mp) == P_LEAF || page_type(mp) == P_BRANCH);
+  ASSERT(page_numkeys(mp) > i);
+  ASSERT(mp->entries[i] % 2 == 0);
   return ptr_disp(mp, mp->entries[i] + PAGEHDRSZ);
 }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline void *page_dupfix_ptr(const page_t *mp, size_t i, size_t keysize) {
-  assert(page_type_compat(mp) == (P_LEAF | P_DUPFIX) && i == (indx_t)i && mp->dupfix_ksize == keysize);
+  ASSERT(page_type_compat(mp) == (P_LEAF | P_DUPFIX) && i == (indx_t)i && mp->dupfix_ksize == keysize);
   (void)keysize;
   return ptr_disp(mp, PAGEHDRSZ + mp->dupfix_ksize * (indx_t)i);
 }
@@ -352,7 +347,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline MDBX_val page_dupfix_key(const page_t *
 
 MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint32_unchecked(const size_t expected_alignment,
                                                                            const MDBX_val *a, const MDBX_val *b) {
-  assert(a->iov_len == 4 && b->iov_len == 4);
+  ASSERT(a->iov_len == 4 && b->iov_len == 4);
   return CMP2INT(unaligned_peek_u32(expected_alignment, a->iov_base),
                  unaligned_peek_u32(expected_alignment, b->iov_base));
 }
@@ -364,7 +359,7 @@ cmp_uint32_unaligned_unchecked(const MDBX_val *a, const MDBX_val *b) {
 
 MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint64_unchecked(const size_t expected_alignment,
                                                                            const MDBX_val *a, const MDBX_val *b) {
-  assert(a->iov_len == 8 && b->iov_len == 8);
+  ASSERT(a->iov_len == 8 && b->iov_len == 8);
   return CMP2INT(unaligned_peek_u64(expected_alignment, a->iov_base),
                  unaligned_peek_u64(expected_alignment, b->iov_base));
 }
@@ -378,7 +373,7 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint_unaligned(const MDBX_val *
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint32_unaligned(const MDBX_val *a, const MDBX_val *b);
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint64_unaligned(const MDBX_val *a, const MDBX_val *b);
 
-#if MDBX_UNALIGNED_OK < 2 || (MDBX_DEBUG || MDBX_FORCE_ASSERTIONS || !defined(NDEBUG))
+#if MDBX_UNALIGNED_OK < 2 || MDBX_CHECKING > 0
 /* Compare two items pointing at 2-byte aligned unsigned int's. */
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint_align2(const MDBX_val *a, const MDBX_val *b);
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint32_align2(const MDBX_val *a, const MDBX_val *b);
@@ -399,7 +394,7 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint
 #define cmp_uint64_align2_unchecked cmp_uint64_unaligned_unchecked
 #endif /* !MDBX_UNALIGNED_OK || debug */
 
-#if MDBX_UNALIGNED_OK < 4 || (MDBX_DEBUG || MDBX_FORCE_ASSERTIONS || !defined(NDEBUG))
+#if MDBX_UNALIGNED_OK < 4 || MDBX_CHECKING > 0
 /* Compare two items pointing at 4-byte aligned unsigned int's. */
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint_align4(const MDBX_val *a, const MDBX_val *b);
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cmp_uint32_align4(const MDBX_val *a, const MDBX_val *b);
@@ -524,7 +519,7 @@ static inline int check_env(const MDBX_env *env, const bool wanna_active) {
 #endif /* MDBX_ENV_CHECKPID */
     if (unlikely((env->flags & ENV_ACTIVE) == 0))
       return MDBX_EPERM;
-    eASSERT(env, env->dxb_mmap.base != nullptr);
+    eASSERT0(env, env->dxb_mmap.base != nullptr);
   }
 
   return MDBX_SUCCESS;
@@ -550,8 +545,8 @@ static __always_inline int check_txn_anythread(const MDBX_txn *txn, int bad_bits
     }
   }
 
-  tASSERT(txn, (txn->flags & MDBX_TXN_FINISHED) ||
-                   (txn->flags & MDBX_NOSTICKYTHREADS) == (txn->env->flags & MDBX_NOSTICKYTHREADS));
+  cASSERT0(txn, (txn->flags & MDBX_TXN_FINISHED) ||
+                    (txn->flags & MDBX_NOSTICKYTHREADS) == (txn->env->flags & MDBX_NOSTICKYTHREADS));
   return MDBX_SUCCESS;
 }
 
@@ -576,7 +571,7 @@ MDBX_NOTHROW_CONST_FUNCTION static inline txnid_t txn_basis_snapshot(const MDBX_
   STATIC_ASSERT(((txn_ro_flat >> ((xMDBX_TXNID_STEP == 2) ? 16 : 17)) & xMDBX_TXNID_STEP) == xMDBX_TXNID_STEP);
   const txnid_t committed_txnid =
       txn->txnid - xMDBX_TXNID_STEP + ((txn->flags >> ((xMDBX_TXNID_STEP == 2) ? 16 : 17)) & xMDBX_TXNID_STEP);
-  tASSERT(txn, committed_txnid == ((txn->flags & txn_ro_flat) ? txn->txnid : txn->txnid - xMDBX_TXNID_STEP));
+  cASSERT0(txn, committed_txnid == ((txn->flags & txn_ro_flat) ? txn->txnid : txn->txnid - xMDBX_TXNID_STEP));
   return committed_txnid;
 }
 
@@ -607,8 +602,7 @@ MDBX_MAYBE_UNUSED static inline void osal_flush_incoherent_mmap(const void *addr
   char *const begin = (char *)(-pagesize & (intptr_t)addr);
   char *const end = (char *)(-pagesize & (intptr_t)((char *)addr + nbytes + pagesize - 1));
   int err = msync(begin, end - begin, MS_SYNC | MS_INVALIDATE) ? errno : 0;
-  eASSERT(nullptr, err == 0);
-  (void)err;
+  ASSERT(err == 0);
 #else
   (void)pagesize;
 #endif /* MDBX_MMAP_INCOHERENT_FILE_WRITE */

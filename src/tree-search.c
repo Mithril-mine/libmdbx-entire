@@ -9,9 +9,9 @@
  * before calling tree_search_continue(), because the callers are all in situations where the current page is known
  * to be underfilled. */
 __hot __noinline int tree_search_lowest(MDBX_cursor *mc) {
-  cASSERT(mc, mc->top >= 0);
+  cASSERT0(mc, mc->top >= 0);
   page_t *mp = mc->pg[mc->top];
-  cASSERT(mc, is_branch(mp));
+  cASSERT0(mc, is_branch(mp));
 
   node_t *node = page_node(mp, 0);
   int err = page_get(mc, node_pgno(node), &mp, mp->txnid);
@@ -45,11 +45,11 @@ __hot int tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags) {
   const pgno_t root = mc->tree->root;
   if (unlikely(root == P_INVALID)) {
     DEBUG("%s", "tree is empty");
-    cASSERT(mc, is_poor(mc));
+    cASSERT0(mc, is_poor(mc));
     return MDBX_NOTFOUND;
   }
 
-  cASSERT(mc, root >= NUM_METAS && root < mc->txn->geo.first_unallocated);
+  cASSERT0(mc, root >= NUM_METAS && root < mc->txn->geo.first_unallocated);
   if (mc->top < 0 || mc->pg[0]->pgno != root) {
     txnid_t pp_txnid = mc->tree->mod_txnid;
     pp_txnid = /* tree->mod_txnid maybe zero in a legacy DB */ pp_txnid ? pp_txnid : mc->txn->txnid;
@@ -85,14 +85,14 @@ __hot int tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags) {
 }
 
 __hot __noinline int tree_search_continue(MDBX_cursor *mc, const MDBX_val *key, int flags) {
-  cASSERT(mc, !is_poor(mc));
+  cASSERT0(mc, !is_poor(mc));
   DKBUF_DEBUG;
   int err;
   page_t *mp = mc->pg[mc->top];
   intptr_t ki = (flags & Z_FIRST) ? 0 : page_numkeys(mp) - 1;
   while (is_branch(mp)) {
     DEBUG("branch page %" PRIaPGNO " has %zu keys", mp->pgno, page_numkeys(mp));
-    cASSERT(mc, page_numkeys(mp) > 1);
+    cASSERT0(mc, page_numkeys(mp) > 1);
     DEBUG("found index 0 to page %" PRIaPGNO, node_pgno(page_node(mp, 0)));
 
     if ((flags & (Z_FIRST | Z_LAST)) == 0) {
@@ -185,17 +185,17 @@ static int null_comparator(const MDBX_val *a, const MDBX_val *b) {
     node_t *node = (node_t *)(intptr_t)-1;                                                                             \
     MDBX_val node_key;                                                                                                 \
     if ((BOOL_DIFFERENT_COMPARATORS | BOOL_DUPFIXED) && lo == 0) {                                                     \
-      assert(is_leaf(mp));                                                                                             \
+      ASSERT(is_leaf(mp));                                                                                             \
       if (BOOL_DUPFIXED) {                                                                                             \
-        cASSERT(mc, is_dupfix_leaf(mp));                                                                               \
-        cASSERT(mc, mp->dupfix_ksize == mc->tree->dupfix_size);                                                        \
+        cASSERT0(mc, is_dupfix_leaf(mp));                                                                              \
+        cASSERT0(mc, mp->dupfix_ksize == mc->tree->dupfix_size);                                                       \
         node_key.iov_len = mp->dupfix_ksize;                                                                           \
         TRACE(">> %s lo %zu, size %zu, nkeys %zu", "leaf-dupfix", lo, scope, nkeys);                                   \
         do {                                                                                                           \
           MDBX_CURSOR_STC_INC(mc);                                                                                     \
           BINARY_BRANCHLESS_SEARCH_CYCLE_BEGIN(it, cmp, lo, scope);                                                    \
           node_key.iov_base = page_dupfix_ptr(mp, it, node_key.iov_len);                                               \
-          cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));                \
+          cASSERT0(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));               \
           cmp = LEAF_COMPARATOR(&node_key, key);                                                                       \
           TRACE("== i %zu, cmp %zi", it, cmp);                                                                         \
           if (unlikely(cmp == 0))                                                                                      \
@@ -212,14 +212,14 @@ static int null_comparator(const MDBX_val *a, const MDBX_val *b) {
         TRACE("<< lo %zu, size %zu, nkeys %zu, i %zu, %c", lo, scope, nkeys, it, 'N');                                 \
         return ret;                                                                                                    \
       } else {                                                                                                         \
-        cASSERT(mc, !is_dupfix_leaf(mp));                                                                              \
+        cASSERT0(mc, !is_dupfix_leaf(mp));                                                                             \
         TRACE(">> %s lo %zu, size %zu, nkeys %zu", "leaf", lo, scope, nkeys);                                          \
         do {                                                                                                           \
           MDBX_CURSOR_STC_INC(mc);                                                                                     \
           BINARY_BRANCHLESS_SEARCH_CYCLE_BEGIN(it, cmp, lo, scope);                                                    \
           node = page_node(mp, it);                                                                                    \
           node_key = get_key(node);                                                                                    \
-          cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));                \
+          cASSERT0(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));               \
           cmp = LEAF_COMPARATOR(&node_key, key);                                                                       \
           TRACE("== i %zu, cmp %zi", it, cmp);                                                                         \
           if (unlikely(cmp == 0))                                                                                      \
@@ -238,14 +238,14 @@ static int null_comparator(const MDBX_val *a, const MDBX_val *b) {
     }                                                                                                                  \
                                                                                                                        \
     TRACE(">> %s lo %zu, size %zu, nkeys %zu", "branch", lo, scope, nkeys);                                            \
-    assert(!is_dupfix_leaf(mp));                                                                                       \
-    assert(is_branch(mp) || !(BOOL_DIFFERENT_COMPARATORS | BOOL_DUPFIXED));                                            \
+    ASSERT(!is_dupfix_leaf(mp));                                                                                       \
+    ASSERT(is_branch(mp) || !(BOOL_DIFFERENT_COMPARATORS | BOOL_DUPFIXED));                                            \
     do {                                                                                                               \
       MDBX_CURSOR_STC_INC(mc);                                                                                         \
       BINARY_BRANCHLESS_SEARCH_CYCLE_BEGIN(it, cmp, lo, scope);                                                        \
       node = page_node(mp, it);                                                                                        \
       node_key = get_key(node);                                                                                        \
-      cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));                    \
+      cASSERT0(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));                   \
       cmp = BRANCH_COMPARATOR(&node_key, key);                                                                         \
       TRACE("== i %zu, cmp %zi", it, cmp);                                                                             \
       if (unlikely(cmp == 0))                                                                                          \
@@ -324,14 +324,14 @@ MDBX_MAYBE_UNUSED __cold static sfr_t old_node_search(MDBX_cursor *mc, const MDB
   MDBX_cmp_func comparator = mc->clc->k.cmp;
   MDBX_val nodekey;
   if (unlikely(is_dupfix_leaf(mp))) {
-    cASSERT(mc, mp->dupfix_ksize == mc->tree->dupfix_size);
+    cASSERT0(mc, mp->dupfix_ksize == mc->tree->dupfix_size);
     nodekey.iov_len = mp->dupfix_ksize;
     TRACE(">> lo %zi, hi %zi, size %zi, nkeys %zu", lo, hi, hi - lo + 1, nkeys);
     do {
       MDBX_CURSOR_STC_INC(mc);
       i = (lo + hi) >> 1;
       nodekey.iov_base = page_dupfix_ptr(mp, i, nodekey.iov_len);
-      cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(nodekey.iov_base, nodekey.iov_len));
+      cASSERT0(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(nodekey.iov_base, nodekey.iov_len));
       int cmp = comparator(key, &nodekey);
       TRACE("== i %zu, cmp %i", i, cmp);
       if (cmp > 0)
@@ -367,7 +367,7 @@ MDBX_MAYBE_UNUSED __cold static sfr_t old_node_search(MDBX_cursor *mc, const MDB
     node = page_node(mp, i);
     nodekey.iov_len = node_ks(node);
     nodekey.iov_base = node_key(node);
-    cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(nodekey.iov_base, nodekey.iov_len));
+    cASSERT0(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(nodekey.iov_base, nodekey.iov_len));
     int cmp = comparator(key, &nodekey);
     TRACE("== i %zu, cmp %i", i, cmp);
     if (cmp > 0)
@@ -402,7 +402,7 @@ MDBX_MAYBE_UNUSED __cold static size_t old_branch_search(MDBX_cursor *mc, const 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot static MDBX_search_foliage
 cursor_to_search_foliage(const MDBX_cursor *mc) {
   MDBX_cmp_func comparator = mc->clc->k.cmp;
-  assert(comparator != nullptr);
+  ASSERT(comparator != nullptr);
 
   if ((mc->tree->flags & MDBX_DUPFIXED) && is_inner(mc)) {
 
@@ -415,7 +415,7 @@ cursor_to_search_foliage(const MDBX_cursor *mc) {
 
     if (mc->tree->flags & MDBX_INTEGERKEY) {
       size_t ordinal = 0, keylen = mc->tree->dupfix_size;
-      cASSERT(mc, mc->clc->k.lmax == mc->clc->k.lmin && mc->clc->k.lmax == keylen && (keylen == 4 || keylen == 8));
+      cASSERT0(mc, mc->clc->k.lmax == mc->clc->k.lmin && mc->clc->k.lmax == keylen && (keylen == 4 || keylen == 8));
 #ifndef cmp_uint_align2
       if (comparator == cmp_uint_align2)
         ordinal = keylen;
@@ -449,7 +449,7 @@ cursor_to_search_foliage(const MDBX_cursor *mc) {
 
   if (mc->tree->flags & MDBX_INTEGERKEY) {
     size_t ordinal = 0, keylen = mc->clc->k.lmax;
-    cASSERT(mc, mc->clc->k.lmax == mc->clc->k.lmin && (keylen == 4 || keylen == 8));
+    cASSERT0(mc, mc->clc->k.lmax == mc->clc->k.lmin && (keylen == 4 || keylen == 8));
 #ifndef cmp_uint_align2
     if (comparator == cmp_uint_align2)
       ordinal = keylen;
@@ -510,9 +510,9 @@ __hot sfr_t tree_search_foliage_configure(MDBX_cursor *mc, const MDBX_val *key) 
 #define SEARCH_BRANCH(NAME, COMPARATOR)                                                                                \
   MDBX_NOTHROW_PURE_FUNCTION __hot static size_t search_branch_##NAME(const MDBX_cursor *mc, const MDBX_val *key) {    \
     page_t *mp = mc->pg[mc->top];                                                                                      \
-    assert(is_branch(mp));                                                                                             \
+    ASSERT(is_branch(mp));                                                                                             \
     const size_t nkeys = page_numkeys(mp);                                                                             \
-    cASSERT(mc, nkeys >= 2);                                                                                           \
+    cASSERT0(mc, nkeys >= 2);                                                                                          \
     TRACE("searching %zu keys in branch-page %" PRIaPGNO, nkeys, mp->pgno);                                            \
     intptr_t lo = 1, scope = nkeys - lo, it, cmp;                                                                      \
     TRACE(">> lo %zu, size %zu, nkeys %zu", lo, scope, nkeys);                                                         \
@@ -521,7 +521,7 @@ __hot sfr_t tree_search_foliage_configure(MDBX_cursor *mc, const MDBX_val *key) 
         MDBX_CURSOR_STC_INC(mc);                                                                                       \
         BINARY_BRANCHLESS_SEARCH_CYCLE_BEGIN(it, cmp, lo, scope);                                                      \
         MDBX_val node_key = get_key(page_node(mp, it));                                                                \
-        cASSERT(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));                  \
+        cASSERT0(mc, ptr_disp(mp, mc->txn->env->ps) >= ptr_disp(node_key.iov_base, node_key.iov_len));                 \
         cmp = COMPARATOR(&node_key, key);                                                                              \
         TRACE("== i %zu, cmp %zi", it, cmp);                                                                           \
         if (unlikely(cmp == 0)) {                                                                                      \
@@ -548,7 +548,7 @@ SEARCH_BRANCH(custom, mc->clc->k.cmp)
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot static MDBX_search_branch
 cursor_to_search_branch(const MDBX_cursor *mc) {
   MDBX_cmp_func comparator = mc->clc->k.cmp;
-  assert(comparator != nullptr);
+  ASSERT(comparator != nullptr);
 
   if (comparator == cmp_lexical)
     return search_branch_lexical;

@@ -8,7 +8,7 @@
 void recalculate_merge_thresholds(MDBX_env *env) {
   const size_t whole_page_space = page_space(env);
   env->merge_threshold = (uint16_t)(whole_page_space - (whole_page_space * env->options.merge_threshold_dot16 >> 16));
-  eASSERT(env, env->merge_threshold >= whole_page_space / 2u && env->merge_threshold <= whole_page_space * 63u / 64u);
+  eASSERT0(env, env->merge_threshold >= whole_page_space / 2u && env->merge_threshold <= whole_page_space * 63u / 64u);
 }
 
 int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
@@ -35,7 +35,7 @@ int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
       page_t *const mp = mc->pg[mc->top];
       const size_t nkeys = page_numkeys(mp);
       if (is_leaf(mp)) {
-        cASSERT(mc, mc->top + 1 == mc->tree->height);
+        cASSERT0(mc, mc->top + 1 == mc->tree->height);
         for (size_t i = 0; i < nkeys; i++) {
           node_t *node = page_node(mp, i);
           if (node_flags(node) & N_BIG) {
@@ -58,13 +58,13 @@ int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
           }
         }
       } else {
-        cASSERT(mc, mc->top + 1 < mc->tree->height);
+        cASSERT0(mc, mc->top + 1 < mc->tree->height);
         mc->checking |= z_retiring;
         const unsigned pagetype = (is_frozen(txn, mp) ? P_FROZEN : 0) +
                                   ((mc->top + 2 == mc->tree->height) ? (mc->checking & (P_LEAF | P_DUPFIX)) : P_BRANCH);
         for (size_t i = 0; i < nkeys; i++) {
           node_t *node = page_node(mp, i);
-          tASSERT(txn, (node_flags(node) & (N_BIG | N_TREE | N_DUP)) == 0);
+          cASSERT0(mc, (node_flags(node) & (N_BIG | N_TREE | N_DUP)) == 0);
           const pgno_t pgno = node_pgno(node);
           rc = page_retire_ex(mc, pgno, nullptr, pagetype);
           if (unlikely(rc != MDBX_SUCCESS))
@@ -74,7 +74,7 @@ int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
       }
       if (!mc->top)
         break;
-      cASSERT(mc, nkeys > 0);
+      cASSERT0(mc, nkeys > 0);
       mc->ki[mc->top] = (indx_t)nkeys;
       rc = cursor_sibling_right(mc);
       if (unlikely(rc != MDBX_SUCCESS)) {
@@ -107,9 +107,9 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
 
   page_t *psrc = csrc->pg[csrc->top];
   page_t *pdst = cdst->pg[cdst->top];
-  cASSERT(csrc, page_type(psrc) == page_type(pdst));
-  cASSERT(csrc, csrc->tree == cdst->tree);
-  cASSERT(csrc, csrc->top == cdst->top);
+  cASSERT0(csrc, page_type(psrc) == page_type(pdst));
+  cASSERT0(csrc, csrc->tree == cdst->tree);
+  cASSERT0(csrc, csrc->top == cdst->top);
   if (unlikely(page_type(psrc) != page_type(pdst))) {
   bailout:
     ERROR("Wrong or mismatch pages's types (src %d, dst %d) to move node", page_type(psrc), page_type(pdst));
@@ -121,20 +121,20 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
   switch (page_type(psrc)) {
   case P_BRANCH: {
     const node_t *srcnode = page_node(psrc, csrc->ki[csrc->top]);
-    cASSERT(csrc, node_flags(srcnode) == 0);
+    cASSERT0(csrc, node_flags(srcnode) == 0);
     const pgno_t srcpg = node_pgno(srcnode);
     key4move.iov_len = node_ks(srcnode);
     key4move.iov_base = node_key(srcnode);
 
     if (csrc->ki[csrc->top] == 0) {
       const int8_t top = csrc->top;
-      cASSERT(csrc, top >= 0);
+      cASSERT0(csrc, top >= 0);
       /* must find the lowest key below src */
       rc = tree_search_lowest(csrc);
       page_t *lowest_page = csrc->pg[csrc->top];
       if (unlikely(rc != MDBX_SUCCESS))
         return rc;
-      cASSERT(csrc, is_leaf(lowest_page));
+      cASSERT0(csrc, is_leaf(lowest_page));
       if (unlikely(!is_leaf(lowest_page)))
         goto bailout;
       if (is_dupfix_leaf(lowest_page))
@@ -150,8 +150,8 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       csrc->ki[csrc->top] = 0;
 
       /* paranoia */
-      cASSERT(csrc, psrc == csrc->pg[csrc->top]);
-      cASSERT(csrc, is_branch(psrc));
+      cASSERT0(csrc, psrc == csrc->pg[csrc->top]);
+      cASSERT0(csrc, is_branch(psrc));
       if (unlikely(!is_branch(psrc)))
         goto bailout;
     }
@@ -160,14 +160,14 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       cursor_couple_t couple;
       MDBX_cursor *const mn = cursor_clone(cdst, &couple);
       const int8_t top = cdst->top;
-      cASSERT(csrc, top >= 0);
+      cASSERT0(csrc, top >= 0);
 
       /* must find the lowest key below dst */
       rc = tree_search_lowest(mn);
       if (unlikely(rc != MDBX_SUCCESS))
         return rc;
       page_t *const lowest_page = mn->pg[mn->top];
-      cASSERT(cdst, is_leaf(lowest_page));
+      cASSERT0(cdst, is_leaf(lowest_page));
       if (unlikely(!is_leaf(lowest_page)))
         goto bailout;
       MDBX_val key;
@@ -250,7 +250,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
   } break;
 
   default:
-    assert(false);
+    ASSERT(false);
     goto bailout;
   }
 
@@ -260,9 +260,9 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
   /* Delete the node from the source page. */
   node_del(csrc, key4move.iov_len);
 
-  cASSERT(csrc, psrc == csrc->pg[csrc->top]);
-  cASSERT(cdst, pdst == cdst->pg[cdst->top]);
-  cASSERT(csrc, page_type(psrc) == page_type(pdst));
+  cASSERT0(csrc, psrc == csrc->pg[csrc->top]);
+  cASSERT0(cdst, pdst == cdst->pg[cdst->top]);
+  cASSERT0(csrc, page_type(psrc) == page_type(pdst));
 
   /* csrc курсор тут всегда временный, на стеке внутри tree_rebalance(),
    * и его нет необходимости корректировать. */
@@ -270,7 +270,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
     /* Adjust other cursors pointing to mp */
     MDBX_cursor *m2, *m3;
     const size_t dbi = cursor_dbi(csrc);
-    cASSERT(csrc, csrc->top == cdst->top);
+    cASSERT0(csrc, csrc->top == cdst->top);
     if (fromleft) {
       /* Перемещаем с левой страницы нв правую, нужно сдвинуть ki на +1 */
       for (m2 = csrc->txn->cursors[dbi]; m2; m2 = m2->next) {
@@ -285,12 +285,12 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
         if (/* m3 != csrc && */ m3->pg[csrc->top] == psrc && m3->ki[csrc->top] == csrc->ki[csrc->top]) {
           m3->pg[csrc->top] = pdst;
           m3->ki[csrc->top] = cdst->ki[cdst->top];
-          cASSERT(csrc, csrc->top > 0);
+          cASSERT0(csrc, csrc->top > 0);
           m3->ki[csrc->top - 1] += 1;
         }
 
         if (is_leaf(psrc) && inner_pointed(m3)) {
-          cASSERT(csrc, csrc->top == m3->top);
+          cASSERT0(csrc, csrc->top == m3->top);
           size_t nkeys = page_numkeys(m3->pg[csrc->top]);
           if (likely(nkeys > m3->ki[csrc->top]))
             cursor_inner_refresh(m3, m3->pg[csrc->top], m3->ki[csrc->top]);
@@ -306,13 +306,13 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
           if (!m3->ki[csrc->top]) {
             m3->pg[csrc->top] = pdst;
             m3->ki[csrc->top] = cdst->ki[cdst->top];
-            cASSERT(csrc, csrc->top > 0 && m3->ki[csrc->top - 1] > 0);
+            cASSERT0(csrc, csrc->top > 0 && m3->ki[csrc->top - 1] > 0);
             m3->ki[csrc->top - 1] -= 1;
           } else
             m3->ki[csrc->top] -= 1;
 
           if (is_leaf(psrc) && inner_pointed(m3)) {
-            cASSERT(csrc, csrc->top == m3->top);
+            cASSERT0(csrc, csrc->top == m3->top);
             size_t nkeys = page_numkeys(m3->pg[csrc->top]);
             if (likely(nkeys > m3->ki[csrc->top]))
               cursor_inner_refresh(m3, m3->pg[csrc->top], m3->ki[csrc->top]);
@@ -324,7 +324,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
 
   /* Update the parent separators. */
   if (csrc->ki[csrc->top] == 0) {
-    cASSERT(csrc, csrc->top > 0);
+    cASSERT0(csrc, csrc->top > 0);
     if (csrc->ki[csrc->top - 1] != 0) {
       MDBX_val key;
       if (is_dupfix_leaf(psrc))
@@ -338,7 +338,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
 
       cursor_couple_t couple;
       MDBX_cursor *const mn = cursor_clone(csrc, &couple);
-      cASSERT(csrc, mn->top > 0);
+      cASSERT0(csrc, mn->top > 0);
       mn->top -= 1;
 
       couple.outer.next = mn->txn->cursors[cursor_dbi(mn)];
@@ -354,12 +354,12 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       csrc->ki[csrc->top] = 0;
       rc = tree_propagate_key(csrc, &nullkey);
       csrc->ki[csrc->top] = ix;
-      cASSERT(csrc, rc == MDBX_SUCCESS);
+      cASSERT0(csrc, rc == MDBX_SUCCESS);
     }
   }
 
   if (cdst->ki[cdst->top] == 0) {
-    cASSERT(cdst, cdst->top > 0);
+    cASSERT0(cdst, cdst->top > 0);
     if (cdst->ki[cdst->top - 1] != 0) {
       MDBX_val key;
       if (is_dupfix_leaf(pdst))
@@ -372,7 +372,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       DEBUG("update separator for destination page %" PRIaPGNO " to [%s]", pdst->pgno, DKEY_DEBUG(&key));
       cursor_couple_t couple;
       MDBX_cursor *const mn = cursor_clone(cdst, &couple);
-      cASSERT(cdst, mn->top > 0);
+      cASSERT0(cdst, mn->top > 0);
       mn->top -= 1;
 
       couple.outer.next = mn->txn->cursors[cursor_dbi(mn)];
@@ -388,7 +388,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       cdst->ki[cdst->top] = 0;
       rc = tree_propagate_key(cdst, &nullkey);
       cdst->ki[cdst->top] = ix;
-      cASSERT(cdst, rc == MDBX_SUCCESS);
+      cASSERT0(cdst, rc == MDBX_SUCCESS);
     }
   }
 
@@ -399,33 +399,33 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   MDBX_val key;
   int rc;
 
-  cASSERT(csrc, csrc != cdst);
-  cASSERT(csrc, cursor_is_tracked(csrc));
-  cASSERT(cdst, cursor_is_tracked(cdst));
+  cASSERT0(csrc, csrc != cdst);
+  cASSERT1(csrc, cursor_is_tracked(csrc));
+  cASSERT1(cdst, cursor_is_tracked(cdst));
   const page_t *const psrc = csrc->pg[csrc->top];
   page_t *pdst = cdst->pg[cdst->top];
   DEBUG("merging page %" PRIaPGNO " into %" PRIaPGNO, psrc->pgno, pdst->pgno);
 
-  cASSERT(csrc, page_type(psrc) == page_type(pdst));
-  cASSERT(csrc, csrc->clc == cdst->clc && csrc->tree == cdst->tree);
-  cASSERT(csrc, csrc->top > 0); /* can't merge root page */
-  cASSERT(cdst, cdst->top > 0);
-  cASSERT(cdst, cdst->top + 1 < cdst->tree->height || is_leaf(cdst->pg[cdst->tree->height - 1]));
-  cASSERT(csrc, csrc->top + 1 < csrc->tree->height || is_leaf(csrc->pg[csrc->tree->height - 1]));
-  cASSERT(cdst, cursor_dbi(csrc) == FREE_DBI || csrc->txn->env->options.prefer_waf_insteadof_balance ||
-                    page_room(pdst) >= page_used(cdst->txn->env, psrc));
+  cASSERT0(csrc, page_type(psrc) == page_type(pdst));
+  cASSERT0(csrc, csrc->clc == cdst->clc && csrc->tree == cdst->tree);
+  cASSERT0(csrc, csrc->top > 0); /* can't merge root page */
+  cASSERT0(cdst, cdst->top > 0);
+  cASSERT0(cdst, cdst->top + 1 < cdst->tree->height || is_leaf(cdst->pg[cdst->tree->height - 1]));
+  cASSERT0(csrc, csrc->top + 1 < csrc->tree->height || is_leaf(csrc->pg[csrc->tree->height - 1]));
+  cASSERT0(cdst, cursor_dbi(csrc) == FREE_DBI || csrc->txn->env->options.prefer_waf_insteadof_balance ||
+                     page_room(pdst) >= page_used(cdst->txn->env, psrc));
   const int pagetype = page_type(psrc);
 
   /* Move all nodes from src to dst */
   const size_t dst_nkeys = page_numkeys(pdst);
   const size_t src_nkeys = page_numkeys(psrc);
-  cASSERT(cdst, dst_nkeys + src_nkeys >= (is_leaf(psrc) ? 1u : 2u));
+  cASSERT0(cdst, dst_nkeys + src_nkeys >= (is_leaf(psrc) ? 1u : 2u));
   if (likely(src_nkeys)) {
     size_t ii = dst_nkeys;
     if (unlikely(pagetype & P_DUPFIX)) {
       /* Mark dst as dirty. */
       rc = page_touch(cdst);
-      cASSERT(cdst, rc != MDBX_RESULT_TRUE);
+      cASSERT0(cdst, rc != MDBX_RESULT_TRUE);
       if (unlikely(rc != MDBX_SUCCESS))
         return rc;
 
@@ -434,7 +434,7 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
       size_t i = 0;
       do {
         rc = node_add_dupfix(cdst, ii++, &key);
-        cASSERT(cdst, rc != MDBX_RESULT_TRUE);
+        cASSERT0(cdst, rc != MDBX_RESULT_TRUE);
         if (unlikely(rc != MDBX_SUCCESS))
           return rc;
         key.iov_base = ptr_disp(key.iov_base, key.iov_len);
@@ -449,22 +449,22 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
 
         /* must find the lowest key below src */
         rc = tree_search_lowest(mn);
-        cASSERT(csrc, rc != MDBX_RESULT_TRUE);
+        cASSERT0(csrc, rc != MDBX_RESULT_TRUE);
         if (unlikely(rc != MDBX_SUCCESS))
           return rc;
 
         const page_t *mp = mn->pg[mn->top];
         if (likely(!is_dupfix_leaf(mp))) {
-          cASSERT(mn, is_leaf(mp));
+          cASSERT0(mn, is_leaf(mp));
           const node_t *lowest = page_node(mp, 0);
           key.iov_len = node_ks(lowest);
           key.iov_base = node_key(lowest);
         } else {
-          cASSERT(mn, mn->top > csrc->top);
+          cASSERT0(mn, mn->top > csrc->top);
           key = page_dupfix_key(mp, mn->ki[mn->top], csrc->tree->dupfix_size);
         }
-        cASSERT(mn, key.iov_len >= csrc->clc->k.lmin);
-        cASSERT(mn, key.iov_len <= csrc->clc->k.lmax);
+        cASSERT0(mn, key.iov_len >= csrc->clc->k.lmin);
+        cASSERT0(mn, key.iov_len <= csrc->clc->k.lmax);
 
         const size_t dst_room = page_room(pdst);
         const size_t src_used = page_used(cdst->txn->env, psrc);
@@ -475,7 +475,7 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
 
       /* Mark dst as dirty. */
       rc = page_touch(cdst);
-      cASSERT(cdst, rc != MDBX_RESULT_TRUE);
+      cASSERT0(cdst, rc != MDBX_RESULT_TRUE);
       if (unlikely(rc != MDBX_SUCCESS))
         return rc;
 
@@ -487,10 +487,10 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
           data.iov_base = node_data(srcnode);
           rc = node_add_leaf(cdst, ii++, &key, &data, node_flags(srcnode));
         } else {
-          cASSERT(csrc, node_flags(srcnode) == 0);
+          cASSERT0(csrc, node_flags(srcnode) == 0);
           rc = node_add_branch(cdst, ii++, &key, node_pgno(srcnode));
         }
-        cASSERT(cdst, rc != MDBX_RESULT_TRUE);
+        cASSERT0(cdst, rc != MDBX_RESULT_TRUE);
         if (unlikely(rc != MDBX_SUCCESS))
           return rc;
 
@@ -506,8 +506,8 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
     DEBUG("dst page %" PRIaPGNO " now has %zu keys (%u.%u%% filled)", pdst->pgno, page_numkeys(pdst),
           page_fill_percentum_x10(cdst->txn->env, pdst) / 10, page_fill_percentum_x10(cdst->txn->env, pdst) % 10);
 
-    cASSERT(csrc, psrc == csrc->pg[csrc->top]);
-    cASSERT(cdst, pdst == cdst->pg[cdst->top]);
+    cASSERT0(csrc, psrc == csrc->pg[csrc->top]);
+    cASSERT0(cdst, pdst == cdst->pg[cdst->top]);
   }
 
   /* Unlink the src page from parent and add to free list. */
@@ -516,7 +516,7 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   if (csrc->ki[csrc->top] == 0) {
     const MDBX_val nullkey = {0, 0};
     rc = tree_propagate_key(csrc, &nullkey);
-    cASSERT(csrc, rc != MDBX_RESULT_TRUE);
+    cASSERT0(csrc, rc != MDBX_RESULT_TRUE);
     if (unlikely(rc != MDBX_SUCCESS)) {
       csrc->top += 1;
       return rc;
@@ -524,8 +524,8 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   }
   csrc->top += 1;
 
-  cASSERT(csrc, psrc == csrc->pg[csrc->top]);
-  cASSERT(cdst, pdst == cdst->pg[cdst->top]);
+  cASSERT0(csrc, psrc == csrc->pg[csrc->top]);
+  cASSERT0(cdst, pdst == cdst->pg[cdst->top]);
 
   {
     /* Adjust other cursors pointing to mp */
@@ -540,12 +540,12 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
         m3->ki[csrc->top] += (indx_t)dst_nkeys;
         m3->ki[csrc->top - 1] = cdst->ki[csrc->top - 1];
       } else if (m3->pg[csrc->top - 1] == csrc->pg[csrc->top - 1] && m3->ki[csrc->top - 1] > csrc->ki[csrc->top - 1]) {
-        cASSERT(m3, m3->ki[csrc->top - 1] > 0 && m3->ki[csrc->top - 1] <= page_numkeys(m3->pg[csrc->top - 1]));
+        cASSERT0(m3, m3->ki[csrc->top - 1] > 0 && m3->ki[csrc->top - 1] <= page_numkeys(m3->pg[csrc->top - 1]));
         m3->ki[csrc->top - 1] -= 1;
       }
 
       if (is_leaf(psrc) && inner_pointed(m3)) {
-        cASSERT(csrc, csrc->top == m3->top);
+        cASSERT0(csrc, csrc->top == m3->top);
         size_t nkeys = page_numkeys(m3->pg[csrc->top]);
         if (likely(nkeys > m3->ki[csrc->top]))
           cursor_inner_refresh(m3, m3->pg[csrc->top], m3->ki[csrc->top]);
@@ -554,13 +554,13 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   }
 
   rc = page_retire(csrc, (page_t *)psrc);
-  cASSERT(csrc, rc != MDBX_RESULT_TRUE);
+  cASSERT0(csrc, rc != MDBX_RESULT_TRUE);
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-  cASSERT(cdst, cdst->tree->items > 0);
-  cASSERT(cdst, cdst->top + 1 <= cdst->tree->height);
-  cASSERT(cdst, cdst->top > 0);
+  cASSERT0(cdst, cdst->tree->items > 0);
+  cASSERT0(cdst, cdst->top + 1 <= cdst->tree->height);
+  cASSERT0(cdst, cdst->top > 0);
   page_t *const top_page = cdst->pg[cdst->top];
   const indx_t top_indx = cdst->ki[cdst->top];
   const int save_top = cdst->top;
@@ -570,18 +570,18 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-  cASSERT(cdst, cdst->tree->items > 0);
-  cASSERT(cdst, cdst->top + 1 <= cdst->tree->height);
+  cASSERT0(cdst, cdst->tree->items > 0);
+  cASSERT0(cdst, cdst->top + 1 <= cdst->tree->height);
   if (MDBX_ENABLE_PGOP_STAT)
     cdst->txn->env->lck->pgops.merge.weak += 1;
 
   if (is_leaf(cdst->pg[cdst->top])) {
     /* LY: don't touch cursor if top-page is a LEAF */
-    cASSERT(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
+    cASSERT0(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
     return MDBX_SUCCESS;
   }
 
-  cASSERT(cdst, page_numkeys(top_page) == dst_nkeys + src_nkeys);
+  cASSERT0(cdst, page_numkeys(top_page) == dst_nkeys + src_nkeys);
 
   if (unlikely(pagetype != page_type(top_page))) {
     /* LY: LEAF-page becomes BRANCH, unable restore cursor's stack */
@@ -590,8 +590,8 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
 
   if (top_page == cdst->pg[cdst->top]) {
     /* LY: don't touch cursor if prev top-page already on the top */
-    cASSERT(cdst, cdst->ki[cdst->top] == top_indx);
-    cASSERT(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
+    cASSERT0(cdst, cdst->ki[cdst->top] == top_indx);
+    cASSERT0(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
     return MDBX_SUCCESS;
   }
 
@@ -602,11 +602,11 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   }
 
   if (top_page == cdst->pg[new_top]) {
-    cASSERT(cdst, cdst->ki[new_top] == top_indx);
+    cASSERT0(cdst, cdst->ki[new_top] == top_indx);
     /* LY: restore cursor stack */
     cdst->top = (int8_t)new_top;
-    cASSERT(cdst, cdst->top + 1 < cdst->tree->height || is_leaf(cdst->pg[cdst->tree->height - 1]));
-    cASSERT(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
+    cASSERT0(cdst, cdst->top + 1 < cdst->tree->height || is_leaf(cdst->pg[cdst->tree->height - 1]));
+    cASSERT0(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
     return MDBX_SUCCESS;
   }
 
@@ -617,13 +617,13 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
     /* LY: restore cursor stack */
     cdst->pg[new_top] = top_page;
     cdst->ki[new_top] = top_indx;
-#if MDBX_DEBUG
+#if MDBX_DEBUG > 0
     cdst->pg[new_top + 1] = nullptr;
     cdst->ki[new_top + 1] = INT16_MAX;
-#endif
+#endif /* MDBX_DEBUG */
     cdst->top = (int8_t)new_top;
-    cASSERT(cdst, cdst->top + 1 < cdst->tree->height || is_leaf(cdst->pg[cdst->tree->height - 1]));
-    cASSERT(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
+    cASSERT0(cdst, cdst->top + 1 < cdst->tree->height || is_leaf(cdst->pg[cdst->tree->height - 1]));
+    cASSERT0(cdst, is_leaf(cdst->pg[cdst->top]) || page_type(cdst->pg[cdst->top]) == pagetype);
     return MDBX_SUCCESS;
   }
 
@@ -634,9 +634,9 @@ bailout:
 }
 
 int tree_rebalance(MDBX_cursor *mc) {
-  cASSERT(mc, cursor_is_tracked(mc));
-  cASSERT(mc, mc->top >= 0);
-  cASSERT(mc, mc->top + 1 < mc->tree->height || is_leaf(mc->pg[mc->tree->height - 1]));
+  cASSERT1(mc, cursor_is_tracked(mc));
+  cASSERT0(mc, mc->top >= 0);
+  cASSERT0(mc, mc->top + 1 < mc->tree->height || is_leaf(mc->pg[mc->tree->height - 1]));
   const page_t *const tp = mc->pg[mc->top];
   const uint8_t pagetype = page_type(tp);
 
@@ -662,7 +662,7 @@ int tree_rebalance(MDBX_cursor *mc) {
   DEBUG("rebalancing %s page %" PRIaPGNO " (has %zu keys, fill %u.%u%%, used %zu, room %zu bytes)",
         is_leaf(tp) ? "leaf" : "branch", tp->pgno, numkeys, page_fill_percentum_x10(mc->txn->env, tp) / 10,
         page_fill_percentum_x10(mc->txn->env, tp) % 10, page_used(mc->txn->env, tp), room);
-  cASSERT(mc, is_modifable(mc->txn, tp));
+  cASSERT0(mc, is_modifable(mc->txn, tp));
 
   if (unlikely(numkeys < minkeys)) {
     DEBUG("page %" PRIaPGNO " must be merged due keys < %zu threshold", tp->pgno, minkeys);
@@ -670,7 +670,7 @@ int tree_rebalance(MDBX_cursor *mc) {
     DEBUG("page %" PRIaPGNO " should be merged due room %zu > %zu threshold", tp->pgno, room, room_threshold);
   } else {
     DEBUG("no need to rebalance page %" PRIaPGNO ", room %zu < %zu threshold", tp->pgno, room, room_threshold);
-    cASSERT(mc, mc->tree->items > 0);
+    cASSERT0(mc, mc->tree->items > 0);
     return MDBX_SUCCESS;
   }
 
@@ -678,12 +678,12 @@ int tree_rebalance(MDBX_cursor *mc) {
   if (mc->top == 0) {
     page_t *const mp = mc->pg[0];
     const size_t nkeys = page_numkeys(mp);
-    cASSERT(mc, (mc->tree->items == 0) == (nkeys == 0));
+    cASSERT0(mc, (mc->tree->items == 0) == (nkeys == 0));
     if (nkeys == 0) {
       DEBUG("%s", "tree is completely empty");
-      cASSERT(mc, is_leaf(mp));
-      cASSERT(mc, (*cursor_dbi_state(mc) & DBI_DIRTY) != 0);
-      cASSERT(mc, mc->tree->branch_pages == 0 && mc->tree->large_pages == 0 && mc->tree->leaf_pages == 1);
+      cASSERT0(mc, is_leaf(mp));
+      cASSERT0(mc, (*cursor_dbi_state(mc) & DBI_DIRTY) != 0);
+      cASSERT0(mc, mc->tree->branch_pages == 0 && mc->tree->large_pages == 0 && mc->tree->leaf_pages == 1);
       /* Adjust cursors pointing to mp */
       for (MDBX_cursor *m2 = mc->txn->cursors[cursor_dbi(mc)]; m2; m2 = m2->next) {
         MDBX_cursor *m3 = (mc->flags & z_inner) ? &m2->subcur->cursor : m2;
@@ -702,7 +702,7 @@ int tree_rebalance(MDBX_cursor *mc) {
     }
     if (is_subpage(mp)) {
       DEBUG("%s", "Can't rebalance a subpage, ignoring");
-      cASSERT(mc, is_leaf(tp));
+      cASSERT0(mc, is_leaf(tp));
       return MDBX_SUCCESS;
     }
     if (is_branch(mp) && nkeys == 1) {
@@ -729,8 +729,8 @@ int tree_rebalance(MDBX_cursor *mc) {
           m3->top -= 1;
         }
       }
-      cASSERT(mc, is_leaf(mc->pg[mc->top]) || page_type(mc->pg[mc->top]) == pagetype);
-      cASSERT(mc, mc->top + 1 < mc->tree->height || is_leaf(mc->pg[mc->tree->height - 1]));
+      cASSERT0(mc, is_leaf(mc->pg[mc->top]) || page_type(mc->pg[mc->top]) == pagetype);
+      cASSERT0(mc, mc->top + 1 < mc->tree->height || is_leaf(mc->pg[mc->tree->height - 1]));
       return page_retire(mc, mp);
     }
     DEBUG("root page %" PRIaPGNO " doesn't need rebalancing (flags 0x%x)", mp->pgno, mp->flags);
@@ -740,9 +740,9 @@ int tree_rebalance(MDBX_cursor *mc) {
   /* The parent (branch page) must have at least 2 pointers,
    * otherwise the tree is invalid. */
   const size_t pre_top = mc->top - 1;
-  cASSERT(mc, is_branch(mc->pg[pre_top]));
-  cASSERT(mc, !is_subpage(mc->pg[0]));
-  cASSERT(mc, page_numkeys(mc->pg[pre_top]) > 1);
+  cASSERT0(mc, is_branch(mc->pg[pre_top]));
+  cASSERT0(mc, !is_subpage(mc->pg[0]));
+  cASSERT0(mc, page_numkeys(mc->pg[pre_top]) > 1);
 
   /* Leaf page fill factor is below the threshold.
    * Try to move keys from left or right neighbor, or
@@ -757,16 +757,16 @@ int tree_rebalance(MDBX_cursor *mc) {
     rc = page_get(mn, node_pgno(page_node(mn->pg[pre_top], mn->ki[pre_top] - 1)), &left, mc->pg[mc->top]->txnid);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
-    cASSERT(mc, page_type(left) == page_type(mc->pg[mc->top]));
+    cASSERT0(mc, page_type(left) == page_type(mc->pg[mc->top]));
   }
   if (mn->ki[pre_top] + (size_t)1 < page_numkeys(mn->pg[pre_top])) {
     rc = page_get(mn, node_pgno(page_node(mn->pg[pre_top], mn->ki[pre_top] + (size_t)1)), &right,
                   mc->pg[mc->top]->txnid);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
-    cASSERT(mc, page_type(right) == page_type(mc->pg[mc->top]));
+    cASSERT0(mc, page_type(right) == page_type(mc->pg[mc->top]));
   }
-  cASSERT(mc, left || right);
+  cASSERT0(mc, left || right);
 
   const size_t ki_top = mc->ki[mc->top];
   const size_t ki_pre_top = mn->ki[pre_top];
@@ -792,12 +792,12 @@ int tree_rebalance(MDBX_cursor *mc) {
 
   bool involve = !(left && right);
 retry:
-  cASSERT(mc, mc->top > 0);
+  cASSERT0(mc, mc->top > 0);
   const bool consider_left = left && (involve || is_modifable(mc->txn, left));
   const bool consider_right = right && (involve || is_modifable(mc->txn, right));
   if (consider_left && left_room > room_threshold && left_room >= right_room) {
     /* try merge with left */
-    cASSERT(mc, left_nkeys >= minkeys);
+    cASSERT0(mc, left_nkeys >= minkeys);
     mn->pg[mn->top] = left;
     mn->ki[mn->top - 1] = (indx_t)(ki_pre_top - 1);
     mn->ki[mn->top] = (indx_t)(left_nkeys - 1);
@@ -811,13 +811,13 @@ retry:
     if (likely(rc != MDBX_RESULT_TRUE)) {
       cursor_cpstk(mn, mc);
       mc->ki[mc->top] = (indx_t)new_ki;
-      cASSERT(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
+      cASSERT0(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
       return rc;
     }
   }
   if (consider_right && right_room > room_threshold) {
     /* try merge with right */
-    cASSERT(mc, right_nkeys >= minkeys);
+    cASSERT0(mc, right_nkeys >= minkeys);
     mn->pg[mn->top] = right;
     mn->ki[mn->top - 1] = (indx_t)(ki_pre_top + 1);
     mn->ki[mn->top] = 0;
@@ -828,7 +828,7 @@ retry:
     mn->txn->cursors[cursor_dbi(mn)] = couple.outer.next;
     if (likely(rc != MDBX_RESULT_TRUE)) {
       mc->ki[mc->top] = (indx_t)ki_top;
-      cASSERT(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
+      cASSERT0(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
       return rc;
     }
   }
@@ -845,7 +845,7 @@ retry:
     mn->txn->cursors[cursor_dbi(mn)] = couple.outer.next;
     if (likely(rc != MDBX_RESULT_TRUE)) {
       mc->ki[mc->top] = (indx_t)(ki_top + 1);
-      cASSERT(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
+      cASSERT0(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
       return rc;
     }
   }
@@ -861,15 +861,15 @@ retry:
     mn->txn->cursors[cursor_dbi(mn)] = couple.outer.next;
     if (likely(rc != MDBX_RESULT_TRUE)) {
       mc->ki[mc->top] = (indx_t)ki_top;
-      cASSERT(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
+      cASSERT0(mc, rc || page_numkeys(mc->pg[mc->top]) >= minkeys);
       return rc;
     }
   }
 
   if (nkeys >= minkeys) {
     mc->ki[mc->top] = (indx_t)ki_top;
-    if (AUDIT_ENABLED())
-      return cursor_validate_updating(mc);
+    if (CHECKS2_ENABLED())
+      ENSURE_OBJ(mc, cursor_validate_updating(mc) == MDBX_SUCCESS);
     return MDBX_SUCCESS;
   }
 
@@ -905,12 +905,12 @@ int tree_propagate_key(MDBX_cursor *mc, const MDBX_val *key) {
   intptr_t ptr, i, nkeys, indx;
   DKBUF_DEBUG;
 
-  cASSERT(mc, cursor_is_tracked(mc));
+  cASSERT0(mc, cursor_is_tracked(mc));
   indx = mc->ki[mc->top];
   mp = mc->pg[mc->top];
   node = page_node(mp, indx);
   ptr = mp->entries[indx];
-#if MDBX_DEBUG
+#if MDBX_DEBUG > 0
   MDBX_val k2;
   k2.iov_base = node_key(node);
   k2.iov_len = node_ks(node);
@@ -931,15 +931,15 @@ int tree_propagate_key(MDBX_cursor *mc, const MDBX_val *key) {
       pgno_t pgno = node_pgno(node);
       node_del(mc, 0);
       int err = page_split(mc, key, nullptr, pgno, MDBX_SPLIT_REPLACE);
-      if (err == MDBX_SUCCESS && AUDIT_ENABLED())
-        err = cursor_validate_updating(mc);
+      if (err == MDBX_SUCCESS && CHECKS2_ENABLED())
+        ENSURE_OBJ(mc, cursor_validate_updating(mc) == MDBX_SUCCESS);
       return err;
     }
 
     nkeys = page_numkeys(mp);
     for (i = 0; i < nkeys; i++) {
       if (mp->entries[i] <= ptr) {
-        cASSERT(mc, mp->entries[i] >= delta);
+        cASSERT0(mc, mp->entries[i] >= delta);
         mp->entries[i] -= (indx_t)delta;
       }
     }
@@ -947,7 +947,7 @@ int tree_propagate_key(MDBX_cursor *mc, const MDBX_val *key) {
     void *const base = ptr_disp(mp, mp->upper + PAGEHDRSZ);
     len = ptr - mp->upper + NODESIZE;
     memmove(ptr_disp(base, -delta), base, len);
-    cASSERT(mc, mp->upper >= delta);
+    cASSERT0(mc, mp->upper >= delta);
     mp->upper -= (indx_t)delta;
 
     node = page_node(mp, indx);

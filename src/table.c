@@ -34,8 +34,8 @@ int tbl_setup(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *cons
   kvx->clc.v.lmax = v_lmax;
   osal_memory_fence(mo_AcquireRelease, true);
 
-  eASSERT(env, kvx->clc.k.lmax >= kvx->clc.k.lmin);
-  eASSERT(env, kvx->clc.v.lmax >= kvx->clc.v.lmin);
+  eASSERT0(env, kvx->clc.k.lmax >= kvx->clc.k.lmin);
+  eASSERT0(env, kvx->clc.v.lmax >= kvx->clc.v.lmin);
   return MDBX_SUCCESS;
 }
 
@@ -94,7 +94,7 @@ int tbl_fetch(MDBX_txn *txn, MDBX_cursor *mc, size_t dbi, const MDBX_val *name, 
   memcpy(db, data.iov_base, sizeof(tree_t));
 #if !MDBX_DISABLE_VALIDATION
   const txnid_t maindb_leafpage_txnid = mc->pg[mc->top]->txnid;
-  tASSERT(txn, txn->front_txnid >= maindb_leafpage_txnid);
+  cASSERT0(txn, txn->front_txnid >= maindb_leafpage_txnid);
   if (unlikely(db->mod_txnid > maindb_leafpage_txnid)) {
     ERROR("db.mod_txnid (%" PRIaTXN ") > page-txnid (%" PRIaTXN ")", db->mod_txnid, maindb_leafpage_txnid);
     return MDBX_CORRUPTED;
@@ -105,7 +105,7 @@ int tbl_fetch(MDBX_txn *txn, MDBX_cursor *mc, size_t dbi, const MDBX_val *name, 
 }
 
 int tbl_create(MDBX_txn *txn, MDBX_cursor *mc, size_t slot, const MDBX_val *name, unsigned db_flags) {
-  tASSERT(txn, db_flags & MDBX_CREATE);
+  cASSERT0(txn, db_flags & MDBX_CREATE);
   MDBX_val body;
   body.iov_base = memset(&txn->dbs[slot], 0, body.iov_len = sizeof(tree_t));
   txn->dbs[slot].root = P_INVALID;
@@ -117,7 +117,7 @@ int tbl_create(MDBX_txn *txn, MDBX_cursor *mc, size_t slot, const MDBX_val *name
   txn->cursors[MAIN_DBI] = mc->next;
   if (likely(err == MDBX_SUCCESS)) {
     txn->flags |= MDBX_TXN_DIRTY;
-    tASSERT(txn, (txn->dbi_state[MAIN_DBI] & DBI_DIRTY) != 0);
+    cASSERT0(txn, (txn->dbi_state[MAIN_DBI] & DBI_DIRTY) != 0);
   }
   return err;
 }

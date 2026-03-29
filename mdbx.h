@@ -922,13 +922,12 @@ typedef enum MDBX_debug_flags {
   MDBX_DBG_NONE = 0,
 
   /** Enables costly check of debug-like assertions.
-   * \note Has effect only for debugging builds with the build option \ref MDBX_DEBUG > 0,
-   * and always enabled for builds with `MDBX_FORCE_ASSERTIONS` option. */
+   * \note Has effect only for debugging builds with the build option \ref MDBX_CHECKING >= 2. */
   MDBX_DBG_ASSERT = 1,
 
   /** Enables extra costly checks and deep verification of page lists,
    * including page usage audit at commit transactions.
-   * \note Has effect only for debugging builds with the build option \ref MDBX_DEBUG > 0 */
+   * \note Has effect only for debugging builds with the build option \ref MDBX_CHECKING >= 3. */
   MDBX_DBG_AUDIT = 2,
 
   /** Enables small random delays in critical points.
@@ -1010,9 +1009,6 @@ typedef void (*MDBX_panic_func)(const char *msg, const char *function, unsigned 
                                 const char *obj_class) MDBX_CXX17_NOEXCEPT;
 
 /** \brief Set or reset the assert() callback of the environment.
- *
- * Does nothing if libmdbx was built with MDBX_DEBUG=0 or with NDEBUG,
- * and will return `MDBX_ENOSYS` in such case.
  *
  * \param [in] env   An environment handle returned by mdbx_env_create().
  * \param [in] func  An MDBX_assert_func function, or 0. */

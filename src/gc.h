@@ -135,9 +135,9 @@ typedef struct defract_context {
   pgno_t walk_cutoff;
   pgno_t notify_watchmask;
 
-#if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
+#if MDBX_CHECKING > 1
   pnl_t repnl_clone;
-#endif /* MDBX_DEBUG || MDBX_FORCE_ASSERTIONS */
+#endif /* MDBX_CHECKING > 1 */
   pgno_t defrag_atleast, defrag_enough, before_defrag, last_allocated;
   pgno_t gc_tree_pages, gc_retained_pages;
   uint64_t start_timestamp;

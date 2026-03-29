@@ -191,8 +191,8 @@ static bool getenv_bool(const char *name, bool default_value) {
 }
 
 __cold static void mdbx_init(void) {
-  globals.runtime_flags = (getenv_bool("MDBX_DBG_ASSERT", (MDBX_DEBUG) > 0) ? MDBX_DBG_ASSERT : 0) |
-                          (getenv_bool("MDBX_DBG_AUDIT", (MDBX_DEBUG) > 1) ? MDBX_DBG_AUDIT : 0) |
+  globals.runtime_flags = (getenv_bool("MDBX_DBG_ASSERT", (MDBX_CHECKING) > 1) ? MDBX_DBG_ASSERT : 0) |
+                          (getenv_bool("MDBX_DBG_AUDIT", (MDBX_CHECKING) > 2) ? MDBX_DBG_AUDIT : 0) |
                           (getenv_bool("MDBX_DBG_JITTER", false) ? MDBX_DBG_JITTER : 0) |
                           (getenv_bool("MDBX_DBG_DUMP", false) ? MDBX_DBG_DUMP : 0) |
                           (getenv_bool("MDBX_DBG_LEGACY_MULTIOPEN", false) ? MDBX_DBG_LEGACY_MULTIOPEN : 0) |
@@ -201,12 +201,12 @@ __cold static void mdbx_init(void) {
   globals.loglevel = MDBX_LOG_FATAL;
   ENSURE(osal_fastmutex_init(&globals.debug_lock) == 0);
   osal_ctor();
-  assert(globals.sys_pagesize > 0 && (globals.sys_pagesize & (globals.sys_pagesize - 1)) == 0);
+  ASSERT(globals.sys_pagesize > 0 && (globals.sys_pagesize & (globals.sys_pagesize - 1)) == 0);
   rthc_ctor();
-#if MDBX_DEBUG
+#if MDBX_CHECKING > 0
   ENSURE(troika_verify_fsm());
   ENSURE(pv2pages_verify());
-#endif /* MDBX_DEBUG*/
+#endif /* MDBX_CHECKING > 0 */
 }
 
 MDBX_EXCLUDE_FOR_GPROF
@@ -352,6 +352,7 @@ __dll_export
 #endif /* MDBX_BUILD_TYPE */
     ,
     "DEBUG=" MDBX_STRINGIFY(MDBX_DEBUG)
+    " CHECKING=" MDBX_STRINGIFY(MDBX_CHECKING)
 #ifdef ENABLE_GPROF
     " ENABLE_GPROF"
 #endif /* ENABLE_GPROF */
@@ -385,9 +386,6 @@ __dll_export
 #ifdef ENABLE_MEMCHECK
     " MEMCHECK=YES"
 #endif /* ENABLE_MEMCHECK */
-#if MDBX_FORCE_ASSERTIONS
-    " FORCE_ASSERTIONS=YES"
-#endif /* MDBX_FORCE_ASSERTIONS */
 #ifdef ENABLE_SYSTEMTAP
     " SYSTEMTAP=YES"
 #elif defined(ENABLE_DTRACE)
@@ -480,7 +478,7 @@ LIBMDBX_API __attribute__((__weak__))
 #endif
 const char *__asan_default_options(void) {
   return "symbolize=1:allow_addr2line=1:"
-#if MDBX_DEBUG
+#if MDBX_DEBUG > 0
          "debug=1:"
          "verbosity=2:"
 #endif /* MDBX_DEBUG */

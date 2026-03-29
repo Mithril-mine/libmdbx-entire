@@ -35,7 +35,7 @@ __cold int mdbx_reader_list(const MDBX_env *env, MDBX_reader_list_func func, voi
                    reader_pages_retired != atomic_load64(&slot->snapshot_pages_retired, mo_Relaxed)))
         goto retry_reader;
 
-      eASSERT(env, txnid > 0);
+      eASSERT0(env, txnid > 0);
       if (txnid >= SAFE64_INVALID_THRESHOLD)
         txnid = 0;
 
@@ -81,16 +81,16 @@ __cold int mdbx_thread_register(const MDBX_env *env) {
     return LOG_IFERR((env->flags & MDBX_EXCLUSIVE) ? MDBX_EINVAL : MDBX_EPERM);
 
   if (unlikely((env->flags & ENV_TXKEY) == 0)) {
-    eASSERT(env, env->flags & MDBX_NOSTICKYTHREADS);
+    eASSERT0(env, env->flags & MDBX_NOSTICKYTHREADS);
     return LOG_IFERR(MDBX_EINVAL) /* MDBX_NOSTICKYTHREADS mode */;
   }
 
-  eASSERT(env, (env->flags & (MDBX_NOSTICKYTHREADS | ENV_TXKEY)) == ENV_TXKEY);
+  eASSERT0(env, (env->flags & (MDBX_NOSTICKYTHREADS | ENV_TXKEY)) == ENV_TXKEY);
   reader_slot_t *slot = thread_rthc_get(env->me_txkey);
   if (unlikely(slot != nullptr)) {
-    eASSERT(env, atomic_load_pid(&slot->pid, mo_Relaxed) == env->registered_reader_pid);
-    eASSERT(env, env->registered_reader_pid == osal_getpid());
-    eASSERT(env, slot->tid.weak == osal_thread_self());
+    eASSERT0(env, atomic_load_pid(&slot->pid, mo_Relaxed) == env->registered_reader_pid);
+    eASSERT1(env, env->registered_reader_pid == osal_getpid());
+    eASSERT1(env, slot->tid.weak == osal_thread_self());
     if (unlikely(atomic_load_pid(&slot->pid, mo_Relaxed) != env->registered_reader_pid))
       return LOG_IFERR(MDBX_BAD_RSLOT);
     return MDBX_RESULT_TRUE /* already registered */;
@@ -108,21 +108,21 @@ __cold int mdbx_thread_unregister(const MDBX_env *env) {
     return MDBX_RESULT_TRUE;
 
   if (unlikely((env->flags & ENV_TXKEY) == 0)) {
-    eASSERT(env, env->flags & MDBX_NOSTICKYTHREADS);
+    eASSERT0(env, env->flags & MDBX_NOSTICKYTHREADS);
     return MDBX_RESULT_TRUE /* MDBX_NOSTICKYTHREADS mode */;
   }
 
-  eASSERT(env, (env->flags & (MDBX_NOSTICKYTHREADS | ENV_TXKEY)) == ENV_TXKEY);
+  eASSERT0(env, (env->flags & (MDBX_NOSTICKYTHREADS | ENV_TXKEY)) == ENV_TXKEY);
   reader_slot_t *slot = thread_rthc_get(env->me_txkey);
   if (unlikely(slot == nullptr))
     return MDBX_RESULT_TRUE /* not registered */;
 
-  eASSERT(env, atomic_load_pid(&slot->pid, mo_Relaxed) == env->registered_reader_pid);
+  eASSERT0(env, atomic_load_pid(&slot->pid, mo_Relaxed) == env->registered_reader_pid);
   if (unlikely(atomic_load_pid(&slot->pid, mo_Relaxed) != env->registered_reader_pid ||
                slot->tid.weak != osal_thread_self()))
     return LOG_IFERR(MDBX_BAD_RSLOT);
 
-  eASSERT(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
+  eASSERT0(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
   if (unlikely(slot->txnid.weak < SAFE64_INVALID_THRESHOLD))
     return LOG_IFERR(MDBX_BUSY) /* transaction is still active */;
 

@@ -6,7 +6,7 @@
 /// mdbx_stat.c - memory-mapped database status tool
 ///
 
-#define xMDBX_TOOLS /* Avoid using internal eASSERT(), etc */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
 #if defined(_WIN32) || defined(_WIN64)

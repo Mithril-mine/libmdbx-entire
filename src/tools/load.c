@@ -6,7 +6,7 @@
 /// mdbx_load.c - memory-mapped database load tool
 ///
 
-#define xMDBX_TOOLS /* Avoid using internal eASSERT(), etc */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
 #include <ctype.h>
@@ -861,14 +861,14 @@ int main(int argc, char *argv[]) {
       goto bailout;
     }
     if (subname) {
-      assert(dbi != MAIN_DBI);
+      ASSERT(dbi != MAIN_DBI);
       err = mdbx_dbi_close(env, dbi);
       if (unlikely(err != MDBX_SUCCESS)) {
         error("mdbx_dbi_close", err);
         goto bailout;
       }
     } else {
-      assert(dbi == MAIN_DBI);
+      ASSERT(dbi == MAIN_DBI);
     }
 
     /* try read next header */

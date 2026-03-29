@@ -39,7 +39,7 @@ static size_t bit_width(size_t v) {
 }
 #endif /* __cpp_lib_int_pow2 >= 202002L */
 
-#if 1 || defined(ENABLE_MEMCHECK) || defined(MDBX_CI) || MDBX_DEBUG || !defined(NDEBUG) || defined(__APPLE__) ||       \
+#if 1 || defined(ENABLE_MEMCHECK) || defined(MDBX_CI) || MDBX_DEBUG > 0 || !defined(NDEBUG) || defined(__APPLE__) ||   \
     defined(_WIN32)
 #define DEEP 4
 #else
@@ -95,7 +95,7 @@ MDBX_MAYBE_UNUSED static std::string format_va(const char *fmt, va_list ap) {
 }
 
 MDBX_MAYBE_UNUSED static void debug(int line, const char *msg, ...) {
-#if MDBX_DEBUG || !defined(NDEBUG)
+#if MDBX_DEBUG > 0 || !defined(NDEBUG)
   va_list ap;
   va_start(ap, msg);
   std::string result = format_va(msg, ap);

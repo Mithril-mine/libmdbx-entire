@@ -32,7 +32,7 @@ static inline meta_snap_t meta_snap(const volatile meta_t *meta) {
 txnid_t meta_txnid(const volatile meta_t *meta) { return meta_snap(meta).txnid; }
 
 meta_ptr_t meta_ptr(const MDBX_env *env, unsigned n) {
-  eASSERT(env, n < NUM_METAS);
+  eASSERT0(env, n < NUM_METAS);
   meta_ptr_t r;
   meta_snap_t snap = meta_snap(r.ptr_v = METAPAGE(env, n));
   r.txnid = snap.txnid;
@@ -41,8 +41,8 @@ meta_ptr_t meta_ptr(const MDBX_env *env, unsigned n) {
 }
 
 static uint8_t meta_cmp2pack(uint8_t c01, uint8_t c02, uint8_t c12, bool s0, bool s1, bool s2) {
-  assert(c01 < 3 && c02 < 3 && c12 < 3);
-  /* assert(s0 < 2 && s1 < 2 && s2 < 2); */
+  ASSERT(c01 < 3 && c02 < 3 && c12 < 3);
+  /* ASSERT(s0 < 2 && s1 < 2 && s2 < 2); */
   const uint8_t recent =
       meta_cmp2recent(c01, s0, s1) ? (meta_cmp2recent(c02, s0, s2) ? 0 : 2) : (meta_cmp2recent(c12, s1, s2) ? 1 : 2);
   const uint8_t prefer_steady =
@@ -116,12 +116,12 @@ __cold bool troika_verify_fsm(void) {
 
     const bool valid_chk = c01 != 1 || s0 != s1 || c02 != 1 || s0 != s2 || c12 != 1 || s1 != s2;
     const bool strict_chk = (c01 != 1 || s0 != s1) && (c02 != 1 || s0 != s2) && (c12 != 1 || s1 != s2);
-    assert(troika.recent == recent_chk);
-    assert(troika.prefer_steady == prefer_steady_chk);
-    assert(tail == tail_chk);
-    assert(valid == valid_chk);
-    assert(strict == strict_chk);
-    assert(troika_fsm_map[troika.fsm] == packed);
+    ASSERT(troika.recent == recent_chk);
+    ASSERT(troika.prefer_steady == prefer_steady_chk);
+    ASSERT(tail == tail_chk);
+    ASSERT(valid == valid_chk);
+    ASSERT(strict == strict_chk);
+    ASSERT(troika_fsm_map[troika.fsm] == packed);
     if (troika.recent != recent_chk || troika.prefer_steady != prefer_steady_chk || tail != tail_chk ||
         valid != valid_chk || strict != strict_chk || troika_fsm_map[troika.fsm] != packed) {
       ok = false;
@@ -158,7 +158,7 @@ txnid_t recent_committed_txnid(const MDBX_env *env) {
 }
 
 static inline bool meta_eq(const troika_t *troika, size_t a, size_t b) {
-  assert(a < NUM_METAS && b < NUM_METAS);
+  ASSERT(a < NUM_METAS && b < NUM_METAS);
   return troika->txnid[a] == troika->txnid[b] && (((troika->fsm >> a) ^ (troika->fsm >> b)) & 1) == 0 &&
          troika->txnid[a];
 }
@@ -251,7 +251,7 @@ __cold int meta_wipe_steady(MDBX_env *env, txnid_t inclusive_upto) {
 }
 
 int meta_sync(const MDBX_env *env, const meta_ptr_t head) {
-  eASSERT(env, atomic_load32(&env->lck->meta_sync_txnid, mo_Relaxed) != (uint32_t)head.txnid);
+  eASSERT0(env, atomic_load32(&env->lck->meta_sync_txnid, mo_Relaxed) != (uint32_t)head.txnid);
   /* Функция может вызываться (в том числе) при (env->flags & MDBX_NOMETASYNC) == 0 и env->fd4meta == env->dsync_fd,
    * например если предыдущая транзакция была выполненна с флагом MDBX_NOMETASYNC. */
 
@@ -313,7 +313,7 @@ __cold static page_t *meta_model(const MDBX_env *env, page_t *model, size_t num,
   memcpy(&model_meta->dxbid, guid, sizeof(model_meta->dxbid));
   meta_set_txnid(env, model_meta, MIN_TXNID + num);
   unaligned_poke_u64(4, model_meta->sign, meta_sign_calculate(model_meta));
-  eASSERT(env, coherency_check_meta(env, model_meta, true));
+  eASSERT1(env, coherency_check_meta(env, model_meta, true));
   return ptr_disp(model, env->ps);
 }
 
@@ -332,7 +332,7 @@ __cold int __must_check_result meta_override(MDBX_env *env, size_t target, txnid
   meta_t *const model = page_meta(page);
   meta_set_txnid(env, model, txnid);
   if (txnid)
-    eASSERT(env, coherency_check_meta(env, model, true));
+    eASSERT1(env, coherency_check_meta(env, model, true));
   if (shape) {
     if (txnid && unlikely(!coherency_check_meta(env, shape, false))) {
       ERROR("bailout overriding meta-%zu since model failed "
@@ -399,8 +399,9 @@ __cold int __must_check_result meta_override(MDBX_env *env, size_t target, txnid
       rc = dxb_fsync(env, MDBX_SYNC_DATA | MDBX_SYNC_IODQ);
     osal_flush_incoherent_mmap(env->dxb_mmap.base, pgno2bytes(env, NUM_METAS), globals.sys_pagesize);
   }
-  eASSERT(env, (!env->txn && (env->flags & ENV_ACTIVE) == 0) ||
-                   (env->stuck_meta == (int)target && (env->flags & (MDBX_EXCLUSIVE | MDBX_RDONLY)) == MDBX_EXCLUSIVE));
+  eASSERT0(env,
+           (!env->txn && (env->flags & ENV_ACTIVE) == 0) ||
+               (env->stuck_meta == (int)target && (env->flags & (MDBX_EXCLUSIVE | MDBX_RDONLY)) == MDBX_EXCLUSIVE));
   return rc;
 }
 
@@ -511,7 +512,7 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
   STATIC_ASSERT((uint64_t)(MAX_PAGENO + 1) * MDBX_MIN_PAGESIZE % (4ul << 20) == 0);
   if (unlikely(mapsize_min < MIN_MAPSIZE || mapsize_min > MAX_MAPSIZE)) {
     if (MAX_MAPSIZE != MAX_MAPSIZE64 && mapsize_min > MAX_MAPSIZE && mapsize_min <= MAX_MAPSIZE64) {
-      eASSERT(env, meta->geometry.first_unallocated - 1 <= MAX_PAGENO && allocated_bytes <= MAX_MAPSIZE);
+      eASSERT0(env, meta->geometry.first_unallocated - 1 <= MAX_PAGENO && allocated_bytes <= MAX_MAPSIZE);
       WARNING("meta[%u] has too large min-mapsize (%" PRIu64 "), "
               "but size of allocated space still acceptable (%" PRIu64 ")",
               meta_number, mapsize_min, allocated_bytes);
@@ -540,7 +541,7 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
       return MDBX_VERSION_MISMATCH;
     }
     /* allow to open large DB from a 32-bit environment */
-    eASSERT(env, meta->geometry.first_unallocated - 1 <= MAX_PAGENO && allocated_bytes <= MAX_MAPSIZE);
+    eASSERT0(env, meta->geometry.first_unallocated - 1 <= MAX_PAGENO && allocated_bytes <= MAX_MAPSIZE);
     WARNING("meta[%u] has too large max-mapsize (%" PRIu64 "), "
             "but size of allocated space still acceptable (%" PRIu64 ")",
             meta_number, mapsize_max, allocated_bytes);

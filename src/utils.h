@@ -40,7 +40,7 @@
   } while (0)
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t branchless_abs(intptr_t value) {
-  assert(value > INT_MIN);
+  ASSERT(value > INT_MIN);
   const size_t expanded_sign = (size_t)(value >> (sizeof(value) * CHAR_BIT - 1));
   return ((size_t)value + expanded_sign) ^ expanded_sign;
 }
@@ -55,7 +55,7 @@ MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline intptr_t min_signed(
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline intptr_t clamp_signed(intptr_t v, intptr_t min,
                                                                                   intptr_t max) {
-  assert(min <= max);
+  ASSERT(min <= max);
   return min_signed(max_signed(v, min), max);
 }
 
@@ -68,14 +68,14 @@ MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t min_unsigned(
 }
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t clamp_unsigned(size_t v, size_t min, size_t max) {
-  assert(min <= max);
+  ASSERT(min <= max);
   return min_unsigned(max_unsigned(v, min), max);
 }
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline bool is_powerof2(size_t x) { return (x & (x - 1)) == 0; }
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED static inline size_t floor_powerof2(size_t value, size_t granularity) {
-  assert(is_powerof2(granularity));
+  ASSERT(is_powerof2(granularity));
   return value & ~(granularity - 1);
 }
 
@@ -125,7 +125,7 @@ MDBX_INTERNAL bin128_t mul64x64_128_fallback(uint64_t x, uint64_t y);
 #endif /* MSVC ARM64 */
 
 MDBX_MAYBE_UNUSED static inline bool u128_eq(bin128_t x, bin128_t y) {
-#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+#if defined(__SIZEOF_INT128__) && MDBX_CHECKING < 1
   return x.u128 == y.u128;
 #else
   return x.l == y.l && x.h == y.h;
@@ -134,30 +134,30 @@ MDBX_MAYBE_UNUSED static inline bool u128_eq(bin128_t x, bin128_t y) {
 
 MDBX_MAYBE_UNUSED static inline bin128_t mul64x64_128(uint64_t x, uint64_t y) {
   bin128_t r;
-#if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
+#if MDBX_HAVE_NATIVE_U128 && MDBX_CHECKING < 1
   r.u128 = x;
   r.u128 *= y;
-#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IA64) || defined(_M_AMD64)) && !MDBX_DEBUG
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IA64) || defined(_M_AMD64)) && MDBX_CHECKING < 1
   r.l = _umul128(x, y, &r.h);
-#elif defined(_MSC_VER) && defined(_M_ARM64) && !MDBX_DEBUG
+#elif defined(_MSC_VER) && defined(_M_ARM64) && MDBX_CHECKING < 1
   r.l = x * y;
   r.h = __umulh(x, y);
 #else
   r = mul64x64_128_fallback(x, y);
 #endif
-  assert(u128_eq(r, mul64x64_128_fallback(y, x)));
+  ASSERT(u128_eq(r, mul64x64_128_fallback(y, x)));
   return r;
 }
 
 MDBX_MAYBE_UNUSED static inline bin128_t u128_add(bin128_t x, bin128_t y) {
   bin128_t r;
-#if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
+#if MDBX_HAVE_NATIVE_U128 && MDBX_CHECKING < 1
   r.u128 = x.u128 + y.u128;
 #else
   r.l = x.l + y.l;
   r.h = x.h + y.h + /* carry */ (r.l < x.l);
 #if MDBX_HAVE_NATIVE_U128
-  assert(r.u128 == x.u128 + y.u128);
+  ASSERT(r.u128 == x.u128 + y.u128);
 #endif
 #endif
   return r;
@@ -165,14 +165,14 @@ MDBX_MAYBE_UNUSED static inline bin128_t u128_add(bin128_t x, bin128_t y) {
 
 MDBX_MAYBE_UNUSED static inline int u128_cmp(bin128_t x, bin128_t y) {
   int r;
-#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+#if defined(__SIZEOF_INT128__) && MDBX_CHECKING < 1
   r = CMP2INT(x.u128, y.u128);
 #else
   const uint64_t a = (x.h != y.h) ? x.h : x.l;
   const uint64_t b = (x.h != y.h) ? y.h : y.l;
   r = CMP2INT(a, b);
 #if MDBX_HAVE_NATIVE_U128
-  assert(r == CMP2INT(x.u128, y.u128));
+  ASSERT(r == CMP2INT(x.u128, y.u128));
 #endif
 #endif
   return r;
@@ -180,12 +180,12 @@ MDBX_MAYBE_UNUSED static inline int u128_cmp(bin128_t x, bin128_t y) {
 
 MDBX_MAYBE_UNUSED static inline bool u128_gt(bin128_t x, bin128_t y) {
   bool r;
-#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+#if defined(__SIZEOF_INT128__) && MDBX_CHECKING < 1
   r = x.u128 > y.u128;
 #else
   r = x.h > y.h || (x.h == y.h && x.l > y.l);
 #if MDBX_HAVE_NATIVE_U128
-  assert(r == (x.u128 > y.u128));
+  ASSERT(r == (x.u128 > y.u128));
 #endif
 #endif
   return r;
@@ -193,12 +193,12 @@ MDBX_MAYBE_UNUSED static inline bool u128_gt(bin128_t x, bin128_t y) {
 
 MDBX_MAYBE_UNUSED static inline bool u128_lt(bin128_t x, bin128_t y) {
   bool r;
-#if defined(__SIZEOF_INT128__) && !MDBX_DEBUG
+#if defined(__SIZEOF_INT128__) && MDBX_CHECKING < 1
   r = x.u128 < y.u128;
 #else
   r = x.h < y.h || (x.h == y.h && x.l < y.l);
 #if MDBX_HAVE_NATIVE_U128
-  assert(r == (x.u128 < y.u128));
+  ASSERT(r == (x.u128 < y.u128));
 #endif
 #endif
   return r;
@@ -209,7 +209,7 @@ MDBX_MAYBE_UNUSED static inline bin128_t u128(uint64_t v) {
   r.l = v;
   r.h = 0;
 #if defined(__SIZEOF_INT128__)
-  assert(r.u128 == v);
+  ASSERT(r.u128 == v);
 #endif
   return r;
 }

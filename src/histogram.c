@@ -12,7 +12,7 @@ static bool histogram_check(const struct MDBX_chk_histogram *p, size_t adj) {
 }
 
 static void histogram_reduce_move(struct MDBX_chk_histogram *p, size_t point) {
-  assert(histogram_check(p, 1));
+  ASSERT(histogram_check(p, 1));
   // объединяем
   p->ranges[point].end = p->ranges[point + 1].end;
   p->ranges[point].amount += p->ranges[point + 1].amount;
@@ -24,7 +24,7 @@ static void histogram_reduce_move(struct MDBX_chk_histogram *p, size_t point) {
 
   // обнуляем последний элемент и продолжаем
   p->ranges[ARRAY_LENGTH(p->ranges) - 1].count = 0;
-  assert(histogram_check(p, 1));
+  ASSERT(histogram_check(p, 1));
 }
 
 static __hot void histogram_put(const size_t v, struct MDBX_chk_histogram *p,
@@ -52,7 +52,7 @@ static __hot void histogram_put(const size_t v, struct MDBX_chk_histogram *p,
     }
     if (p->ranges[last].count == 0) {
       // использованы еще не все слоты, добавляем интервал
-      assert(i < size && histogram_check(p, 1));
+      ASSERT(i < size && histogram_check(p, 1));
       if (p->ranges[i].count && i < last) {
         // раздвигаем
         memmove(p->ranges + i + 1, p->ranges + i, (last - i) * sizeof(p->ranges[0]));
@@ -61,7 +61,7 @@ static __hot void histogram_put(const size_t v, struct MDBX_chk_histogram *p,
       p->ranges[i].end = v + 1;
       p->ranges[i].amount = v;
       p->ranges[i].count = 1;
-      assert(histogram_check(p, 0));
+      ASSERT(histogram_check(p, 0));
       return;
     }
 
@@ -96,9 +96,9 @@ __hot static intptr_t histogram_minimize_error(struct MDBX_chk_histogram *p, siz
     const size_t b1 = p->ranges[i].begin, e1 = p->ranges[i].end;
     const size_t b2 = p->ranges[i + 1].begin, e2 = p->ranges[i + 1].end;
     const uint64_t n1 = p->ranges[i].count, n2 = p->ranges[i + 1].count;
-    assert(n1 > 0 && b1 > 0 && b1 < e1);
-    assert(n2 > 0 && b2 > 0 && b2 < e2);
-    assert(e1 <= b2);
+    ASSERT(n1 > 0 && b1 > 0 && b1 < e1);
+    ASSERT(n2 > 0 && b2 > 0 && b2 < e2);
+    ASSERT(e1 <= b2);
     // за ошибку принимаем площадь изменений на гистограмме при слиянии слотов
     // s1 = (l1 = e1 - b1) * n1; s2 = (l2 = e2 - b2) * n2
     // sx = (lx = e2 - b1) * (nx = n1 + n2) == e2*n1 + e2*n2 - b1*n1 - b1*n2
@@ -124,7 +124,7 @@ __hot static intptr_t histogram_minimize_error(struct MDBX_chk_histogram *p, siz
     const size_t b = p->ranges[i].begin, e = p->ranges[i].end;
     const uint64_t n = p->ranges[i].count;
     const size_t ve = (v < e) ? e : v + 1;
-    assert(n > 0 && b > 0 && b < e);
+    ASSERT(n > 0 && b > 0 && b < e);
     if (i > 0 && v < p->ranges[i - 1].end)
       // пропускаем если расширение этого слота приведёт к пересечению с предыдущим
       continue;

@@ -4,7 +4,7 @@
 #include "internals.h"
 
 MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED unsigned ceil_log2n(size_t value_uintptr) {
-  assert(value_uintptr > 0 && value_uintptr < INT32_MAX);
+  ASSERT(value_uintptr > 0 && value_uintptr < INT32_MAX);
   value_uintptr -= 1;
   value_uintptr |= value_uintptr >> 1;
   value_uintptr |= value_uintptr >> 2;
@@ -15,8 +15,8 @@ MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED unsigned ceil_log2n(size_t value_u
 }
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_CONST_FUNCTION unsigned log2n_powerof2(size_t value_uintptr) {
-  assert(value_uintptr > 0 && value_uintptr < INT32_MAX && is_powerof2(value_uintptr));
-  assert((value_uintptr & -(intptr_t)value_uintptr) == value_uintptr);
+  ASSERT(value_uintptr > 0 && value_uintptr < INT32_MAX && is_powerof2(value_uintptr));
+  ASSERT((value_uintptr & -(intptr_t)value_uintptr) == value_uintptr);
   const uint32_t value_uint32 = (uint32_t)value_uintptr;
 #if __GNUC_PREREQ(4, 1) || __has_builtin(__builtin_ctz)
   STATIC_ASSERT(sizeof(value_uint32) <= sizeof(unsigned));
@@ -43,7 +43,7 @@ MDBX_NOTHROW_CONST_FUNCTION uint64_t rrxmrrxmsx_0(uint64_t v) {
 }
 
 __cold char *ratio2digits(const uint64_t v, const uint64_t d, ratio2digits_buffer_t *const buffer, int precision) {
-  assert(d > 0 && precision < 20);
+  ASSERT(d > 0 && precision < 20);
   char *const dot = buffer->string + 21;
   uint64_t i = v / d, f = v % d, m = d;
 
@@ -57,7 +57,7 @@ __cold char *ratio2digits(const uint64_t v, const uint64_t d, ratio2digits_buffe
         m >>= 1;
       }
       f *= 10;
-      assert(tail > buffer->string && tail < ARRAY_END(buffer->string) - 1);
+      ASSERT(tail > buffer->string && tail < ARRAY_END(buffer->string) - 1);
       *++tail = '0' + (char)(f / m);
       f %= m;
     } while (--precision && tail < ARRAY_END(buffer->string) - 1);
@@ -66,17 +66,17 @@ __cold char *ratio2digits(const uint64_t v, const uint64_t d, ratio2digits_buffe
     for (char *scan = tail; carry && scan > dot; --scan)
       *scan = (carry = *scan == '9') ? '0' : *scan + 1;
   }
-  assert(tail > buffer->string && tail < ARRAY_END(buffer->string) - 1);
+  ASSERT(tail > buffer->string && tail < ARRAY_END(buffer->string) - 1);
   *++tail = '\0';
 
   char *head = dot;
   i += carry;
   while (i > 9) {
-    assert(head > buffer->string && head < ARRAY_END(buffer->string));
+    ASSERT(head > buffer->string && head < ARRAY_END(buffer->string));
     *--head = '0' + (char)(i % 10);
     i /= 10;
   }
-  assert(head > buffer->string && head < ARRAY_END(buffer->string));
+  ASSERT(head > buffer->string && head < ARRAY_END(buffer->string));
   *--head = '0' + (char)i;
 
   return head;
@@ -93,7 +93,7 @@ __cold char *ratio2percent(uint64_t value, uint64_t whole, ratio2digits_buffer_t
 
 MDBX_MAYBE_UNUSED bin128_t mul64x64_128_fallback(uint64_t x, uint64_t y) {
   bin128_t r;
-#if MDBX_HAVE_NATIVE_U128 && !MDBX_DEBUG
+#if MDBX_HAVE_NATIVE_U128 && MDBX_CHECKING < 1
   r.u128 = x;
   r.u128 *= y;
 #else

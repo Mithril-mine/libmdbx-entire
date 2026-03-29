@@ -4,7 +4,7 @@
 #include "internals.h"
 
 static inline size_t rkl_size2bytes(const size_t size) {
-  assert(size > 0 && size <= txl_max * 2);
+  ASSERT(size > 0 && size <= txl_max * 2);
   size_t bytes = ceil_powerof2(MDBX_ASSUME_MALLOC_OVERHEAD + sizeof(txnid_t) * size, txl_granulate * sizeof(txnid_t)) -
                  MDBX_ASSUME_MALLOC_OVERHEAD;
   return bytes;
@@ -12,7 +12,7 @@ static inline size_t rkl_size2bytes(const size_t size) {
 
 static inline size_t rkl_bytes2size(const size_t bytes) {
   size_t size = bytes / sizeof(txnid_t);
-  assert(size > 0 && size <= txl_max * 2);
+  ASSERT(size > 0 && size <= txl_max * 2);
   return size;
 }
 
@@ -42,7 +42,7 @@ static inline bool solid_empty(const rkl_t *rkl) { return !(rkl->solid_begin < r
 SEARCH_IMPL(rkl_bsearch, txnid_t, txnid_t, RKL_ORDERED)
 
 void rkl_destructive_move(rkl_t *src, rkl_t *dst) {
-  assert(rkl_check(src));
+  ASSERT(rkl_check(src));
   dst->solid_begin = src->solid_begin;
   dst->solid_end = src->solid_end;
   dst->list_length = src->list_length;
@@ -60,8 +60,8 @@ void rkl_destructive_move(rkl_t *src, rkl_t *dst) {
 }
 
 static int rkl_resize(rkl_t *rkl, size_t wanna_size) {
-  assert(wanna_size > rkl->list_length);
-  assert(rkl_check(rkl));
+  ASSERT(wanna_size > rkl->list_length);
+  ASSERT(rkl_check(rkl));
   STATIC_ASSERT(txl_max < INT_MAX / sizeof(txnid_t));
   if (unlikely(wanna_size > txl_max)) {
     ERROR("rkl too long (%zu >= %zu)", wanna_size, (size_t)txl_max);
@@ -74,13 +74,13 @@ static int rkl_resize(rkl_t *rkl, size_t wanna_size) {
 
   if (unlikely(wanna_size <= ARRAY_LENGTH(rkl->inplace))) {
     if (rkl->list != rkl->inplace) {
-      assert(rkl->list_limit > ARRAY_LENGTH(rkl->inplace) && rkl->list_length <= ARRAY_LENGTH(rkl->inplace));
+      ASSERT(rkl->list_limit > ARRAY_LENGTH(rkl->inplace) && rkl->list_length <= ARRAY_LENGTH(rkl->inplace));
       memcpy(rkl->inplace, rkl->list, sizeof(rkl->inplace));
       rkl->list_limit = ARRAY_LENGTH(rkl->inplace);
       osal_free(rkl->list);
       rkl->list = rkl->inplace;
     } else {
-      assert(rkl->list_limit == ARRAY_LENGTH(rkl->inplace));
+      ASSERT(rkl->list_limit == ARRAY_LENGTH(rkl->inplace));
     }
     return MDBX_SUCCESS;
   }
@@ -106,7 +106,7 @@ int rkl_reserve(rkl_t *rkl, size_t wanna_size) {
 }
 
 int rkl_copy(const rkl_t *src, rkl_t *dst) {
-  assert(rkl_check(src));
+  ASSERT(rkl_check(src));
   rkl_init(dst);
   if (!rkl_empty(src)) {
     if (dst->list_limit < src->list_length) {
@@ -125,17 +125,17 @@ int rkl_copy(const rkl_t *src, rkl_t *dst) {
 size_t rkl_len(const rkl_t *rkl) { return rkl_empty(rkl) ? 0 : rkl->solid_end - rkl->solid_begin + rkl->list_length; }
 
 __hot bool rkl_contain(const rkl_t *rkl, txnid_t id) {
-  assert(rkl_check(rkl));
+  ASSERT(rkl_check(rkl));
   if (id >= rkl->solid_begin && id < rkl->solid_end)
     return true;
   if (rkl->list_length) {
     const txnid_t *it = rkl_bsearch(rkl->list, rkl->list_length, id);
     const txnid_t *const end = rkl->list + rkl->list_length;
-    assert(it >= rkl->list && it <= end);
+    ASSERT(it >= rkl->list && it <= end);
     if (it != rkl->list)
-      assert(RKL_ORDERED(it[-1], id));
+      ASSERT(RKL_ORDERED(it[-1], id));
     if (it != end) {
-      assert(!RKL_ORDERED(it[0], id));
+      ASSERT(!RKL_ORDERED(it[0], id));
       return *it == id;
     }
   }
@@ -143,7 +143,7 @@ __hot bool rkl_contain(const rkl_t *rkl, txnid_t id) {
 }
 
 __hot bool rkl_find(const rkl_t *rkl, const txnid_t id, rkl_iter_t *iter) {
-  assert(rkl_check(rkl));
+  ASSERT(rkl_check(rkl));
   *iter = rkl_iterator(rkl, false);
   if (id >= rkl->solid_begin) {
     if (id < rkl->solid_end) {
@@ -155,12 +155,12 @@ __hot bool rkl_find(const rkl_t *rkl, const txnid_t id, rkl_iter_t *iter) {
   if (rkl->list_length) {
     const txnid_t *it = rkl_bsearch(rkl->list, rkl->list_length, id);
     const txnid_t *const end = rkl->list + rkl->list_length;
-    assert(it >= rkl->list && it <= end);
+    ASSERT(it >= rkl->list && it <= end);
     if (it != rkl->list)
-      assert(RKL_ORDERED(it[-1], id));
+      ASSERT(RKL_ORDERED(it[-1], id));
     iter->pos += (unsigned)(it - rkl->list);
     if (it != end) {
-      assert(!RKL_ORDERED(it[0], id));
+      ASSERT(!RKL_ORDERED(it[0], id));
       return *it == id;
     }
   }
@@ -168,7 +168,7 @@ __hot bool rkl_find(const rkl_t *rkl, const txnid_t id, rkl_iter_t *iter) {
 }
 
 static inline txnid_t list_remove_first(rkl_t *rkl) {
-  assert(rkl->list_length > 0);
+  ASSERT(rkl->list_length > 0);
   const txnid_t first = rkl->list[0];
   if (--rkl->list_length) {
     /* TODO: Можно подумать о том, чтобы для избавления от memove() добавить headroom или вместо длины и
@@ -218,13 +218,13 @@ static int extend_solid(rkl_t *rkl, txnid_t solid_begin, txnid_t solid_end, cons
 
   rkl->solid_begin = solid_begin;
   rkl->solid_end = solid_end;
-  assert(rkl_check(rkl));
+  ASSERT(rkl_check(rkl));
   return MDBX_SUCCESS;
 }
 
 int rkl_push(rkl_t *rkl, const txnid_t id) {
-  assert(id >= MIN_TXNID && id < INVALID_TXNID);
-  assert(rkl_check(rkl));
+  ASSERT(id >= MIN_TXNID && id < INVALID_TXNID);
+  ASSERT(rkl_check(rkl));
   const bool known_continuous = false;
 
   if (rkl->solid_begin >= rkl->solid_end) {
@@ -251,7 +251,7 @@ int rkl_push(rkl_t *rkl, const txnid_t id) {
     rkl->list[0] = rkl->solid_begin;
     rkl->solid_begin = couple;
     rkl->solid_end = couple + 2;
-    assert(rkl_check(rkl));
+    ASSERT(rkl_check(rkl));
     return MDBX_SUCCESS;
   }
 
@@ -264,7 +264,7 @@ int rkl_push(rkl_t *rkl, const txnid_t id) {
     int err = rkl_resize(rkl, x2);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
-    assert(rkl->list_limit > rkl->list_length);
+    ASSERT(rkl->list_limit > rkl->list_length);
   }
 
   size_t i = rkl->list_length;
@@ -285,11 +285,11 @@ int rkl_push(rkl_t *rkl, const txnid_t id) {
 
   rkl->list[i] = id;
   rkl->list_length++;
-  assert(rkl_check(rkl));
+  ASSERT(rkl_check(rkl));
 
   /* После добавления id в списке могла образоваться длинная последовательность,
    * которую (возможно) стоит обменять с непрерывным интервалом. */
-  if (rkl->list_length > (MDBX_DEBUG ? 2 : 16) &&
+  if (rkl->list_length > ((MDBX_DEBUG > 0) ? 2 : 16) &&
       ((i > 0 && rkl->list[i - 1] == id - 1) || (i + 1 < rkl->list_length && rkl->list[i + 1] == id + 1))) {
     txnid_t new_solid_begin = id;
     size_t from = i;
@@ -323,7 +323,7 @@ int rkl_push(rkl_t *rkl, const txnid_t id) {
         /* количество элементов списка, которые нужно переместить для вставки еще-одного/следующего элемента */
         const size_t new_insert_cost = rkl->list_length - i;
         /* coverity[logical_vs_bitwise] */
-        if (unlikely(swap_cost < new_insert_cost) || MDBX_DEBUG) {
+        if (unlikely(swap_cost < new_insert_cost) || MDBX_DEBUG > 0) {
           /* Изымаемая последовательность длиннее добавляемой, поэтому:
            *  - список станет короче;
            *  - перемещать хвост нужно всегда к началу;
@@ -358,7 +358,7 @@ int rkl_push(rkl_t *rkl, const txnid_t id) {
           rkl->list_length = rkl->list_length - new_solid_len + old_solid_len;
           rkl->solid_begin = new_solid_begin;
           rkl->solid_end = new_solid_end;
-          assert(rkl_check(rkl));
+          ASSERT(rkl_check(rkl));
         }
       }
     }
@@ -367,10 +367,10 @@ int rkl_push(rkl_t *rkl, const txnid_t id) {
 }
 
 txnid_t rkl_pop(rkl_t *rkl, const bool highest_not_lowest) {
-  assert(rkl_check(rkl));
+  ASSERT(rkl_check(rkl));
 
   if (rkl->list_length) {
-    assert(rkl->solid_begin <= rkl->solid_end);
+    ASSERT(rkl->solid_begin <= rkl->solid_end);
     if (highest_not_lowest && (solid_empty(rkl) || rkl->solid_end < rkl->list[rkl->list_length - 1]))
       return after_cut(rkl, rkl->list[rkl->list_length -= 1]);
     if (!highest_not_lowest && (solid_empty(rkl) || rkl->solid_begin > rkl->list[0]))
@@ -380,7 +380,7 @@ txnid_t rkl_pop(rkl_t *rkl, const bool highest_not_lowest) {
   if (!solid_empty(rkl))
     return after_cut(rkl, highest_not_lowest ? --rkl->solid_end : rkl->solid_begin++);
 
-  assert(rkl_empty(rkl));
+  ASSERT(rkl_empty(rkl));
   return 0;
 }
 
@@ -428,7 +428,7 @@ rkl_iter_t rkl_iterator(const rkl_t *rkl, const bool reverse) {
   if (!solid_empty(rkl) && rkl->list_length) {
     const txnid_t *it = rkl_bsearch(rkl->list, rkl->list_length, rkl->solid_begin);
     const txnid_t *const end = rkl->list + rkl->list_length;
-    assert(it >= rkl->list && it <= end && (it == end || *it > rkl->solid_begin));
+    ASSERT(it >= rkl->list && it <= end && (it == end || *it > rkl->solid_begin));
     (void)end;
     iter.solid_offset = it - rkl->list;
   }
@@ -436,13 +436,13 @@ rkl_iter_t rkl_iterator(const rkl_t *rkl, const bool reverse) {
 }
 
 txnid_t rkl_turn(rkl_iter_t *iter, const bool reverse) {
-  assert((unsigned)reverse == (unsigned)!!reverse);
+  ASSERT((unsigned)reverse == (unsigned)!!reverse);
   size_t pos = iter->pos - reverse;
   if (unlikely(pos >= rkl_len(iter->rkl)))
     return 0;
 
   iter->pos = pos + !reverse;
-  assert(iter->pos <= rkl_len(iter->rkl));
+  ASSERT(iter->pos <= rkl_len(iter->rkl));
 
   const size_t solid_len = iter->rkl->solid_end - iter->rkl->solid_begin;
   if (iter->rkl->list_length) {
@@ -454,12 +454,12 @@ txnid_t rkl_turn(rkl_iter_t *iter, const bool reverse) {
       return iter->rkl->list[pos - solid_len];
   }
 
-  assert(pos < solid_len);
+  ASSERT(pos < solid_len);
   return iter->rkl->solid_begin + pos;
 }
 
 size_t rkl_left(rkl_iter_t *iter, const bool reverse) {
-  assert(iter->pos <= rkl_len(iter->rkl));
+  ASSERT(iter->pos <= rkl_len(iter->rkl));
   return reverse ? iter->pos : rkl_len(iter->rkl) - iter->pos;
 }
 
@@ -482,7 +482,7 @@ size_t rkl_left(rkl_iter_t *iter, const bool reverse) {
 #endif
 
 rkl_hole_t rkl_hole(rkl_iter_t *iter, const bool reverse) {
-  assert((unsigned)reverse == (unsigned)!!reverse);
+  ASSERT((unsigned)reverse == (unsigned)!!reverse);
   rkl_hole_t hole;
   const size_t len = rkl_len(iter->rkl);
   size_t pos = iter->pos;
@@ -521,11 +521,11 @@ rkl_hole_t rkl_hole(rkl_iter_t *iter, const bool reverse) {
         here = iter->rkl->list[pos];
         if (next == iter->solid_offset) {
           /* в следующей позиции начинается непрерывный интерал (при поиске вперед) */
-          assert(!reverse);
+          ASSERT(!reverse);
           hole.begin = here + 1;
           hole.end = iter->rkl->solid_begin;
           next += solid_len;
-          assert(hole.begin < hole.end /* зазор обязан быть, иначе это ошибка не-слияния */);
+          ASSERT(hole.begin < hole.end /* зазор обязан быть, иначе это ошибка не-слияния */);
           /* зазор между элементом списка перед сплошным интервалом и началом интервала */
           iter->pos = next - 1;
           DEBUG_HOLE(hole);
@@ -544,11 +544,11 @@ rkl_hole_t rkl_hole(rkl_iter_t *iter, const bool reverse) {
           break;
         if (next == iter->solid_offset + solid_len - 1) {
           /* в следующей позиции конец непрерывного интервала (при поиске назад) */
-          assert(reverse);
+          ASSERT(reverse);
           hole.begin = iter->rkl->solid_end;
           hole.end = here;
           pos = iter->solid_offset;
-          assert(hole.begin < hole.end /* зазор обязан быть, иначе это ошибка не-слияния */);
+          ASSERT(hole.begin < hole.end /* зазор обязан быть, иначе это ошибка не-слияния */);
           /* зазор между элементом списка после сплошного интервала и концом интервала */
           iter->pos = pos;
           DEBUG_HOLE(hole);

@@ -11,7 +11,7 @@ pnl_t pnl_alloc(size_t size) {
     bytes = osal_malloc_usable_size(pnl);
 #endif /* osal_malloc_usable_size */
     pnl[0] = pnl_bytes2size(bytes);
-    assert(pnl[0] >= size);
+    ASSERT(pnl[0] >= size);
     pnl += 1;
     *pnl = 0;
   }
@@ -31,9 +31,9 @@ pnl_t pnl_clone(const const_pnl_t src) {
 }
 
 void pnl_shrink(pnl_t __restrict *__restrict ppnl) {
-  assert(pnl_bytes2size(pnl_size2bytes(MDBX_PNL_INITIAL)) >= MDBX_PNL_INITIAL &&
+  ASSERT(pnl_bytes2size(pnl_size2bytes(MDBX_PNL_INITIAL)) >= MDBX_PNL_INITIAL &&
          pnl_bytes2size(pnl_size2bytes(MDBX_PNL_INITIAL)) < MDBX_PNL_INITIAL * 3 / 2);
-  assert(pnl_size(*ppnl) <= PAGELIST_LIMIT && pnl_alloclen(*ppnl) >= pnl_size(*ppnl));
+  ASSERT(pnl_size(*ppnl) <= PAGELIST_LIMIT && pnl_alloclen(*ppnl) >= pnl_size(*ppnl));
   pnl_setsize(*ppnl, 0);
   if (unlikely(pnl_alloclen(*ppnl) >
                MDBX_PNL_INITIAL * (MDBX_PNL_PREALLOC_FOR_RADIXSORT ? 8 : 4) - MDBX_CACHELINE_SIZE / sizeof(pgno_t))) {
@@ -56,7 +56,7 @@ int pnl_reserve(pnl_t __restrict *__restrict ppnl, const size_t wanna) {
   }
 
   const size_t allocated = pnl_alloclen(*ppnl);
-  assert(pnl_size(*ppnl) <= PAGELIST_LIMIT && pnl_alloclen(*ppnl) >= pnl_size(*ppnl));
+  ASSERT(pnl_size(*ppnl) <= PAGELIST_LIMIT && pnl_alloclen(*ppnl) >= pnl_size(*ppnl));
   if (unlikely(allocated >= wanna))
     return MDBX_SUCCESS;
 
@@ -73,7 +73,7 @@ int pnl_reserve(pnl_t __restrict *__restrict ppnl, const size_t wanna) {
     bytes = osal_malloc_usable_size(pnl);
 #endif /* osal_malloc_usable_size */
     *pnl = pnl_bytes2size(bytes);
-    assert(*pnl >= wanna);
+    ASSERT(*pnl >= wanna);
     *ppnl = pnl + 1;
     return MDBX_SUCCESS;
   }
@@ -82,7 +82,7 @@ int pnl_reserve(pnl_t __restrict *__restrict ppnl, const size_t wanna) {
 
 static __always_inline int __must_check_result pnl_append_stepped(unsigned step, __restrict pnl_t *ppnl, pgno_t pgno,
                                                                   size_t n) {
-  assert(n > 0);
+  ASSERT(n > 0);
   int rc = pnl_need(ppnl, n);
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
@@ -133,7 +133,7 @@ int __must_check_result pnl_append_pnl(__restrict pnl_t *pdst, const const_pnl_t
 }
 
 __hot int __must_check_result pnl_insert_span(__restrict pnl_t *ppnl, pgno_t pgno, size_t n) {
-  assert(n > 0);
+  ASSERT(n > 0);
   int rc = pnl_need(ppnl, n);
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
@@ -151,7 +151,7 @@ __hot int __must_check_result pnl_insert_span(__restrict pnl_t *ppnl, pgno_t pgn
 }
 
 __hot __noinline bool pnl_check(const const_pnl_t pnl, const size_t limit) {
-  assert(limit >= MIN_PAGENO - MDBX_ENABLE_REFUND);
+  ASSERT(limit >= MIN_PAGENO - MDBX_ENABLE_REFUND);
   if (likely(pnl_size(pnl))) {
     if (unlikely(pnl_size(pnl) > PAGELIST_LIMIT))
       return false;
@@ -160,7 +160,7 @@ __hot __noinline bool pnl_check(const const_pnl_t pnl, const size_t limit) {
     if (unlikely(MDBX_PNL_MOST(pnl) >= limit))
       return false;
 
-    if ((!MDBX_DISABLE_VALIDATION || AUDIT_ENABLED()) && likely(pnl_size(pnl) > 1)) {
+    if ((!MDBX_DISABLE_VALIDATION || CHECKS2_ENABLED()) && likely(pnl_size(pnl) > 1)) {
       const pgno_t *scan = MDBX_PNL_BEGIN(pnl);
       const pgno_t *const end = MDBX_PNL_END(pnl);
       pgno_t prev = *scan++;
@@ -205,15 +205,15 @@ static __always_inline void pnl_merge_inner(pgno_t *__restrict dst, const pgno_t
 }
 
 __hot size_t pnl_merge(pnl_t dst, const const_pnl_t src) {
-  assert(pnl_check_allocated(dst, MAX_PAGENO + 1));
-  assert(pnl_check(src, MAX_PAGENO + 1));
+  ASSERT(pnl_check_allocated(dst, MAX_PAGENO + 1));
+  ASSERT(pnl_check(src, MAX_PAGENO + 1));
   const size_t src_len = pnl_size(src);
   const size_t dst_len = pnl_size(dst);
   size_t total = dst_len;
-  assert(pnl_alloclen(dst) >= total);
+  ASSERT(pnl_alloclen(dst) >= total);
   if (likely(src_len > 0)) {
     total += src_len;
-    if (!MDBX_DEBUG && total < (MDBX_HAVE_CMOV ? 21 : 12))
+    if (MDBX_DEBUG < 1 && total < (MDBX_HAVE_CMOV ? 21 : 12))
       goto avoid_call_libc_for_short_cases;
     if (dst_len == 0 || MDBX_PNL_ORDERED(MDBX_PNL_LAST(dst), MDBX_PNL_FIRST(src)))
       memcpy(MDBX_PNL_END(dst), MDBX_PNL_BEGIN(src), src_len * sizeof(pgno_t));
@@ -227,7 +227,7 @@ __hot size_t pnl_merge(pnl_t dst, const const_pnl_t src) {
     }
     pnl_setsize(dst, total);
   }
-  assert(pnl_check_allocated(dst, MAX_PAGENO + 1));
+  ASSERT(pnl_check_allocated(dst, MAX_PAGENO + 1));
   return total;
 }
 
@@ -252,11 +252,11 @@ __hot __noinline size_t pnl_search_nochk(const const_pnl_t pnl, pgno_t pgno) {
   const pgno_t *begin = MDBX_PNL_BEGIN(pnl);
   const pgno_t *it = pgno_bsearch(begin, pnl_size(pnl), pgno);
   const pgno_t *end = begin + pnl_size(pnl);
-  assert(it >= begin && it <= end);
+  ASSERT(it >= begin && it <= end);
   if (it != begin)
-    assert(MDBX_PNL_ORDERED(it[-1], pgno));
+    ASSERT(MDBX_PNL_ORDERED(it[-1], pgno));
   if (it != end)
-    assert(!MDBX_PNL_ORDERED(it[0], pgno));
+    ASSERT(!MDBX_PNL_ORDERED(it[0], pgno));
   return it - begin + 1;
 }
 
@@ -301,8 +301,8 @@ __hot pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t seq, const pgno
   if (best_pos) {
     pgno = pnl[best_pos];
     VERBOSE("seq %zu => %u", seq, pgno);
-    assert(pnl_contains_span(pnl, pgno, seq));
-    assert(pgno + seq <= defrag_detent);
+    ASSERT(pnl_contains_span(pnl, pgno, seq));
+    ASSERT(pgno + seq <= defrag_detent);
     pnl_cut(pnl, best_pos - seq + 1, seq);
   }
 #endif /* MDBX_PNL_ASCENDING */
@@ -311,7 +311,7 @@ __hot pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t seq, const pgno
 
 pgno_t pnl_crop_tail_sequence(const pnl_t pnl) {
   const size_t len = pnl_size(pnl);
-  assert(len > 0);
+  ASSERT(len > 0);
 #if MDBX_PNL_ASCENDING
 #error "FIXME"
 #else
@@ -325,7 +325,7 @@ pgno_t pnl_crop_tail_sequence(const pnl_t pnl) {
 
 __hot void pnl_cut(pnl_t pnl, size_t pos, size_t span) {
   size_t len = pnl_size(pnl);
-  assert(pos > 0 && pos <= len && pos + span <= len + 1);
+  ASSERT(pos > 0 && pos <= len && pos + span <= len + 1);
   if (likely(span > 0)) {
     pnl_setsize(pnl, len -= span);
     for (size_t i = pos; i <= len; ++i)
@@ -339,7 +339,7 @@ void pnl_sift(__restrict pnl_t pnl, const __restrict const_pnl_t fo) {
     const size_t len = pnl_size(pnl);
     size_t w, r = pnl_search(pnl, fo[1], MAX_PAGENO);
     for (intptr_t f = 1; r <= len;) { /* scan loop */
-      assert(f != fe);
+      ASSERT(f != fe);
       pgno_t fo_pgno = fo[f];
       pgno_t pl_pgno = pnl[r];
       if (likely(pl_pgno != fo_pgno)) {
@@ -362,7 +362,7 @@ void pnl_sift(__restrict pnl_t pnl, const __restrict const_pnl_t fo) {
           pnl[w++] = pnl[r++];
       } else {
         while (r <= len) {
-          assert(f != fe);
+          ASSERT(f != fe);
           fo_pgno = fo[f];
           pl_pgno = pnl[r];
           if (MDBX_PNL_ORDERED(pl_pgno, fo_pgno))
@@ -380,7 +380,7 @@ void pnl_sift(__restrict pnl_t pnl, const __restrict const_pnl_t fo) {
 }
 
 int pnl_cut_range(__restrict pnl_t pnl, __restrict pnl_t *const pdest, pgno_t range_begin, pgno_t range_end) {
-  assert(range_begin < range_end && pnl_size(pnl) && range_end > 0);
+  ASSERT(range_begin < range_end && pnl_size(pnl) && range_end > 0);
   const size_t from = pnl_search(pnl, MDBX_PNL_ASCENDING ? range_begin : range_end - 1, MAX_PAGENO);
   const size_t len = pnl_size(pnl);
   size_t to;

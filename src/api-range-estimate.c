@@ -58,7 +58,7 @@ __hot static int cursor_diff(const MDBX_cursor *const __restrict x, const MDBX_c
      */
     nkeys = page_numkeys(y->pg[r->level]);
     r->diff = (nkeys - y->ki[r->level]) + x->ki[r->level];
-    assert(r->diff > 0);
+    ASSERT(r->diff > 0);
   }
 
   while (unlikely(r->diff == -1) && likely(r->level < depth)) {
@@ -71,7 +71,7 @@ __hot static int cursor_diff(const MDBX_cursor *const __restrict x, const MDBX_c
      */
     nkeys = page_numkeys(x->pg[r->level]);
     r->diff = -(nkeys - x->ki[r->level]) - y->ki[r->level];
-    assert(r->diff < 0);
+    ASSERT(r->diff < 0);
   }
 
   return MDBX_SUCCESS;
@@ -93,7 +93,7 @@ __hot static ptrdiff_t estimate(const tree_t *tree, diff_t *const __restrict dr)
     return estimated;
 
   if (tree->height < 4) {
-    assert(dr->level == 0 && btree_power == 1);
+    ASSERT(dr->level == 0 && btree_power == 1);
     return (ptrdiff_t)tree->items * dr->diff / (ptrdiff_t)dr->root_nkeys;
   }
 
@@ -157,7 +157,7 @@ __hot int mdbx_estimate_distance(const MDBX_cursor *first, const MDBX_cursor *la
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  cASSERT(first, dr.diff || inner_pointed(first) == inner_pointed(last));
+  cASSERT0(first, dr.diff || inner_pointed(first) == inner_pointed(last));
   if (unlikely(dr.diff == 0) && inner_pointed(first)) {
     first = &first->subcur->cursor;
     last = &last->subcur->cursor;
@@ -276,11 +276,11 @@ __hot int mdbx_estimate_range(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val 
         return LOG_IFERR((rc == MDBX_SUCCESS) ? mdbx_cursor_count(&begin.outer, (size_t *)size_items) : rc);
       }
       /* LY: -epsilon..value case */
-      assert(end_key != MDBX_EPSILON);
+      ASSERT(end_key != MDBX_EPSILON);
       begin_key = end_key;
     } else if (unlikely(end_key == MDBX_EPSILON)) {
       /* LY: value..+epsilon case */
-      assert(begin_key != MDBX_EPSILON);
+      ASSERT(begin_key != MDBX_EPSILON);
       end_key = begin_key;
     }
     if (end_key && !begin_data && !end_data &&
@@ -336,7 +336,7 @@ __hot int mdbx_estimate_range(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val 
   rc = mdbx_estimate_distance(&begin.outer, &end.outer, size_items);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
-  assert(*size_items >= -(ptrdiff_t)begin.outer.tree->items && *size_items <= (ptrdiff_t)begin.outer.tree->items);
+  ASSERT(*size_items >= -(ptrdiff_t)begin.outer.tree->items && *size_items <= (ptrdiff_t)begin.outer.tree->items);
 
 #if 0 /* LY: Was decided to returns as-is (i.e. negative) the estimation                                               \
        * results for an inverted ranges. */
@@ -357,7 +357,7 @@ __hot int mdbx_estimate_range(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val 
       *size_items = (ptrdiff_t)begin.outer.tree->items;
     }
   }
-  assert(*size_items >= 0 &&
+  ASSERT(*size_items >= 0 &&
          *size_items <= (ptrdiff_t)begin.outer.tree->items);
 #endif
 

@@ -24,12 +24,12 @@
 #include <iostream>
 
 #if defined(ENABLE_MEMCHECK) || defined(MDBX_CI)
-#if MDBX_DEBUG || !defined(NDEBUG)
+#if MDBX_DEBUG > 0 || !defined(NDEBUG)
 #define RELIEF_FACTOR 16
 #else
 #define RELIEF_FACTOR 8
 #endif
-#elif MDBX_DEBUG || !defined(NDEBUG) || defined(__APPLE__) || defined(_WIN32)
+#elif MDBX_DEBUG > 0 || !defined(NDEBUG) || defined(__APPLE__) || defined(_WIN32)
 #define RELIEF_FACTOR 4
 #elif UINTPTR_MAX > 0xffffFFFFul || ULONG_MAX > 0xffffFFFFul
 #define RELIEF_FACTOR 2

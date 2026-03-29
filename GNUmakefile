@@ -303,7 +303,7 @@ lib-shared libmdbx.$(SO_SUFFIX): mdbx-dylib.o $(call select_by,MDBX_BUILD_CXX,md
 	@echo '  LD $@'
 	$(QUIET)$(call select_by,MDBX_BUILD_CXX,$(CXX) $(CXXFLAGS),$(CC) $(CFLAGS)) $^ -pthread -shared $(LDFLAGS) $(call select_by,MDBX_BUILD_CXX,$(LIB_STDCXXFS)) $(LIBS) -o $@
 
-ninja-assertions: CMAKE_OPT += -DMDBX_FORCE_ASSERTIONS=ON $(MDBX_BUILD_OPTIONS)
+ninja-assertions: CMAKE_OPT += -DMDBX_CHECKING=2 $(MDBX_BUILD_OPTIONS)
 ninja-assertions: cmake-build
 ninja-debug: CMAKE_OPT += -DCMAKE_BUILD_TYPE=Debug $(MDBX_BUILD_OPTIONS)
 ninja-debug: cmake-build
@@ -336,8 +336,8 @@ TEST_BUILD_TARGETS += build-stochastic
 test: $(TEST_TARGETS)
 build-test: $(TEST_BUILD_TARGETS)
 
-test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0
-test-assertion: CMAKE_OPT += -DMDBX_FORCE_ASSERTIONS=ON -DMDBX_DEBUG=0
+test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
+test-assertion: CMAKE_OPT += -DMDBX_CHECKING=2
 test-assertion: smoke
 
 test-valgrind: test-memcheck
@@ -502,9 +502,9 @@ MDBX_SMOKE_EXTRA ?=
 check: DESTDIR = $(shell pwd)/@check-install
 check: CMAKE_OPT += -Werror=dev
 check: clean | smoke-assertion ninja-assertions dist install test ctest
-smoke-assertion: MDBX_BUILD_OPTIONS += -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0
+smoke-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
 smoke-assertion: smoke
-long-test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_FORCE_ASSERTIONS=1 -UNDEBUG -DMDBX_DEBUG=0
+long-test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
 long-test-assertion: smoke
 
 .PHONY: check-posix-locking-sysv check-posix-locking-1988 check-posix-locking-2001 check-posix-locking-2008

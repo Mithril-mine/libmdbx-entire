@@ -81,7 +81,7 @@
 #include <vector>
 
 #define MDBX_INTERNAL
-#define xMDBX_TOOLS /* Avoid using internal eASSERT() */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT() */
 #include "../mdbx.h++"
 #include "../src/osal.h"
 
