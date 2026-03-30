@@ -36,7 +36,7 @@ __cold int chk_check_break(MDBX_chk_scope_t *const scope) {
 __cold void chk_line_end(MDBX_chk_line_t *line) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
-    assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+    ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     if (likely(chk->cb->print_done))
       chk->cb->print_done(line);
   }
@@ -50,8 +50,8 @@ __cold MDBX_chk_line_t *chk_line_begin(MDBX_chk_scope_t *const scope, enum MDBX_
   if (likely(chk->cb->print_begin)) {
     line = chk->cb->print_begin(chk->usr, severity);
     if (likely(line)) {
-      assert(line->ctx == nullptr || (line->ctx == chk->usr && line->empty));
-      assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+      ASSERT(line->ctx == nullptr || (line->ctx == chk->usr && line->empty));
+      ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
       line->ctx = chk->usr;
     }
   }
@@ -71,10 +71,10 @@ __cold MDBX_chk_line_t *chk_line_feed(MDBX_chk_line_t *line) {
 __cold MDBX_chk_line_t *chk_flush(MDBX_chk_line_t *line) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
-    assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+    ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     if (likely(chk->cb->print_flush)) {
       chk->cb->print_flush(line);
-      assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+      ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
       line->out = line->begin;
     }
   }
@@ -84,7 +84,7 @@ __cold MDBX_chk_line_t *chk_flush(MDBX_chk_line_t *line) {
 __cold size_t chk_print_wanna(MDBX_chk_line_t *line, size_t need) {
   if (likely(line && need)) {
     size_t have = line->end - line->out;
-    assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+    ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     if (need > have) {
       line = chk_flush(line);
       have = line->end - line->out;
@@ -98,19 +98,19 @@ __cold MDBX_chk_line_t *chk_puts(MDBX_chk_line_t *line, const char *str) {
   if (likely(line && str && *str)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
     size_t left = strlen(str);
-    assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+    ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     if (chk->cb->print_chars) {
       chk->cb->print_chars(line, str, left);
-      assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+      ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     } else
       do {
         size_t chunk = chk_print_wanna(line, left);
-        assert(chunk <= left);
+        ASSERT(chunk <= left);
         if (unlikely(!chunk))
           break;
         memcpy(line->out, str, chunk);
         line->out += chunk;
-        assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+        ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
         str += chunk;
         left -= chunk;
       } while (left);
@@ -122,10 +122,10 @@ __cold MDBX_chk_line_t *chk_puts(MDBX_chk_line_t *line, const char *str) {
 __cold MDBX_chk_line_t *chk_print_va(MDBX_chk_line_t *line, const char *fmt, va_list args) {
   if (likely(line)) {
     MDBX_chk_internal_t *chk = line->ctx->internal;
-    assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+    ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     if (chk->cb->print_format) {
       chk->cb->print_format(line, fmt, args);
-      assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+      ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
     } else {
       va_list ones;
       va_copy(ones, args);
@@ -137,7 +137,7 @@ __cold MDBX_chk_line_t *chk_print_va(MDBX_chk_line_t *line, const char *fmt, va_
           int written = vsnprintf(line->out, have, fmt, args);
           if (likely(written > 0))
             line->out += written;
-          assert(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
+          ASSERT(line->begin <= line->end && line->begin <= line->out && line->out <= line->end);
         }
       }
     }
@@ -307,7 +307,7 @@ __cold static void MDBX_PRINTF_ARGS(2, 3) chk_scope_issue(MDBX_chk_scope_t *cons
 }
 
 __cold static int chk_scope_end(MDBX_chk_internal_t *chk, int err) {
-  assert(chk->scope_depth > 0);
+  ASSERT(chk->scope_depth > 0);
   MDBX_chk_scope_t *const inner = chk->scope_stack + chk->scope_depth;
   MDBX_chk_scope_t *const outer = chk->scope_depth ? inner - 1 : nullptr;
   if (!outer || outer->stage != inner->stage) {
@@ -370,7 +370,7 @@ __cold static int chk_scope_begin_args(MDBX_chk_internal_t *chk, int verbosity_a
     int err = chk->cb->stage_begin(chk->usr, stage);
     if (unlikely(err != MDBX_SUCCESS)) {
       err = chk_scope_end(chk, err);
-      assert(err != MDBX_SUCCESS);
+      ASSERT(err != MDBX_SUCCESS);
       return err ? err : MDBX_RESULT_TRUE;
     }
   }
@@ -389,7 +389,7 @@ __cold static int MDBX_PRINTF_ARGS(6, 7)
 
 __cold static int chk_scope_restore(MDBX_chk_scope_t *const target, int err) {
   MDBX_chk_internal_t *const chk = target->internal;
-  assert(target <= chk->usr->scope);
+  ASSERT(target <= chk->usr->scope);
   while (chk->usr->scope > target)
     err = chk_scope_end(chk, err);
   return err;
@@ -472,19 +472,19 @@ __cold static const char *chk_v2a(MDBX_chk_internal_t *chk, const MDBX_val *val)
     *w++ = '\'';
     for (size_t i = 0; i < len; ++i) {
       if (data[i] < ' ') {
-        assert((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 4);
+        ASSERT((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 4);
         w[0] = '\\';
         w[1] = 'x';
         w[2] = hex[data[i] >> 4];
         w[3] = hex[data[i] & 15];
         w += 4;
       } else if (strchr("\"'`\\", data[i])) {
-        assert((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 2);
+        ASSERT((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 2);
         w[0] = '\\';
         w[1] = data[i];
         w += 2;
       } else {
-        assert((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 1);
+        ASSERT((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 1);
         *w++ = data[i];
       }
     }
@@ -493,20 +493,20 @@ __cold static const char *chk_v2a(MDBX_chk_internal_t *chk, const MDBX_val *val)
     *w++ = '\\';
     *w++ = 'x';
     for (size_t i = 0; i < len; ++i) {
-      assert((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 2);
+      ASSERT((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w + 2);
       w[0] = hex[data[i] >> 4];
       w[1] = hex[data[i] & 15];
       w += 2;
     }
   }
-  assert((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w);
+  ASSERT((char *)chk->v2a_buf.iov_base + chk->v2a_buf.iov_len > w);
   *w = 0;
   return chk->v2a_buf.iov_base;
 }
 
 __cold static void chk_dispose(MDBX_chk_internal_t *chk) {
-  assert(chk->table[FREE_DBI] == &chk->table_gc);
-  assert(chk->table[MAIN_DBI] == &chk->table_main);
+  ASSERT(chk->table[FREE_DBI] == &chk->table_gc);
+  ASSERT(chk->table[MAIN_DBI] == &chk->table_main);
   for (size_t i = 0; i < ARRAY_LENGTH(chk->table); ++i) {
     MDBX_chk_table_t *const tbl = chk->table[i];
     if (tbl) {
@@ -677,12 +677,12 @@ __cold static int chk_pgvisitor(const size_t pgno, const unsigned npages, void *
     tbl->pages.broken += npages;
     break;
   case page_broken:
-    assert(page_err != MDBX_SUCCESS);
+    ASSERT(page_err != MDBX_SUCCESS);
     pagetype_caption = "broken";
     tbl->pages.broken += npages;
     break;
   case page_sub_broken:
-    assert(page_err != MDBX_SUCCESS);
+    ASSERT(page_err != MDBX_SUCCESS);
     pagetype_caption = "broken-subpage";
     tbl->pages.broken += npages;
     break;
@@ -870,7 +870,7 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
     total.pages.nested_leaf += tbl->pages.nested_leaf;
     total.pages.nested_subleaf += tbl->pages.nested_subleaf;
   }
-  assert(total.pages.all == usr->result.processed_pages);
+  ASSERT(total.pages.all == usr->result.processed_pages);
 
   const size_t total_page_bytes = pgno2bytes(env, total.pages.all);
   if (usr->scope->subtotal_issues || usr->scope->verbosity >= MDBX_chk_verbose)
@@ -967,7 +967,7 @@ __cold static int chk_handle_kv(MDBX_chk_scope_t *const scope, MDBX_chk_table_t 
                                 const MDBX_val *key, const MDBX_val *data) {
   MDBX_chk_internal_t *const chk = scope->internal;
   int err = MDBX_SUCCESS;
-  assert(tbl->cookie);
+  ASSERT(tbl->cookie);
   if (chk->cb->table_handle_kv)
     err = chk->cb->table_handle_kv(chk->usr, tbl, record_number, key, data);
   return err ? err : chk_check_break(scope);
@@ -994,11 +994,11 @@ __cold static int chk_db(MDBX_chk_scope_t *const scope, MDBX_dbi dbi, MDBX_chk_t
                    (chk->flags & MDBX_CHK_IGNORE_ORDER) ? cmp_equal_or_greater : nullptr,
                    (chk->flags & MDBX_CHK_IGNORE_ORDER) ? cmp_equal_or_greater : nullptr);
     if (unlikely(err)) {
-      tASSERT(txn, dbi >= txn->env->n_dbi || (txn->env->dbs_flags[dbi] & DB_VALID) == 0);
+      cASSERT0(txn, dbi >= txn->env->n_dbi || (txn->env->dbs_flags[dbi] & DB_VALID) == 0);
       chk_error_rc(scope, err, "mdbx_dbi_open");
       goto bailout;
     }
-    tASSERT(txn, dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID) != 0);
+    cASSERT0(txn, dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID) != 0);
   }
 
   const tree_t *const db = txn->dbs + dbi;
@@ -1287,7 +1287,7 @@ __cold static int chk_handle_gc(MDBX_chk_scope_t *const scope, MDBX_chk_table_t 
                                 const MDBX_val *key, const MDBX_val *data) {
   MDBX_chk_internal_t *const chk = scope->internal;
   MDBX_chk_context_t *const usr = chk->usr;
-  assert(tbl == &chk->table_gc);
+  ASSERT(tbl == &chk->table_gc);
   (void)tbl;
   const char *bad = "";
 
@@ -1349,7 +1349,7 @@ __cold static int chk_handle_gc(MDBX_chk_scope_t *const scope, MDBX_chk_table_t 
             if (id == 0)
               chk->pagemap[pgno] = -1 /* mark the pgno listed in GC */;
             else if (id > 0) {
-              assert(id - 1 <= (intptr_t)ARRAY_LENGTH(chk->table));
+              ASSERT(id - 1 <= (intptr_t)ARRAY_LENGTH(chk->table));
               chk_object_issue(scope, "page", pgno, "already used", "by %s", chk_v2a(chk, &chk->table[id - 1]->name));
             } else
               chk_object_issue(scope, "page", pgno, "already listed in GC", nullptr);
@@ -1482,9 +1482,9 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       line = chk_line_feed(chk_print_size(line, "-", chk->envinfo.mi_geo.shrink, nullptr));
       line = chk_print_size(line, "current datafile: ", chk->envinfo.mi_geo.current, nullptr);
     }
-    tASSERT(txn, txn->geo.now == chk->envinfo.mi_geo.current / chk->envinfo.mi_dxb_pagesize);
+    cASSERT0(txn, txn->geo.now == chk->envinfo.mi_geo.current / chk->envinfo.mi_dxb_pagesize);
     chk_line_end(chk_print(line, ", %u pages", txn->geo.now));
-#if defined(_WIN32) || defined(_WIN64) || MDBX_DEBUG
+#if defined(_WIN32) || defined(_WIN64) || MDBX_DEBUG > 0
     if (txn->geo.shrink_pv && txn->geo.now != txn->geo.upper && scope->verbosity >= MDBX_chk_verbose) {
       line = chk_line_begin(inner, MDBX_chk_notice);
       chk_line_feed(chk_print(line, " > WARNING: Due Windows system limitations a file couldn't"));
@@ -1538,7 +1538,7 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
       if (env->flags & MDBX_EXCLUSIVE) {
         chk_line_end(
             chk_puts(chk_line_begin(inner, MDBX_chk_verbose), "performs full check recent-txn-id with meta-pages"));
-        eASSERT(env, recent_txnid == chk->envinfo.mi_recent_txnid);
+        eASSERT0(env, recent_txnid == chk->envinfo.mi_recent_txnid);
         if (prefer_steady_txnid != recent_txnid) {
           if ((chk->flags & MDBX_CHK_READWRITE) != 0 && (env->flags & MDBX_RDONLY) == 0 &&
               recent_txnid > prefer_steady_txnid &&

@@ -47,7 +47,7 @@ __hot bool txn_gc_detent(const MDBX_txn *const txn) {
 }
 
 void txn_done_cursors(MDBX_txn *txn) {
-  tASSERT(txn, txn->flags & txn_may_have_cursors);
+  cASSERT0(txn, txn->flags & txn_may_have_cursors);
 
   TXN_FOREACH_DBI_ALL(txn, i) {
     MDBX_cursor *cursor = txn->cursors[i];
@@ -62,21 +62,21 @@ void txn_done_cursors(MDBX_txn *txn) {
 }
 
 int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
-  tASSERT(parent, dbi < parent->n_dbi);
+  cASSERT0(parent, dbi < parent->n_dbi);
   MDBX_cursor *cursor = parent->cursors[dbi];
   if (!cursor)
     return MDBX_SUCCESS;
 
   MDBX_txn *const txn = parent->nested;
-  tASSERT(parent, parent->flags & txn_may_have_cursors);
+  cASSERT0(parent, parent->flags & txn_may_have_cursors);
   MDBX_cursor *next = nullptr;
   do {
     next = cursor->next;
     if (cursor->signature != cur_signature_live) {
-      ENSURE(parent->env, cursor->signature == cur_signature_wait4eot);
+      ENSURE_OBJ(parent, cursor->signature == cur_signature_wait4eot);
       continue;
     }
-    tASSERT(parent, cursor->txn == parent && dbi == cursor_dbi(cursor));
+    cASSERT0(parent, cursor->txn == parent && dbi == cursor_dbi(cursor));
 
     int err = cursor_shadow(cursor, txn, dbi);
     if (unlikely(err != MDBX_SUCCESS)) {
@@ -93,7 +93,7 @@ int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
 }
 
 int txn_commit(MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timestamp *ts) {
-  tASSERT(txn, !txn->nested && !(txn->flags & MDBX_TXN_FINISHED));
+  cASSERT0(txn, !txn->nested && !(txn->flags & MDBX_TXN_FINISHED));
   if (unlikely(txn->flags & MDBX_TXN_ERROR)) {
     int err = txn_abort(txn, latency);
     return (err == MDBX_SUCCESS) ? MDBX_RESULT_TRUE : err;
@@ -146,7 +146,7 @@ void txn_abort_after_resurrect(MDBX_txn *txn) {
   if (likely(txn->signature == txn_signature)) {
     if (txn->nested) {
       txn_abort_after_resurrect(txn->nested);
-      tASSERT(txn, !txn->nested);
+      cASSERT0(txn, !txn->nested);
     }
     txn_abort(txn, nullptr);
   }
@@ -158,8 +158,8 @@ int txn_abort(MDBX_txn *txn, MDBX_commit_latency *latency) {
         (txn->flags & txn_ro_flat) ? 'r' : 'w', txn->flags, __Wpedantic_format_voidptr(txn),
         __Wpedantic_format_voidptr(txn->env), txn->dbs[MAIN_DBI].root, txn->dbs[FREE_DBI].root);
 
-  tASSERT(txn, /* txn->signature == txn_signature && */ !txn->nested && !(txn->flags & MDBX_TXN_HAS_CHILD));
-  tASSERT(txn, (txn->flags & (MDBX_TXN_ERROR | txn_ro_flat)) || txn_dpl_check(txn));
+  cASSERT0(txn, txn->signature == txn_signature && !txn->nested && !(txn->flags & MDBX_TXN_HAS_CHILD));
+  tASSERT1(txn, (txn->flags & (MDBX_TXN_ERROR | txn_ro_flat)) || txn_dpl_check(txn));
 
   if (latency) {
     txn_latency_gcprof(txn->env, latency);
@@ -183,7 +183,7 @@ int txn_abort(MDBX_txn *txn, MDBX_commit_latency *latency) {
   MDBX_env *const env = txn->env;
   MDBX_txn *const parent = txn->parent;
   if (txn == env->basal_txn) {
-    tASSERT(txn, !parent);
+    cASSERT0(txn, !parent);
     if (unlikely(!txn->owner))
       return MDBX_BAD_TXN;
     return txn_basal_end(txn, true);
@@ -192,7 +192,7 @@ int txn_abort(MDBX_txn *txn, MDBX_commit_latency *latency) {
   if (txn->parent)
     return txn_nested_abort(txn);
 
-  tASSERT(txn, (txn->flags & (txn_ro_flat | MDBX_TXN_DIRTY | MDBX_TXN_SPILLS | MDBX_TXN_HAS_CHILD)) == txn_ro_flat);
+  cASSERT0(txn, (txn->flags & (txn_ro_flat | MDBX_TXN_DIRTY | MDBX_TXN_SPILLS | MDBX_TXN_HAS_CHILD)) == txn_ro_flat);
   txn_ro_free(txn);
   return MDBX_SUCCESS;
 }
@@ -244,8 +244,8 @@ int txn_setup_primal(MDBX_txn *txn) {
   txn->front_txnid = txn->txnid + ((txn->flags & (MDBX_WRITEMAP | MDBX_RDONLY)) == 0);
 
   /* Setup db info */
-  tASSERT(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
-  tASSERT(txn, check_table_flags(txn->dbs[MAIN_DBI].flags));
+  cASSERT0(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
+  cASSERT0(txn, check_table_flags(txn->dbs[MAIN_DBI].flags));
   VALGRIND_MAKE_MEM_UNDEFINED(txn->dbi_state, env->max_dbi);
 #if MDBX_ENABLE_DBI_SPARSE
   txn->n_dbi = CORE_DBS;
@@ -272,12 +272,12 @@ int txn_setup_primal(MDBX_txn *txn) {
     }
 
     slr_t slr = latch_maindb_locked(txn, env);
-    ENSURE(env, osal_fastmutex_release(&env->dbi_lock) == MDBX_SUCCESS);
+    ENSURE_OBJ(env, osal_fastmutex_release(&env->dbi_lock) == MDBX_SUCCESS);
     if (unlikely((err = slr.err) != MDBX_SUCCESS))
       return err;
     txn->dbi_seqs[MAIN_DBI] = slr.seq;
   }
-  tASSERT(txn, check_table_flags(txn->dbs[MAIN_DBI].flags) && txn->dbi_seqs[MAIN_DBI]);
+  cASSERT0(txn, check_table_flags(txn->dbs[MAIN_DBI].flags) && txn->dbi_seqs[MAIN_DBI]);
 
   if (unlikely(txn->dbs[FREE_DBI].flags != MDBX_INTEGERKEY)) {
     ERROR("unexpected/invalid db-flags 0x%x for %s", txn->dbs[FREE_DBI].flags, "GC/FreeDB");
@@ -292,7 +292,7 @@ int txn_setup_primal(MDBX_txn *txn) {
   const size_t size_bytes = pgno2bytes(env, txn->geo.end_pgno);
   const size_t used_bytes = pgno2bytes(env, txn->geo.first_unallocated);
   const size_t required_bytes = (txn->flags & txn_ro_flat) ? used_bytes : size_bytes;
-  eASSERT(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
+  eASSERT0(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
   int err = MDBX_SUCCESS;
   if (unlikely(required_bytes > env->dxb_mmap.current)) {
     /* Размер БД (для пишущих транзакций) или используемых данных (для
@@ -302,7 +302,7 @@ int txn_setup_primal(MDBX_txn *txn) {
     if (txn->geo.upper > MAX_PAGENO + 1 || bytes2pgno(env, pgno2bytes(env, txn->geo.upper)) != txn->geo.upper)
       return MDBX_UNABLE_EXTEND_MAPSIZE;
     err = dxb_resize(env, txn->geo.first_unallocated, txn->geo.end_pgno, txn->geo.upper, implicit_grow);
-    eASSERT(env, err != MDBX_SUCCESS || env->dxb_mmap.limit >= env->dxb_mmap.current);
+    eASSERT0(env, err != MDBX_SUCCESS || env->dxb_mmap.limit >= env->dxb_mmap.current);
     return err;
   }
 
@@ -334,10 +334,10 @@ int txn_setup_primal(MDBX_txn *txn) {
       return err;
     }
 #endif
-    eASSERT(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
+    eASSERT0(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
     err = osal_filesize(env->dxb_mmap.fd, &env->dxb_mmap.filesize);
     if (likely(err == MDBX_SUCCESS)) {
-      eASSERT(env, env->dxb_mmap.filesize >= required_bytes);
+      eASSERT0(env, env->dxb_mmap.filesize >= required_bytes);
       if (env->dxb_mmap.current > env->dxb_mmap.filesize)
         env->dxb_mmap.current =
             (env->dxb_mmap.limit < env->dxb_mmap.filesize) ? env->dxb_mmap.limit : (size_t)env->dxb_mmap.filesize;
@@ -345,7 +345,7 @@ int txn_setup_primal(MDBX_txn *txn) {
 #if defined(_WIN32) || defined(_WIN64)
     imports.srwl_ReleaseShared(&env->remap_lock);
 #else
-    ENSURE(env, osal_fastmutex_release(&env->remap_lock) == MDBX_SUCCESS);
+    ENSURE_OBJ(env, osal_fastmutex_release(&env->remap_lock) == MDBX_SUCCESS);
 #endif
   }
 
@@ -353,7 +353,7 @@ int txn_setup_primal(MDBX_txn *txn) {
 }
 
 int txn_check_badbits_parked(const MDBX_txn *txn, int bad_bits) {
-  tASSERT(txn, (bad_bits & MDBX_TXN_PARKED) && (txn->flags & bad_bits));
+  cASSERT0(txn, (bad_bits & MDBX_TXN_PARKED) && (txn->flags & bad_bits));
   /* Здесь осознано заложено отличие в поведении припаркованных транзакций:
    *  - некоторые функции (например mdbx_env_info_ex()), допускают
    *    использование поломанных транзакций (с флагом MDBX_TXN_ERROR), но
@@ -368,7 +368,7 @@ int txn_check_badbits_parked(const MDBX_txn *txn, int bad_bits) {
   if ((txn->flags & (bad_bits | MDBX_TXN_AUTOUNPARK)) != (MDBX_TXN_PARKED | MDBX_TXN_AUTOUNPARK))
     return LOG_IFERR(MDBX_BAD_TXN);
 
-  tASSERT(txn, bad_bits == MDBX_TXN_BLOCKED || bad_bits == MDBX_TXN_BLOCKED - MDBX_TXN_ERROR);
+  cASSERT0(txn, bad_bits == MDBX_TXN_BLOCKED || bad_bits == MDBX_TXN_BLOCKED - MDBX_TXN_ERROR);
   return mdbx_txn_unpark((MDBX_txn *)txn, false);
 }
 
@@ -393,7 +393,7 @@ MDBX_txn *txn_alloc(const unsigned flags, MDBX_env *env) {
 
   txn->dbs = ptr_disp(txn, base);
   txn->cursors = ptr_disp(txn->dbs, env->max_dbi * sizeof(txn->dbs[0]));
-#if MDBX_DEBUG
+#if MDBX_CHECKING > 0
   txn->cursors[FREE_DBI] = nullptr; /* avoid SIGSEGV in an assertion later */
 #endif
   txn->dbi_state = ptr_disp(txn, size - env->max_dbi * sizeof(txn->dbi_state[0]));

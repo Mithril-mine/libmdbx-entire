@@ -7,20 +7,20 @@
  * Pack/Unpack 16-bit values for Grow step & Shrink threshold */
 
 MDBX_NOTHROW_CONST_FUNCTION static inline pgno_t me2v(size_t m, size_t e) {
-  assert(m < 2048 && e < 8);
+  ASSERT(m < 2048 && e < 8);
   return (pgno_t)(32768 + ((m + 1) << (e + 8)));
 }
 
 MDBX_NOTHROW_CONST_FUNCTION static inline uint16_t v2me(size_t v, size_t e) {
-  assert(v > (e ? me2v(2047, e - 1) : 32768));
-  assert(v <= me2v(2047, e));
+  ASSERT(v > (e ? me2v(2047, e - 1) : 32768));
+  ASSERT(v <= me2v(2047, e));
   size_t m = (v - 32768 + ((size_t)1 << (e + 8)) - 1) >> (e + 8);
   m -= m > 0;
-  assert(m < 2048 && e < 8);
+  ASSERT(m < 2048 && e < 8);
   // f e d c b a 9 8 7 6 5 4 3 2 1 0
   // 1 e e e m m m m m m m m m m m 1
   const uint16_t pv = (uint16_t)(0x8001 + (e << 12) + (m << 1));
-  assert(pv != 65535);
+  ASSERT(pv != 65535);
   return pv;
 }
 
@@ -183,7 +183,7 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION __hot int cmp_uint64_align4(const M
 
 MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_len(size_t a, size_t b) {
   const intptr_t diff_len = a - b;
-  assert(diff_len == (int)diff_len);
+  ASSERT(diff_len == (int)diff_len);
   /* кастинг допустим, так как длина ключей проверяется и не должна превышать MAX_INT. */
   return (int)diff_len;
 }
@@ -288,8 +288,8 @@ int cmp_equal_or_wrong(const MDBX_val *a, const MDBX_val *b) { return eq_fast(a,
 __cold void update_mlcnt(const MDBX_env *env, const pgno_t new_aligned_mlocked_pgno, const bool lock_not_release) {
   for (;;) {
     const pgno_t mlock_pgno_before = atomic_load32(&env->mlocked_pgno, mo_AcquireRelease);
-    eASSERT(env, pgno_ceil2sp_pgno(env, mlock_pgno_before) == mlock_pgno_before);
-    eASSERT(env, pgno_ceil2sp_pgno(env, new_aligned_mlocked_pgno) == new_aligned_mlocked_pgno);
+    eASSERT0(env, pgno_ceil2sp_pgno(env, mlock_pgno_before) == mlock_pgno_before);
+    eASSERT0(env, pgno_ceil2sp_pgno(env, new_aligned_mlocked_pgno) == new_aligned_mlocked_pgno);
     if (lock_not_release ? (mlock_pgno_before >= new_aligned_mlocked_pgno)
                          : (mlock_pgno_before <= new_aligned_mlocked_pgno))
       break;
@@ -299,12 +299,12 @@ __cold void update_mlcnt(const MDBX_env *env, const pgno_t new_aligned_mlocked_p
         const int32_t snap_locked = atomic_load32(mlcnt + 0, mo_Relaxed);
         const int32_t snap_unlocked = atomic_load32(mlcnt + 1, mo_Relaxed);
         if (mlock_pgno_before == 0 && (snap_locked - snap_unlocked) < INT_MAX) {
-          eASSERT(env, lock_not_release);
+          eASSERT0(env, lock_not_release);
           if (unlikely(!atomic_cas32(mlcnt + 0, snap_locked, snap_locked + 1)))
             continue;
         }
         if (new_aligned_mlocked_pgno == 0 && (snap_locked - snap_unlocked) > 0) {
-          eASSERT(env, !lock_not_release);
+          eASSERT0(env, !lock_not_release);
           if (unlikely(!atomic_cas32(mlcnt + 1, snap_unlocked, snap_unlocked + 1)))
             continue;
         }
@@ -322,8 +322,8 @@ __cold void munlock_after(const MDBX_env *env, const pgno_t aligned_pgno, const 
     int err = MDBX_ENOSYS;
     const size_t munlock_begin = pgno2bytes(env, aligned_pgno);
     const size_t munlock_size = end_bytes - munlock_begin;
-    eASSERT(env, end_bytes % globals.sys_pagesize == 0 && munlock_begin % globals.sys_pagesize == 0 &&
-                     munlock_size % globals.sys_pagesize == 0);
+    eASSERT0(env, end_bytes % globals.sys_pagesize == 0 && munlock_begin % globals.sys_pagesize == 0 &&
+                      munlock_size % globals.sys_pagesize == 0);
 #if defined(_WIN32) || defined(_WIN64)
     err = VirtualUnlock(ptr_disp(env->dxb_mmap.base, munlock_begin), munlock_size) ? MDBX_SUCCESS : (int)GetLastError();
     if (err == ERROR_NOT_LOCKED)
@@ -363,6 +363,6 @@ uint32_t combine_durability_flags(const uint32_t a, const uint32_t b) {
   if (r & (MDBX_SAFE_NOSYNC | MDBX_UTTERLY_NOSYNC))
     r |= MDBX_NOMETASYNC;
 
-  assert(!(F_ISSET(r, MDBX_UTTERLY_NOSYNC) && !F_ISSET(a, MDBX_UTTERLY_NOSYNC) && !F_ISSET(b, MDBX_UTTERLY_NOSYNC)));
+  ASSERT(!(F_ISSET(r, MDBX_UTTERLY_NOSYNC) && !F_ISSET(a, MDBX_UTTERLY_NOSYNC) && !F_ISSET(b, MDBX_UTTERLY_NOSYNC)));
   return r;
 }

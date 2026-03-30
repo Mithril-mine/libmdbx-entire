@@ -52,7 +52,7 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline size_t pnl_alloclen(c
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline size_t pnl_size(const const_pnl_t pnl) { return pnl[0]; }
 
 MDBX_MAYBE_UNUSED static inline void pnl_setsize(pnl_t pnl, size_t len) {
-  assert(len < INT_MAX);
+  ASSERT(len < INT_MAX);
   pnl[0] = (pgno_t)len;
 }
 
@@ -63,7 +63,7 @@ MDBX_MAYBE_UNUSED static inline void pnl_clear(pnl_t pnl) { pnl_setsize(pnl, 0);
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline pgno_t pnl_bytes2size(const size_t bytes) {
   size_t size = bytes / sizeof(pgno_t);
-  assert(size > 3 && size <= PAGELIST_LIMIT + /* alignment gap */ 65536);
+  ASSERT(size > 3 && size <= PAGELIST_LIMIT + /* alignment gap */ 65536);
   size -= 3;
 #if MDBX_PNL_PREALLOC_FOR_RADIXSORT
   size >>= 1;
@@ -73,7 +73,7 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline pgno_t pnl_bytes2size
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_size2bytes(size_t wanna_size) {
   size_t size = wanna_size;
-  assert(size > 0 && size <= PAGELIST_LIMIT);
+  ASSERT(size > 0 && size <= PAGELIST_LIMIT);
 #if MDBX_PNL_PREALLOC_FOR_RADIXSORT
   size += size;
 #endif /* MDBX_PNL_PREALLOC_FOR_RADIXSORT */
@@ -83,7 +83,7 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_size2bytes
   size_t bytes =
       ceil_powerof2(MDBX_ASSUME_MALLOC_OVERHEAD + sizeof(pgno_t) * (size + 3), MDBX_PNL_GRANULATE * sizeof(pgno_t)) -
       MDBX_ASSUME_MALLOC_OVERHEAD;
-  assert(pnl_bytes2size(bytes) >= wanna_size);
+  ASSERT(pnl_bytes2size(bytes) >= wanna_size);
   return bytes;
 }
 
@@ -97,8 +97,8 @@ MDBX_INTERNAL int pnl_reserve(pnl_t __restrict *__restrict ppnl, const size_t wa
 
 MDBX_MAYBE_UNUSED static inline int __must_check_result pnl_need(pnl_t __restrict *__restrict ppnl, size_t more) {
   if (likely(*ppnl)) {
-    assert(pnl_size(*ppnl) <= PAGELIST_LIMIT && pnl_alloclen(*ppnl) >= pnl_size(*ppnl));
-    assert(more <= PAGELIST_LIMIT);
+    ASSERT(pnl_size(*ppnl) <= PAGELIST_LIMIT && pnl_alloclen(*ppnl) >= pnl_size(*ppnl));
+    ASSERT(more <= PAGELIST_LIMIT);
     more += pnl_size(*ppnl);
     if (likely(pnl_alloclen(*ppnl) >= more))
       return MDBX_SUCCESS;
@@ -107,10 +107,10 @@ MDBX_MAYBE_UNUSED static inline int __must_check_result pnl_need(pnl_t __restric
 }
 
 MDBX_MAYBE_UNUSED static inline void pnl_append_prereserved(__restrict pnl_t pnl, pgno_t pgno) {
-  assert(pnl_size(pnl) < pnl_alloclen(pnl));
-  if (AUDIT_ENABLED()) {
+  ASSERT(pnl_size(pnl) < pnl_alloclen(pnl));
+  if (CHECKS2_ENABLED()) {
     for (size_t i = pnl_size(pnl); i > 0; --i)
-      assert(pgno != pnl[i]);
+      ASSERT(pgno != pnl[i]);
   }
   *pnl += 1;
   MDBX_PNL_LAST(pnl) = pgno;
@@ -145,20 +145,20 @@ MDBX_MAYBE_UNUSED static inline bool pnl_check_allocated(const const_pnl_t pnl, 
 
 MDBX_MAYBE_UNUSED static inline void pnl_sort(pnl_t pnl, size_t limit4check) {
   pnl_sort_nochk(pnl);
-  assert(pnl_check(pnl, limit4check));
+  ASSERT(pnl_check(pnl, limit4check));
   (void)limit4check;
 }
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline size_t pnl_search(const const_pnl_t pnl, pgno_t pgno,
                                                                              size_t limit) {
-  assert(pnl_check_allocated(pnl, limit));
+  ASSERT(pnl_check_allocated(pnl, limit));
   if (MDBX_HAVE_CMOV) {
     /* cmov-ускоренный бинарный поиск может читать (но не использовать) один
      * элемент за концом данных, этот элемент в пределах выделенного участка
      * памяти, но не инициализирован. */
     VALGRIND_MAKE_MEM_DEFINED(MDBX_PNL_END(pnl), sizeof(pgno_t));
   }
-  assert(pgno < limit);
+  ASSERT(pgno < limit);
   (void)limit;
   size_t n = pnl_search_nochk(pnl, pgno);
   if (MDBX_HAVE_CMOV) {
@@ -194,7 +194,7 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t pnl_maxspan(co
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline size_t pnl_scan_span(const const_pnl_t pnl,
                                                                                 const size_t from) {
   size_t span = 1;
-  assert(from > 0 && from <= pnl_size(pnl));
+  ASSERT(from > 0 && from <= pnl_size(pnl));
   while (from + span <= pnl_size(pnl) && MDBX_PNL_CONTIGUOUS(pnl[from], pnl[from + span], span))
     ++span;
   return span;

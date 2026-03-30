@@ -11,7 +11,7 @@ MDBX_NOTHROW_CONST_FUNCTION MDBX_MAYBE_UNUSED MDBX_INTERNAL size_t dbi_bitmap_ct
                                                                                            intptr_t bmi);
 
 static inline size_t dbi_bitmap_ctz(const MDBX_txn *txn, intptr_t bmi) {
-  tASSERT(txn, bmi != 0);
+  cASSERT0(txn, bmi != 0);
   STATIC_ASSERT(sizeof(bmi) >= sizeof(txn->dbi_sparse[0]));
 #if __GNUC_PREREQ(4, 1) || __has_builtin(__builtin_ctzl)
   if (sizeof(txn->dbi_sparse[0]) <= sizeof(int))
@@ -106,7 +106,7 @@ static inline uint8_t dbi_state(const MDBX_txn *txn, const size_t dbi) {
 
 static inline bool dbi_changed(const MDBX_txn *txn, const size_t dbi) {
   const MDBX_env *const env = txn->env;
-  eASSERT(env, dbi_state(txn, dbi) & DBI_LINDO);
+  eASSERT0(env, dbi_state(txn, dbi) & DBI_LINDO);
   const uint32_t snap_seq = atomic_load32(&env->dbi_seqs[dbi], mo_AcquireRelease);
   return unlikely(snap_seq != txn->dbi_seqs[dbi]);
 }

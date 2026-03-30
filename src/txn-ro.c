@@ -29,30 +29,30 @@ static __noinline int ro_slot_mismatch_pid(MDBX_txn *txn, const mdbx_pid_t snap_
 static inline int ro_slot_checkpid(MDBX_txn *txn) {
   const mdbx_pid_t snap_slot_pid = ro_slot_pid(txn->ro.slot);
   if (likely(snap_slot_pid == txn->env->registered_reader_pid)) {
-    tASSERT(txn, snap_slot_pid == osal_getpid());
+    tASSERT0(txn, snap_slot_pid == osal_getpid());
     if ((txn->flags & MDBX_TXN_FINISHED) == 0)
-      tASSERT(txn, ro_slot_tid(txn->ro.slot) == ((txn->env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()) ||
-                       (ro_slot_tid(txn->ro.slot) >= MDBX_TID_TXN_OUSTED &&
-                        (txn->flags & (MDBX_TXN_PARKED | MDBX_TXN_OUSTED))));
+      cASSERT0(txn, ro_slot_tid(txn->ro.slot) == ((txn->env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()) ||
+                        (ro_slot_tid(txn->ro.slot) >= MDBX_TID_TXN_OUSTED &&
+                         (txn->flags & (MDBX_TXN_PARKED | MDBX_TXN_OUSTED))));
     return MDBX_SUCCESS;
   }
   return ro_slot_mismatch_pid(txn, snap_slot_pid);
 }
 
 static int ro_slot_alloc(MDBX_txn *txn) {
-  tASSERT(txn, is_ro_txn(txn) && !txn->ro.slot);
+  tASSERT0(txn, is_ro_txn(txn) && !txn->ro.slot);
   MDBX_env *const env = txn->env;
   if (unlikely(!env->lck_mmap.lck))
     return MDBX_SUCCESS;
 
   if (env->flags & ENV_TXKEY) {
-    eASSERT(env, !(env->flags & MDBX_NOSTICKYTHREADS));
+    eASSERT0(env, !(env->flags & MDBX_NOSTICKYTHREADS));
     reader_slot_t *slot = thread_rthc_get(env->me_txkey);
     if (likely(slot)) {
       const mdbx_pid_t snap_slot_pid = ro_slot_pid(slot);
-      tASSERT(txn, env->registered_reader_pid == osal_getpid());
+      tASSERT1(txn, env->registered_reader_pid == osal_getpid());
       if (likely(snap_slot_pid == env->registered_reader_pid && ro_slot_txnid(slot) >= SAFE64_INVALID_THRESHOLD)) {
-        tASSERT(txn, ro_slot_tid(slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
+        tASSERT1(txn, ro_slot_tid(slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
         txn->ro.slot = slot;
         return MDBX_SUCCESS;
       }
@@ -61,13 +61,13 @@ static int ro_slot_alloc(MDBX_txn *txn) {
       thread_rthc_set(env->me_txkey, nullptr);
     }
   } else {
-    eASSERT(env, (env->flags & MDBX_NOSTICKYTHREADS));
+    eASSERT0(env, (env->flags & MDBX_NOSTICKYTHREADS));
   }
 
   bsr_t brs = mvcc_bind_slot(env);
   if (likely(brs.err == MDBX_SUCCESS)) {
-    tASSERT(txn, ro_slot_pid(brs.slot) == osal_getpid());
-    tASSERT(txn, ro_slot_tid(brs.slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
+    tASSERT1(txn, ro_slot_pid(brs.slot) == osal_getpid());
+    tASSERT1(txn, ro_slot_tid(brs.slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
   }
 
   txn->ro.slot = brs.slot;
@@ -75,11 +75,11 @@ static int ro_slot_alloc(MDBX_txn *txn) {
 }
 
 static void ro_slot_release(MDBX_txn *txn) {
-  tASSERT(txn, is_ro_txn(txn) && txn->ro.slot);
+  tASSERT0(txn, is_ro_txn(txn) && txn->ro.slot);
   reader_slot_t *slot = txn->ro.slot;
   MDBX_env *const env = txn->env;
-  eASSERT(env, ro_slot_pid(slot) == osal_getpid());
-  eASSERT(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
+  eASSERT0(env, ro_slot_pid(slot) == osal_getpid());
+  eASSERT0(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
   if (ro_slot_pid(slot) == osal_getpid()) {
     safe64_reset(&slot->txnid, false);
     if ((env->flags & ENV_TXKEY) == 0)
@@ -113,8 +113,8 @@ static int ro_slot_clean(MDBX_txn *txn) {
 
   if (likely((txn->flags & MDBX_TXN_FINISHED) == 0)) {
     if (likely((txn->flags & MDBX_TXN_PARKED) == 0)) {
-      ENSURE(env, txn->txnid >= /* paranoia is appropriate here */ env->lck->cached_oldest_txnid.weak);
-      eASSERT(env, txn->txnid == slot->txnid.weak && slot->txnid.weak >= env->lck->cached_oldest_txnid.weak);
+      ENSURE_OBJ(env, txn->txnid >= /* paranoia is appropriate here */ env->lck->cached_oldest_txnid.weak);
+      eASSERT0(env, txn->txnid == slot->txnid.weak && slot->txnid.weak >= env->lck->cached_oldest_txnid.weak);
     } else {
       txn->flags -= MDBX_TXN_PARKED;
       if (safe64_read(&slot->tid) == MDBX_TID_TXN_OUSTED)
@@ -130,7 +130,7 @@ static int ro_slot_clean(MDBX_txn *txn) {
     safe64_reset(&slot->txnid, true);
     atomic_store32(&env->lck->rdt_refresh_flag, true, mo_Relaxed);
   } else {
-    ENSURE(env, safe64_read(&slot->txnid) >= /* paranoia is appropriate here */ SAFE64_INVALID_THRESHOLD);
+    ENSURE_OBJ(env, safe64_read(&slot->txnid) >= /* paranoia is appropriate here */ SAFE64_INVALID_THRESHOLD);
   }
   return MDBX_SUCCESS;
 }
@@ -152,14 +152,14 @@ static int ro_seize(MDBX_txn *txn) {
       atomic_store64(&slot->snapshot_pages_retired, unaligned_peek_u64_volatile(4, head.ptr_v->pages_retired),
                      mo_Relaxed);
       safe64_write(&slot->txnid, head.txnid);
-      eASSERT(env, ro_slot_pid(slot) == osal_getpid());
-      eASSERT(env, ro_slot_tid(slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
-      eASSERT(env, ro_slot_txnid(slot) == head.txnid || (ro_slot_txnid(slot) >= SAFE64_INVALID_THRESHOLD &&
-                                                         head.txnid < env->lck->cached_oldest_txnid.weak));
+      eASSERT1(env, ro_slot_pid(slot) == osal_getpid());
+      eASSERT1(env, ro_slot_tid(slot) == ((env->flags & MDBX_NOSTICKYTHREADS) ? 0 : osal_thread_self()));
+      eASSERT0(env, ro_slot_txnid(slot) == head.txnid || (ro_slot_txnid(slot) >= SAFE64_INVALID_THRESHOLD &&
+                                                          head.txnid < env->lck->cached_oldest_txnid.weak));
       atomic_store32(&env->lck->rdt_refresh_flag, true, mo_AcquireRelease);
     } else {
       /* exclusive mode without lck */
-      eASSERT(env, !env->lck_mmap.lck && env->lck == lckless_stub(env));
+      eASSERT0(env, !env->lck_mmap.lck && env->lck == lckless_stub(env));
     }
     jitter4testing(true);
 
@@ -227,13 +227,13 @@ int txn_ro_start(MDBX_txn *txn, bool prepare_only) {
     return err;
 
   if (prepare_only) {
-    eASSERT(env, txn->txnid == 0);
-    eASSERT(env, txn->owner == 0);
-    eASSERT(env, txn->n_dbi == 0);
+    eASSERT0(env, txn->txnid == 0);
+    eASSERT0(env, txn->owner == 0);
+    eASSERT0(env, txn->n_dbi == 0);
     reader_slot_t *slot = txn->ro.slot;
     if (likely(slot)) {
-      eASSERT(env, slot->snapshot_pages_used.weak == 0);
-      eASSERT(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
+      eASSERT0(env, slot->snapshot_pages_used.weak == 0);
+      eASSERT0(env, slot->txnid.weak >= SAFE64_INVALID_THRESHOLD);
       atomic_store32(&slot->snapshot_pages_used, 0, mo_Relaxed);
     }
     txn->flags = txn_ro_flat | MDBX_TXN_FINISHED;
@@ -246,8 +246,8 @@ int txn_ro_start(MDBX_txn *txn, bool prepare_only) {
     return err;
   }
 
-  eASSERT(env, pgno2bytes(env, txn->geo.first_unallocated) <= env->dxb_mmap.current);
-  eASSERT(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
+  eASSERT0(env, pgno2bytes(env, txn->geo.first_unallocated) <= env->dxb_mmap.current);
+  eASSERT0(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
 #if defined(_WIN32) || defined(_WIN64)
   const size_t used_bytes = pgno2bytes(env, txn->geo.first_unallocated);
   if (((used_bytes > env->geo_in_bytes.lower && env->geo_in_bytes.shrink) ||
@@ -263,10 +263,10 @@ int txn_ro_start(MDBX_txn *txn, bool prepare_only) {
 #endif /* Windows */
 
   dxb_sanitize_tail(env, txn);
-  ENSURE(env, txn->txnid >=
-                  /* paranoia is appropriate here */ env->lck->cached_oldest_txnid.weak);
-  tASSERT(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
-  tASSERT(txn, check_table_flags(txn->dbs[MAIN_DBI].flags));
+  ENSURE_OBJ(env, txn->txnid >=
+                      /* paranoia is appropriate here */ env->lck->cached_oldest_txnid.weak);
+  cASSERT0(txn, txn->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
+  cASSERT0(txn, check_table_flags(txn->dbs[MAIN_DBI].flags));
   return MDBX_SUCCESS;
 }
 
@@ -275,11 +275,11 @@ int txn_ro_reset(MDBX_txn *txn) {
         txn->flags, __Wpedantic_format_voidptr(txn), __Wpedantic_format_voidptr(txn->env), txn->dbs[MAIN_DBI].root,
         txn->dbs[FREE_DBI].root);
 
-  tASSERT(txn, is_ro_txn(txn));
+  cASSERT0(txn, is_ro_txn(txn));
   if (txn->flags & txn_may_have_cursors)
     txn_done_cursors(txn);
 
-  tASSERT(txn, (txn->flags & txn_may_have_cursors) == 0);
+  cASSERT0(txn, (txn->flags & txn_may_have_cursors) == 0);
   txn->n_dbi = 0; /* prevent further DBI activity */
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -295,21 +295,21 @@ int txn_ro_reset(MDBX_txn *txn) {
 }
 
 void txn_ro_free(MDBX_txn *txn) {
-  tASSERT(txn, is_ro_txn(txn));
+  cASSERT0(txn, is_ro_txn(txn));
   if (txn->ro.slot) {
     txn_ro_reset(txn);
     ro_slot_release(txn);
   }
 
-  tASSERT(txn, (txn->flags & txn_may_have_cursors) == 0);
+  cASSERT0(txn, (txn->flags & txn_may_have_cursors) == 0);
   txn->signature = 0;
   osal_free(txn);
 }
 
 int txn_ro_park(MDBX_txn *txn, bool autounpark) {
   reader_slot_t *const slot = txn->ro.slot;
-  tASSERT(txn, (txn->flags & (MDBX_TXN_FINISHED | txn_ro_flat | MDBX_TXN_PARKED)) == txn_ro_flat);
-  tASSERT(txn, ro_slot_tid(slot) < MDBX_TID_TXN_OUSTED);
+  cASSERT0(txn, (txn->flags & (MDBX_TXN_FINISHED | txn_ro_flat | MDBX_TXN_PARKED)) == txn_ro_flat);
+  cASSERT0(txn, ro_slot_tid(slot) < MDBX_TID_TXN_OUSTED);
   if (unlikely((txn->flags & (MDBX_TXN_FINISHED | txn_ro_flat | MDBX_TXN_PARKED)) != txn_ro_flat))
     return MDBX_BAD_TXN;
 
@@ -414,15 +414,15 @@ int txn_ro_clone(const MDBX_txn *const origin, MDBX_txn *const clone) {
       safe64_write(&clone->ro.slot->txnid, (clone->flags & MDBX_TXN_PARKED) ? MDBX_TID_TXN_PARKED : clone->txnid);
     } else {
       /* exclusive mode without lck */
-      eASSERT(env, !env->lck_mmap.lck && env->lck == lckless_stub(env));
+      eASSERT0(env, !env->lck_mmap.lck && env->lck == lckless_stub(env));
     }
 
     /* Setup db info */
     clone->geo = origin->geo;
     clone->canary = origin->canary;
     memcpy(clone->dbs, origin->dbs, sizeof(clone->dbs[0]) * CORE_DBS);
-    tASSERT(clone, clone->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
-    tASSERT(clone, check_table_flags(clone->dbs[MAIN_DBI].flags));
+    cASSERT0(clone, clone->dbs[FREE_DBI].flags == MDBX_INTEGERKEY);
+    cASSERT0(clone, check_table_flags(clone->dbs[MAIN_DBI].flags));
     VALGRIND_MAKE_MEM_UNDEFINED(clone->dbi_state, env->max_dbi);
 #if MDBX_ENABLE_DBI_SPARSE
     clone->n_dbi = CORE_DBS;

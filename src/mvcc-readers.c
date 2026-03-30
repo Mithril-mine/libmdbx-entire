@@ -4,9 +4,9 @@
 #include "internals.h"
 
 bsr_t mvcc_bind_slot(MDBX_env *env) {
-  eASSERT(env, env->lck_mmap.lck);
-  eASSERT(env, env->lck->magic_and_version == MDBX_LOCK_MAGIC);
-  eASSERT(env, env->lck->os_and_format == MDBX_LOCK_FORMAT);
+  eASSERT0(env, env->lck_mmap.lck);
+  eASSERT0(env, env->lck->magic_and_version == MDBX_LOCK_MAGIC);
+  eASSERT0(env, env->lck->os_and_format == MDBX_LOCK_FORMAT);
 
   bsr_t result = {lck_rdt_lock(env), nullptr};
   if (unlikely(MDBX_IS_ERROR(result.err)))
@@ -65,18 +65,18 @@ bsr_t mvcc_bind_slot(MDBX_env *env) {
   lck_rdt_unlock(env);
 
   if (likely(env->flags & ENV_TXKEY)) {
-    eASSERT(env, env->registered_reader_pid == env->pid);
+    eASSERT0(env, env->registered_reader_pid == env->pid);
     thread_rthc_set(env->me_txkey, result.slot);
   }
   return result;
 }
 
-#define NOTHING_CHANGED_SIGNATURE MDBX_STRING_TETRAD("None")
+#define NOTHING_CHANGED_SIGNATURE MDBX_TETRAD('N', 'o', 'n', 'e')
 
 MDBX_MAYBE_UNUSED __hot orsi_ro_t mvcc_shapshot_oldest_ro(const MDBX_txn *const txn,
                                                           const bool need_thisprocess_oldest) {
   const uint32_t nothing_changed_signature = NOTHING_CHANGED_SIGNATURE;
-  tASSERT(txn, (txn->flags & txn_ro_flat) != 0);
+  cASSERT0(txn, (txn->flags & txn_ro_flat) != 0);
   orsi_ro_t result;
   lck_t *const lck = txn->env->lck;
   result.nreaders = atomic_load32(&lck->rdt_length, mo_AcquireRelease);
@@ -106,14 +106,14 @@ MDBX_MAYBE_UNUSED __hot orsi_ro_t mvcc_shapshot_oldest_ro(const MDBX_txn *const 
 
 __hot orsi_rw_t mvcc_shapshot_oldest_rw(const MDBX_txn *const txn) {
   const uint32_t nothing_changed_signature = NOTHING_CHANGED_SIGNATURE;
-  tASSERT(txn, (txn->flags & txn_ro_flat) == 0);
+  cASSERT0(txn, (txn->flags & txn_ro_flat) == 0);
   lck_t *const lck = txn->env->lck;
   uint64_t oldest_retired_pages = lck->cached_oldest_retired.weak;
   const txnid_t prev_oldest = atomic_load64(&lck->cached_oldest_txnid, mo_AcquireRelease);
   const meta_ptr_t steady = meta_prefer_steady(txn->env, &txn->wr.troika);
   orsi_rw_t result = {.steady_txnid = steady.txnid, .oldest_txnid = prev_oldest};
-  tASSERT(txn, steady.txnid <= txn->env->basal_txn->txnid);
-  tASSERT(txn, steady.txnid >= prev_oldest);
+  cASSERT0(txn, steady.txnid <= txn->env->basal_txn->txnid);
+  cASSERT0(txn, steady.txnid >= prev_oldest);
 
   while (nothing_changed_signature != atomic_load32(&lck->rdt_refresh_flag, mo_AcquireRelease)) {
     lck->rdt_refresh_flag.weak = nothing_changed_signature;
@@ -149,7 +149,7 @@ __hot orsi_rw_t mvcc_shapshot_oldest_rw(const MDBX_txn *const txn) {
       if (reader_txnid < result.oldest_txnid) {
         result.oldest_txnid = reader_txnid;
         oldest_retired_pages = reader_retired;
-        if (!MDBX_DEBUG && !MDBX_FORCE_ASSERTIONS && result.oldest_txnid == prev_oldest)
+        if (MDBX_CHECKING < 1 && result.oldest_txnid == prev_oldest)
           break;
       }
     }
@@ -157,8 +157,8 @@ __hot orsi_rw_t mvcc_shapshot_oldest_rw(const MDBX_txn *const txn) {
 
   if (result.oldest_txnid != prev_oldest) {
     VERBOSE("update oldest %" PRIaTXN " -> %" PRIaTXN, prev_oldest, result.oldest_txnid);
-    tASSERT(txn, result.oldest_txnid >= lck->cached_oldest_txnid.weak);
-    tASSERT(txn, oldest_retired_pages >= lck->cached_oldest_retired.weak);
+    cASSERT0(txn, result.oldest_txnid >= lck->cached_oldest_txnid.weak);
+    cASSERT0(txn, oldest_retired_pages >= lck->cached_oldest_retired.weak);
     atomic_store64(&lck->cached_oldest_txnid, result.oldest_txnid, mo_Relaxed);
     atomic_store64(&lck->cached_oldest_retired, oldest_retired_pages, mo_Relaxed);
     const meta_ptr_t recent = meta_recent(txn->env, &txn->wr.troika);
@@ -256,7 +256,7 @@ __cold int mvcc_cleanup_dead(MDBX_env *env, int rdt_locked, int *dead) {
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-  eASSERT(env, rdt_locked >= 0);
+  eASSERT0(env, rdt_locked >= 0);
   lck_t *const lck = env->lck_mmap.lck;
   if (unlikely(lck == nullptr)) {
     /* exclusive mode */
@@ -366,9 +366,9 @@ __cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler,
   do {
     env->lck->rdt_refresh_flag.weak = /* force refresh */ true;
     orsi = mvcc_shapshot_oldest_rw(txn);
-    eASSERT(env, orsi.oldest_txnid < env->basal_txn->txnid);
-    eASSERT(env, orsi.oldest_txnid >= straggler);
-    eASSERT(env, orsi.oldest_txnid >= env->lck->cached_oldest_txnid.weak);
+    eASSERT0(env, orsi.oldest_txnid < env->basal_txn->txnid);
+    eASSERT0(env, orsi.oldest_txnid >= straggler);
+    eASSERT0(env, orsi.oldest_txnid >= env->lck->cached_oldest_txnid.weak);
 
     lck_t *const lck = env->lck_mmap.lck;
     if (orsi.oldest_txnid == orsi.steady_txnid || orsi.oldest_txnid > straggler || /* without-LCK mode */ !lck)
@@ -411,7 +411,7 @@ __cold bool mvcc_kick_laggards(MDBX_txn *txn, const txnid_t straggler,
             ousted = safe64_reset_compare(&slot->txnid, slot_snap_mvcc);
             NOTICE("ousted-%s parked read-txn %" PRIaTXN ", pid %zu, tid 0x%" PRIx64, ousted ? "complete" : "half",
                    slot_snap_mvcc, (size_t)pid, tid);
-            eASSERT(env, ousted || safe64_read(&slot->txnid) > orsi.oldest_txnid);
+            eASSERT0(env, ousted || safe64_read(&slot->txnid) > orsi.oldest_txnid);
             continue;
           }
           goto retry;

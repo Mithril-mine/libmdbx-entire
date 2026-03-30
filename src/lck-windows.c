@@ -19,8 +19,8 @@
 static int flock_ex(HANDLE fd, HANDLE event, unsigned flags, size_t offset, size_t bytes, unsigned timeout_ms) {
   TRACE("lock>>: fd %p, timeout %u ms, event %p, flags 0x%x offset %zu, bytes %zu >>", fd, timeout_ms, event, flags,
         offset, bytes);
-  assert(timeout_ms == 0 || (event && event != INVALID_HANDLE_VALUE));
-  assert(timeout_ms == 0 || (flags & LCK_DONTWAIT) == 0);
+  ASSERT(timeout_ms == 0 || (event && event != INVALID_HANDLE_VALUE));
+  ASSERT(timeout_ms == 0 || (flags & LCK_DONTWAIT) == 0);
   OVERLAPPED ov;
   ov.Internal = 0;
   ov.InternalHigh = 0;
@@ -99,7 +99,7 @@ int lck_txn_lock(MDBX_env *env, bool dontwait) {
     }
   }
 
-  eASSERT(env, !env->basal_txn || !env->basal_txn->owner);
+  eASSERT0(env, !env->basal_txn || !env->basal_txn->owner);
   if (env->flags & MDBX_EXCLUSIVE)
     goto done;
 
@@ -120,11 +120,11 @@ int lck_txn_lock(MDBX_env *env, bool dontwait) {
 }
 
 void lck_txn_unlock(MDBX_env *env) {
-  eASSERT(env, !env->basal_txn || env->basal_txn->owner == osal_thread_self());
+  eASSERT1(env, !env->basal_txn || env->basal_txn->owner == osal_thread_self());
   if ((env->flags & MDBX_EXCLUSIVE) == 0) {
     int err = funlock(env->ioring.overlapped_fd ? env->ioring.overlapped_fd : env->lazy_fd, DXB_BODY);
     if (err != MDBX_SUCCESS)
-      mdbx_panic("%s failed: err %u", __func__, err);
+      panic_fmt(env, "lck/%s-unlock error %d", "txn", err);
   }
   if (env->basal_txn)
     env->basal_txn->owner = 0;
@@ -180,7 +180,7 @@ void lck_rdt_unlock(MDBX_env *env) {
     /* transition from S-E (locked) to S-? (used), e.g. unlock upper-part */
     int err = funlock(env->lck_mmap.fd, LCK_UPPER);
     if (err != MDBX_SUCCESS)
-      mdbx_panic("%s failed: err %u", __func__, err);
+      panic_fmt(env, "lck/%s-unlock error %d", "rdt", err);
   }
   LeaveCriticalSection(&env->lck_event_cs);
   imports.srwl_ReleaseShared(&env->remap_lock);
@@ -223,7 +223,7 @@ static int suspend_and_append(mdbx_handle_array_t **array, const DWORD ThreadId)
 }
 
 int osal_suspend_threads_before_remap(MDBX_env *env, mdbx_handle_array_t **array) {
-  eASSERT(env, (env->flags & MDBX_NOSTICKYTHREADS) == 0);
+  eASSERT0(env, (env->flags & MDBX_NOSTICKYTHREADS) == 0);
   const uintptr_t CurrentTid = GetCurrentThreadId();
   int rc;
   if (env->lck_mmap.lck) {
@@ -254,7 +254,7 @@ int osal_suspend_threads_before_remap(MDBX_env *env, mdbx_handle_array_t **array
   } else {
     /* Without LCK (i.e. read-only mode).
      * Walk through a snapshot of all running threads */
-    eASSERT(env, env->flags & (MDBX_EXCLUSIVE | MDBX_RDONLY));
+    eASSERT0(env, env->flags & (MDBX_EXCLUSIVE | MDBX_RDONLY));
     const HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (hSnapshot == INVALID_HANDLE_VALUE)
       return (int)GetLastError();
@@ -348,13 +348,13 @@ static void lck_unlock(MDBX_env *env) {
     do
       err = funlock(env->lck_mmap.fd, LCK_LOWER);
     while (err == MDBX_SUCCESS);
-    assert(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
+    ASSERT(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
     SetLastError(ERROR_SUCCESS);
 
     do
       err = funlock(env->lck_mmap.fd, LCK_UPPER);
     while (err == MDBX_SUCCESS);
-    assert(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
+    ASSERT(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
     SetLastError(ERROR_SUCCESS);
   }
 
@@ -365,13 +365,13 @@ static void lck_unlock(MDBX_env *env) {
     do
       err = funlock(fd4data, DXB_BODY);
     while (err == MDBX_SUCCESS);
-    assert(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
+    ASSERT(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
     SetLastError(ERROR_SUCCESS);
 
     do
       err = funlock(fd4data, DXB_WHOLE);
     while (err == MDBX_SUCCESS);
-    assert(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
+    ASSERT(err == ERROR_NOT_LOCKED || (globals.running_under_Wine && err == ERROR_LOCK_VIOLATION));
     SetLastError(ERROR_SUCCESS);
   }
 }
@@ -383,7 +383,7 @@ static void lck_unlock(MDBX_env *env) {
  * or as 'used' (S-? and returns MDBX_RESULT_FALSE).
  * Otherwise returns an error. */
 static int internal_seize_lck(MDBX_env *env) {
-  assert(env->lck_mmap.fd != INVALID_HANDLE_VALUE);
+  ASSERT(env->lck_mmap.fd != INVALID_HANDLE_VALUE);
 
   /* 1) now on ?-? (free), get ?-E (middle) */
   jitter4testing(false);
@@ -406,7 +406,7 @@ static int internal_seize_lck(MDBX_env *env) {
     /* 6) something went wrong, give up */
     rc = funlock(env->lck_mmap.fd, LCK_UPPER);
     if (rc != MDBX_SUCCESS)
-      mdbx_panic("%s(%s) failed: err %u", __func__, "?-E(middle) >> ?-?(free)", rc);
+      panic_fmt(env, "lck/%s-unlock error %u", "?-E(middle) >> ?-?(free)", rc);
     return rc;
   }
 
@@ -422,7 +422,7 @@ static int internal_seize_lck(MDBX_env *env) {
    *    transition to S-? (used) or ?-? (free) */
   int err = funlock(env->lck_mmap.fd, LCK_UPPER);
   if (err != MDBX_SUCCESS)
-    mdbx_panic("%s(%s) failed: err %u", __func__, "X-E(locked/middle) >> X-?(used/free)", err);
+    panic_fmt(env, "lck/%s-unlock error %u", "X-E(locked/middle) >> X-?(used/free)", err);
 
   /* 9) now on S-? (used, DONE) or ?-? (free, FAILURE) */
   return rc;
@@ -462,7 +462,7 @@ int lck_seize(MDBX_env *env) {
     jitter4testing(false);
     err = funlock(env->ioring.overlapped_fd ? env->ioring.overlapped_fd : env->lazy_fd, DXB_WHOLE);
     if (err != MDBX_SUCCESS)
-      mdbx_panic("%s(%s) failed: err %u", __func__, "unlock-against-without-lck", err);
+      panic_fmt(env, "dxb/%s-unlock error %u", "lock-against-without-lck", err);
   }
 
   return rc;
@@ -470,7 +470,7 @@ int lck_seize(MDBX_env *env) {
 
 int lck_downgrade(MDBX_env *env) {
   /* Transite from exclusive-write state (E-E) to used (S-?) */
-  assert(env->lck_mmap.fd != INVALID_HANDLE_VALUE);
+  ASSERT(env->lck_mmap.fd != INVALID_HANDLE_VALUE);
 
   if (env->flags & MDBX_EXCLUSIVE)
     return MDBX_SUCCESS /* nope since files were must be opened non-shareable */
@@ -478,7 +478,7 @@ int lck_downgrade(MDBX_env *env) {
   /* 1) now at E-E (exclusive-write), transition to ?_E (middle) */
   int rc = funlock(env->lck_mmap.fd, LCK_LOWER);
   if (rc != MDBX_SUCCESS)
-    mdbx_panic("%s(%s) failed: err %u", __func__, "E-E(exclusive-write) >> ?-E(middle)", rc);
+    panic_fmt(env, "lck/%s-unlock error %u", "E-E(exclusive-write) >> ?-E(middle)", rc);
 
   /* 2) now at ?-E (middle), transition to S-E (locked) */
   rc = flock_lck(env, LCK_SHARED, LCK_LOWER, TIMEOUT_LONG_MS);
@@ -491,14 +491,14 @@ int lck_downgrade(MDBX_env *env) {
   /* 4) got S-E (locked), continue transition to S-? (used) */
   rc = funlock(env->lck_mmap.fd, LCK_UPPER);
   if (rc != MDBX_SUCCESS)
-    mdbx_panic("%s(%s) failed: err %u", __func__, "S-E(locked) >> S-?(used)", rc);
+    panic_fmt(env, "lck/%s-unlock error %u", "S-E(locked) >> S-?(used)", rc);
 
   return MDBX_SUCCESS /* 5) now at S-? (used), done */;
 }
 
 int lck_upgrade(MDBX_env *env, bool dont_wait) {
   /* Transite from used state (S-?) to exclusive-write (E-E) */
-  assert(env->lck_mmap.fd != INVALID_HANDLE_VALUE);
+  ASSERT(env->lck_mmap.fd != INVALID_HANDLE_VALUE);
 
   if (env->flags & MDBX_EXCLUSIVE)
     return MDBX_SUCCESS /* nope since files were must be opened non-shareable */
@@ -516,7 +516,7 @@ int lck_upgrade(MDBX_env *env, bool dont_wait) {
   /* 3) now on S-E (locked), transition to ?-E (middle) */
   rc = funlock(env->lck_mmap.fd, LCK_LOWER);
   if (rc != MDBX_SUCCESS)
-    mdbx_panic("%s(%s) failed: err %u", __func__, "S-E(locked) >> ?-E(middle)", rc);
+    panic_fmt(env, "lck/%s-unlock error %u", "S-E(locked) >> ?-E(middle)", rc);
 
   /* 4) now on ?-E (middle), try E-E (exclusive-write) */
   jitter4testing(false);

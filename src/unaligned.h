@@ -54,7 +54,7 @@ MDBX_MAYBE_UNUSED static inline void *bcopy_8(void *const __restrict dst, const 
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline uint16_t unaligned_peek_u16(const size_t expected_alignment,
                                                                                        const void *const ptr) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
   if (MDBX_UNALIGNED_OK >= 2 || (expected_alignment % sizeof(uint16_t)) == 0)
     return *(const uint16_t *)ptr;
   else {
@@ -70,7 +70,7 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline uint16_t unaligned_pe
 
 MDBX_MAYBE_UNUSED static inline void unaligned_poke_u16(const size_t expected_alignment, void *const __restrict ptr,
                                                         const uint16_t v) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
   if (MDBX_UNALIGNED_OK >= 2 || (expected_alignment % sizeof(v)) == 0)
     *(uint16_t *)ptr = v;
   else {
@@ -84,7 +84,7 @@ MDBX_MAYBE_UNUSED static inline void unaligned_poke_u16(const size_t expected_al
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline uint32_t
 unaligned_peek_u32(const size_t expected_alignment, const void *const __restrict ptr) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
   if (MDBX_UNALIGNED_OK >= 4 || (expected_alignment % sizeof(uint32_t)) == 0)
     return *(const uint32_t *)ptr;
   else if ((expected_alignment % sizeof(uint16_t)) == 0) {
@@ -104,7 +104,7 @@ unaligned_peek_u32(const size_t expected_alignment, const void *const __restrict
 
 MDBX_MAYBE_UNUSED static inline void unaligned_poke_u32(const size_t expected_alignment, void *const __restrict ptr,
                                                         const uint32_t v) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
   if (MDBX_UNALIGNED_OK >= 4 || (expected_alignment % sizeof(v)) == 0)
     *(uint32_t *)ptr = v;
   else if ((expected_alignment % sizeof(uint16_t)) == 0) {
@@ -121,7 +121,7 @@ MDBX_MAYBE_UNUSED static inline void unaligned_poke_u32(const size_t expected_al
 
 MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline uint64_t
 unaligned_peek_u64(const size_t expected_alignment, const void *const __restrict ptr) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
   if (MDBX_UNALIGNED_OK >= 8 || (expected_alignment % sizeof(uint64_t)) == 0)
     return *(const uint64_t *)ptr;
   else if ((expected_alignment % sizeof(uint32_t)) == 0) {
@@ -141,8 +141,8 @@ unaligned_peek_u64(const size_t expected_alignment, const void *const __restrict
 
 MDBX_MAYBE_UNUSED static inline uint64_t unaligned_peek_u64_volatile(const size_t expected_alignment,
                                                                      const volatile void *const __restrict ptr) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
-  assert(expected_alignment % sizeof(uint32_t) == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT(expected_alignment % sizeof(uint32_t) == 0);
   if (MDBX_UNALIGNED_OK >= 8 || (expected_alignment % sizeof(uint64_t)) == 0)
     return *(const volatile uint64_t *)ptr;
   else {
@@ -158,7 +158,7 @@ MDBX_MAYBE_UNUSED static inline uint64_t unaligned_peek_u64_volatile(const size_
 
 MDBX_MAYBE_UNUSED static inline void unaligned_poke_u64(const size_t expected_alignment, void *const __restrict ptr,
                                                         const uint64_t v) {
-  assert((uintptr_t)ptr % expected_alignment == 0);
+  ASSERT((uintptr_t)ptr % expected_alignment == 0);
   if (MDBX_UNALIGNED_OK >= 8 || (expected_alignment % sizeof(v)) == 0)
     *(uint64_t *)ptr = v;
   else if ((expected_alignment % sizeof(uint32_t)) == 0) {

@@ -227,7 +227,8 @@
 #error MDBX_ENVCOPY_WRITEBUF must be defined in range 65536..1073741824 and be multiple of 65536
 #endif /* MDBX_ENVCOPY_WRITEBUF */
 
-/** Forces assertion checking. */
+/** Forces assertion checking corresponding to define \ref MDBX_CHECKING as 2.
+ * \deprecated Please use \ref MDBX_CHECKING instead. */
 #ifndef MDBX_FORCE_ASSERTIONS
 #define MDBX_FORCE_ASSERTIONS 0
 #elif !(MDBX_FORCE_ASSERTIONS == 0 || MDBX_FORCE_ASSERTIONS == 1)
@@ -569,45 +570,72 @@
 #ifndef MDBX_BUILD_METADATA
 #define MDBX_BUILD_METADATA ""
 #endif /* MDBX_BUILD_METADATA */
-/** @} end of build options */
-/*******************************************************************************
- *******************************************************************************
- ******************************************************************************/
 
-#ifndef DOXYGEN
-
-/* In case the MDBX_DEBUG is undefined set it corresponding to NDEBUG */
-#ifndef MDBX_DEBUG
-#ifdef NDEBUG
-#define MDBX_DEBUG 0
-#else
-#define MDBX_DEBUG 1
-#endif
-#endif
-#if MDBX_DEBUG < 0 || MDBX_DEBUG > 2
-#error "The MDBX_DEBUG must be defined to 0, 1 or 2"
-#endif /* MDBX_DEBUG */
-
-#else
-
+#ifdef DOXYGEN
 /* !!! Actually this is a fake definitions for Doxygen !!! */
 
-/** Controls enabling of debugging features.
+/** Controls enabling of debugging features,
+ * Mostly controls logging but also assertion checking via defining default value of `MDBX_CHECKING` option.
  *
- *  - `MDBX_DEBUG = 0` (by default) Disables any debugging features at all,
+ *  - `MDBX_DEBUG = 0` (by default) Disables any debugging features,
  *                     including logging and assertion controls.
  *                     Logging level and corresponding debug flags changing
- *                     by \ref mdbx_setup_debug() will not have effect.
+ *                     by \ref mdbx_setup_debug() has no effect.
  *  - `MDBX_DEBUG > 0` Enables code for the debugging features (logging,
  *                     assertions checking and internal audit).
  *                     Simultaneously sets the default logging level
  *                     to the `MDBX_DEBUG` value.
- *                     Also enables \ref MDBX_DBG_AUDIT if `MDBX_DEBUG >= 2`.
+ *                     Also enables \ref MDBX_DBG_AUDIT if `MDBX_DEBUG >= 3`.
+ * - `MDBX_DEBUG < 0`  Disables logging and error reporting at all, including any critical cases.
  *
  * \ingroup build_option */
-#define MDBX_DEBUG 0...2
+#define MDBX_DEBUG 0...3
+
+/** Controls enabling of all kind of assertion-like checks.
+ * By default `MDBX_CHECKING` defined same as `MDBX_DEBUG`, but can be overridden just by a definition.
+ *
+ *  - `MDBX_CHECKING = 0` Disables all assertion-like checks except those enforced using ENSURE() macros.
+ *                        Debug flags \ref MDBX_DBG_ASSERT and \ref MDBX_DBG_AUDIT changing
+ *                        by \ref mdbx_setup_debug() has no effect.
+ *  - `MDBX_CHECKING = 1` Enables lite-costs checks by `CHECK0()` and `ASSERT()` macros, which are then always active in
+ * code and NOT controlled by the \ref MDBX_DBG_ASSERT flag, since the cost of such control is comparable to a checks
+ * itself. Debug flags \ref MDBX_DBG_ASSERT and \ref MDBX_DBG_AUDIT changing by \ref mdbx_setup_debug() has no effect.
+ *  - `MDBX_CHECKING = 2` Additionally to `MDBX_CHECKING=1` enables medium-costs checks by `CHECK1()`,
+ *                        which are then could be activated either disabled by the \ref MDBX_DBG_ASSERT flag.
+ *  - `MDBX_CHECKING = 3` Additionally to `MDBX_CHECKING=2` enables high-costs checks by `CHECK2()`,
+ *                        which are then could be activated either disabled by the \ref MDBX_DBG_ASSERT flag.
+ *  - `MDBX_CHECKING < 0` Explicitly disables all checks, including `ENSURE()` macros.
+ *                        Debug flags \ref MDBX_DBG_ASSERT and \ref MDBX_DBG_AUDIT changing
+ *                        by \ref mdbx_setup_debug() has no effect.
+ *
+ * \ingroup build_option */
+#define MDBX_CHECKING -1...3
 
 /** Disables using of GNU libc extensions. */
 #define MDBX_DISABLE_GNU_SOURCE 0 or 1
+
+/** @} end of build options */
+/********************************************************************************/
+#else /* DOXYGEN */
+
+#ifndef MDBX_DEBUG
+#define MDBX_DEBUG 0
+#elif MDBX_DEBUG < -1 || MDBX_DEBUG > 3
+#error "The MDBX_DEBUG must be defined to -1, 0, 1, 2 or 3"
+#endif /* MDBX_DEBUG */
+
+#ifndef MDBX_CHECKING
+#if MDBX_FORCE_ASSERTIONS && MDBX_DEBUG < 2
+#define MDBX_CHECKING 2
+#else
+#define MDBX_CHECKING MDBX_DEBUG
+#endif
+#elif MDBX_CHECKING < -1 || MDBX_DEBUG > 3
+#error "The MDBX_CHECKING must be defined to -1, 0, 1, 2 or 3"
+#endif /* MDBX_CHECKING */
+
+#if MDBX_FORCE_ASSERTIONS && MDBX_CHECKING < 2
+#error "Please use one of MDBX_CHECKING either MDBX_FORCE_ASSERTIONS build options, but not both"
+#endif
 
 #endif /* DOXYGEN */

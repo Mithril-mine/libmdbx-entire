@@ -196,103 +196,26 @@ __extern_C void __assert(const char *function, const char *file, int line, const
 
 #endif /* __assert_fail */
 
-__cold void mdbx_assert_fail(const MDBX_env *env, const char *msg, const char *func, unsigned line) {
-#if MDBX_DEBUG
-  if (env && env->assert_func)
-    env->assert_func(env, msg, func, line);
-#else
-  (void)env;
-  assert_fail(msg, func, line);
-}
-
-__cold void assert_fail(const char *msg, const char *func, unsigned line) {
-#endif /* MDBX_DEBUG */
-
-  if (globals.logger.ptr)
-    debug_log(MDBX_LOG_FATAL, func, line, "assert: %s\n", msg);
-  else {
-#if defined(_WIN32) || defined(_WIN64)
-    char *message = nullptr;
-    const int num = osal_asprintf(&message, "\r\nMDBX-ASSERTION: %s, %s:%u", msg, func ? func : "unknown", line);
-    if (num < 1 || !message)
-      message = "<troubles with assertion-message preparation>";
-    OutputDebugStringA(message);
-#else
-    __assert_fail(msg, "mdbx", line, func);
-#endif
-  }
-
+__cold void osal_panic(const char *msg, const char *func, unsigned line) {
   while (1) {
 #if defined(_WIN32) || defined(_WIN64)
 #if defined(_DEBUG) && !MDBX_WITHOUT_MSVC_CRT
-    if (_CrtDbgReport(_CRT_ASSERT, func ? func : "unknown", line, "libmdbx", "assertion failed: %s", msg) == 0)
-      return /* user chooses the "Continue" button */;
-    else {
-      /* user chooses the "Retry" button */
-      if (IsDebuggerPresent())
-        DebugBreak();
-    }
+    _CrtDbgReport(_CRT_ASSERT, func, line, "libmdbx", "assertion failed: %s", msg);
 #else
+    char *message = nullptr;
+    const int num = osal_asprintf(&message, "\r\nMDBX-ASSERTION: %s, %s:%u\r\n", msg, func, line);
+    if (num < 1 || !message)
+      message = "\r\n<asprintf() failed>\r\n";
+    OutputDebugStringA(message);
+#endif
     if (IsDebuggerPresent())
       DebugBreak();
     FatalExit(STATUS_ASSERTION_FAILURE);
-#endif
 #else
+    __assert_fail(msg, "libmdbx", line, func);
     abort();
 #endif
   }
-}
-
-MDBX_NORETURN __cold static void panic_va_list(const void *ptr, const char *fmt, va_list ap) {
-  char *message = nullptr;
-  const int num = osal_vasprintf(&message, fmt, ap);
-  const char *const const_message =
-      unlikely(num < 1 || !message) ? "<troubles with panic-message preparation>" : message;
-
-  if (ptr) {
-    /* TODO:
-     * - check ptr is valid and readable;
-     * - check signature to determine a type of the object (cursor, txn, env);
-     * - try to dump useful information if debugger or logger is attached.
-     */
-  }
-
-  const char *const nl = (num > 0 && const_message[num - 1] == '\n') ? "" : "\n";
-  if (globals.logger.ptr)
-    debug_log(MDBX_LOG_FATAL, "mdbx-panic", 0, "%s%s", const_message, nl);
-
-  while (1) {
-#if defined(_WIN32) || defined(_WIN64)
-#if defined(_DEBUG) && !MDBX_WITHOUT_MSVC_CRT
-    _CrtDbgReport(_CRT_ASSERT, "mdbx.c", 0, "libmdbx", "panic: %s", const_message);
-#else
-    OutputDebugStringA("\r\nMDBX-PANIC: ");
-    OutputDebugStringA(const_message);
-    if (*nl)
-      OutputDebugStringA("\r\n");
-#endif
-    if (IsDebuggerPresent())
-      DebugBreak();
-    FatalExit(ERROR_UNHANDLED_EXCEPTION);
-#else
-    __assert_fail(const_message, "mdbx-panic", 0, const_message);
-    abort();
-#endif
-  }
-}
-
-__cold void mdbx_panic(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  panic_va_list(nullptr, fmt, ap);
-  va_end(ap);
-}
-
-__cold void mdbx_panic_ex(const void *ptr, const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  panic_va_list(ptr, fmt, ap);
-  va_end(ap);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -320,7 +243,7 @@ int osal_vasprintf(char **strp, const char *fmt, va_list ap) {
   }
 
   const int actual = vsnprintf(*strp, needed + (size_t)1, fmt, ap);
-  assert(actual == needed);
+  ASSERT(actual == needed);
   if (unlikely(actual < 0)) {
     osal_free(*strp);
     *strp = nullptr;
@@ -341,7 +264,7 @@ int osal_asprintf(char **strp, const char *fmt, ...) {
 
 #ifndef osal_memalign_alloc
 int osal_memalign_alloc(size_t alignment, size_t bytes, void **result) {
-  assert(is_powerof2(alignment) && alignment >= sizeof(void *));
+  ASSERT(is_powerof2(alignment) && alignment >= sizeof(void *));
 #if defined(_WIN32) || defined(_WIN64)
   (void)alignment;
   *result = VirtualAlloc(nullptr, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
@@ -483,7 +406,7 @@ int osal_fastmutex_init(osal_fastmutex_t *fastmutex) {
 #if defined(_WIN32) || defined(_WIN64)
   InitializeCriticalSection(fastmutex);
   return MDBX_SUCCESS;
-#elif MDBX_DEBUG
+#elif MDBX_CHECKING > 1
   pthread_mutexattr_t ma;
   int rc = pthread_mutexattr_init(&ma);
   if (likely(!rc)) {
@@ -570,17 +493,17 @@ bailout:
 #define OSAL_IOV_MAX (4096 / sizeof(ior_sgv_element))
 
 static void ior_put_event(osal_ioring_t *ior, HANDLE event) {
-  assert(event && event != INVALID_HANDLE_VALUE && event != ior);
-  assert(ior->event_stack < ior->allocated);
+  ASSERT(event && event != INVALID_HANDLE_VALUE && event != ior);
+  ASSERT(ior->event_stack < ior->allocated);
   ior->event_pool[ior->event_stack] = event;
   ior->event_stack += 1;
 }
 
 static HANDLE ior_get_event(osal_ioring_t *ior) {
-  assert(ior->event_stack <= ior->allocated);
+  ASSERT(ior->event_stack <= ior->allocated);
   if (ior->event_stack > 0) {
     ior->event_stack -= 1;
-    assert(ior->event_pool[ior->event_stack] != 0);
+    ASSERT(ior->event_pool[ior->event_stack] != 0);
     return ior->event_pool[ior->event_stack];
   }
   return CreateEventW(nullptr, true, false, nullptr);
@@ -624,7 +547,7 @@ int osal_ioring_create(osal_ioring_t *ior
 #endif /* !Windows */
 
 #if MDBX_HAVE_PWRITEV && defined(_SC_IOV_MAX)
-  assert(osal_iov_max > 0);
+  ASSERT(osal_iov_max > 0);
 #endif /* MDBX_HAVE_PWRITEV && _SC_IOV_MAX */
 
   ior->boundary = ptr_disp(ior->pool, ior->allocated);
@@ -642,19 +565,19 @@ static inline size_t ior_offset(const ior_item_t *item) {
 
 static inline ior_item_t *ior_next(ior_item_t *item, size_t sgvcnt) {
 #if defined(ior_sgv_element)
-  assert(sgvcnt > 0);
+  ASSERT(sgvcnt > 0);
   return (ior_item_t *)ptr_disp(item, sizeof(ior_item_t) - sizeof(ior_sgv_element) + sizeof(ior_sgv_element) * sgvcnt);
 #else
-  assert(sgvcnt == 1);
+  ASSERT(sgvcnt == 1);
   (void)sgvcnt;
   return item + 1;
 #endif
 }
 
 int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const size_t bytes) {
-  assert(bytes && data);
-  assert(bytes % MDBX_MIN_PAGESIZE == 0 && bytes <= MAX_WRITE);
-  assert(offset % MDBX_MIN_PAGESIZE == 0 && offset + (uint64_t)bytes <= MAX_MAPSIZE);
+  ASSERT(bytes && data);
+  ASSERT(bytes % MDBX_MIN_PAGESIZE == 0 && bytes <= MAX_WRITE);
+  ASSERT(offset % MDBX_MIN_PAGESIZE == 0 && offset + (uint64_t)bytes <= MAX_MAPSIZE);
 
 #if defined(_WIN32) || defined(_WIN64)
   const unsigned segments = (unsigned)(bytes >> ior->pagesize_ln2);
@@ -671,9 +594,9 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
           ((bytes | (uintptr_t)data | ior->last_bytes | (uintptr_t)(uint64_t)item->sgv[0].Buffer) &
            ior_alignment_mask) == 0 &&
           ior->last_sgvcnt + (size_t)segments < OSAL_IOV_MAX) {
-        assert(ior->overlapped_fd);
-        assert((item->single.iov_len & ior_WriteFile_flag) == 0);
-        assert(item->sgv[ior->last_sgvcnt].Buffer == 0);
+        ASSERT(ior->overlapped_fd);
+        ASSERT((item->single.iov_len & ior_WriteFile_flag) == 0);
+        ASSERT(item->sgv[ior->last_sgvcnt].Buffer == 0);
         ior->last_bytes += bytes;
         size_t i = 0;
         do {
@@ -682,17 +605,17 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
         } while (++i < segments);
         ior->slots_left -= segments;
         item->sgv[ior->last_sgvcnt += segments].Buffer = 0;
-        assert((item->single.iov_len & ior_WriteFile_flag) == 0);
+        ASSERT((item->single.iov_len & ior_WriteFile_flag) == 0);
         return MDBX_SUCCESS;
       }
       const void *end = ptr_disp(item->single.iov_base, item->single.iov_len - ior_WriteFile_flag);
       if (unlikely(end == data)) {
-        assert((item->single.iov_len & ior_WriteFile_flag) != 0);
+        ASSERT((item->single.iov_len & ior_WriteFile_flag) != 0);
         item->single.iov_len += bytes;
         return MDBX_SUCCESS;
       }
 #elif MDBX_HAVE_PWRITEV
-      assert((int)item->sgvcnt > 0);
+      ASSERT((int)item->sgvcnt > 0);
       const void *end = ptr_disp(item->sgv[item->sgvcnt - 1].iov_base, item->sgv[item->sgvcnt - 1].iov_len);
       if (unlikely(end == data)) {
         item->sgv[item->sgvcnt - 1].iov_len += bytes;
@@ -733,17 +656,17 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
     /* WriteFile() */
     item->single.iov_base = data;
     item->single.iov_len = bytes + ior_WriteFile_flag;
-    assert((item->single.iov_len & ior_WriteFile_flag) != 0);
+    ASSERT((item->single.iov_len & ior_WriteFile_flag) != 0);
   } else {
     /* WriteFileGather() */
-    assert(ior->overlapped_fd);
+    ASSERT(ior->overlapped_fd);
     item->sgv[0].Buffer = PtrToPtr64(data);
     for (size_t i = 1; i < segments; ++i) {
       data = ptr_disp(data, ior->pagesize);
       item->sgv[i].Buffer = PtrToPtr64(data);
     }
     item->sgv[slots_used = segments].Buffer = 0;
-    assert((item->single.iov_len & ior_WriteFile_flag) == 0);
+    ASSERT((item->single.iov_len & ior_WriteFile_flag) == 0);
   }
   ior->last_bytes = bytes;
   ior_last_sgvcnt(ior, item) = slots_used;
@@ -787,10 +710,10 @@ void osal_ioring_walk(osal_ioring_t *ior, iov_ctx_t *ctx,
         ++i;
       }
     }
-    assert(bytes < MAX_WRITE);
+    ASSERT(bytes < MAX_WRITE);
     callback(ctx, offset, data, bytes);
 #elif MDBX_HAVE_PWRITEV
-    assert(item->sgvcnt > 0);
+    ASSERT(item->sgvcnt > 0);
     size_t offset = item->offset;
     size_t i = 0;
     do {
@@ -818,7 +741,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
     size_t i = 1, bytes = item->single.iov_len - ior_WriteFile_flag;
     r.wops += 1;
     if (bytes & ior_WriteFile_flag) {
-      assert(ior->overlapped_fd && fd == ior->overlapped_fd);
+      ASSERT(ior->overlapped_fd && fd == ior->overlapped_fd);
       bytes = ior->pagesize;
       /* Zap: Reading invalid data from 'item->sgv' */
       MDBX_SUPPRESS_GOOFY_MSVC_ANALYZER(6385);
@@ -826,18 +749,18 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
         bytes += ior->pagesize;
         ++i;
       }
-      assert(bytes < MAX_WRITE);
+      ASSERT(bytes < MAX_WRITE);
       item->ov.hEvent = ior_get_event(ior);
       if (unlikely(!item->ov.hEvent)) {
       bailout_geterr:
         r.err = GetLastError();
       bailout_rc:
-        assert(r.err != MDBX_SUCCESS);
+        ASSERT(r.err != MDBX_SUCCESS);
         CancelIo(fd);
         return r;
       }
       if (WriteFileGather(fd, item->sgv, (DWORD)bytes, nullptr, &item->ov)) {
-        assert(item->ov.Internal == 0 && WaitForSingleObject(item->ov.hEvent, 0) == WAIT_OBJECT_0);
+        ASSERT(item->ov.Internal == 0 && WaitForSingleObject(item->ov.hEvent, 0) == WAIT_OBJECT_0);
         ior_put_event(ior, item->ov.hEvent);
         item->ov.hEvent = 0;
       } else {
@@ -850,11 +773,11 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
                 bytes, item->ov.Offset + ((uint64_t)item->ov.OffsetHigh << 32), r.err);
           goto bailout_rc;
         }
-        assert(wait_for > ior->event_pool + ior->event_stack);
+        ASSERT(wait_for > ior->event_pool + ior->event_stack);
         *--wait_for = item->ov.hEvent;
       }
     } else if (fd == ior->overlapped_fd) {
-      assert(bytes < MAX_WRITE);
+      ASSERT(bytes < MAX_WRITE);
     retry:
       item->ov.hEvent = ior;
       if (WriteFileEx(fd, item->single.iov_base, (DWORD)bytes, &item->ov, ior_wocr)) {
@@ -889,7 +812,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
         }
       }
     } else {
-      assert(bytes < MAX_WRITE);
+      ASSERT(bytes < MAX_WRITE);
       DWORD written = 0;
       if (!WriteFile(fd, item->single.iov_base, (DWORD)bytes, &written, &item->ov)) {
         r.err = (int)GetLastError();
@@ -907,10 +830,10 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
     item = ior_next(item, i);
   }
 
-  assert(ior->async_waiting > ior->async_completed && ior->async_waiting == INT_MAX);
+  ASSERT(ior->async_waiting > ior->async_completed && ior->async_waiting == INT_MAX);
   ior->async_waiting = async_started;
   if (async_started > ior->async_completed && end_wait_for == wait_for) {
-    assert(wait_for > ior->event_pool + ior->event_stack);
+    ASSERT(wait_for > ior->event_pool + ior->event_stack);
     *--wait_for = ior->async_done;
   }
 
@@ -943,7 +866,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
       goto bailout_rc;
     }
 
-    assert(ior->async_waiting == ior->async_completed);
+    ASSERT(ior->async_waiting == ior->async_completed);
     for (ior_item_t *item = ior->pool; item <= ior->last;) {
       size_t i = 1, bytes = item->single.iov_len - ior_WriteFile_flag;
       void *data = item->single.iov_base;
@@ -966,13 +889,13 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
                   (int)GetLastError());
             goto bailout_geterr;
           }
-          assert(MDBX_SUCCESS == item->ov.Internal);
-          assert(written == item->ov.InternalHigh);
+          ASSERT(MDBX_SUCCESS == item->ov.Internal);
+          ASSERT(written == item->ov.InternalHigh);
         }
       } else {
-        assert(HasOverlappedIoCompleted(&item->ov));
+        ASSERT(HasOverlappedIoCompleted(&item->ov));
       }
-      assert(item->ov.Internal != ERROR_IO_PENDING);
+      ASSERT(item->ov.Internal != ERROR_IO_PENDING);
       if (unlikely(item->ov.Internal != MDBX_SUCCESS)) {
         DWORD written = 0;
         r.err = (int)item->ov.Internal;
@@ -990,17 +913,17 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
       }
       item = ior_next(item, i);
     }
-    assert(ior->async_waiting == ior->async_completed);
+    ASSERT(ior->async_waiting == ior->async_completed);
   } else {
-    assert(r.err == MDBX_SUCCESS);
+    ASSERT(r.err == MDBX_SUCCESS);
   }
-  assert(ior->async_waiting == ior->async_completed);
+  ASSERT(ior->async_waiting == ior->async_completed);
 
 #else
   STATIC_ASSERT_MSG(sizeof(off_t) >= sizeof(size_t), "libmdbx requires 64-bit file I/O on 64-bit systems");
   for (ior_item_t *item = ior->pool; item <= ior->last;) {
 #if MDBX_HAVE_PWRITEV
-    assert(item->sgvcnt > 0);
+    ASSERT(item->sgvcnt > 0);
     if (item->sgvcnt == 1)
       r.err = osal_pwrite(fd, item->sgv[0].iov_base, item->sgv[0].iov_len, item->offset);
     else
@@ -1031,7 +954,7 @@ void osal_ioring_reset(osal_ioring_t *ior) {
   if (ior->last) {
     for (ior_item_t *item = ior->pool; item <= ior->last;) {
       if (!HasOverlappedIoCompleted(&item->ov)) {
-        assert(ior->overlapped_fd);
+        ASSERT(ior->overlapped_fd);
         CancelIoEx(ior->overlapped_fd, &item->ov);
       }
       if (item->ov.hEvent && item->ov.hEvent != ior)
@@ -1069,7 +992,7 @@ static void ior_cleanup(osal_ioring_t *ior, const size_t since) {
 }
 
 int osal_ioring_resize(osal_ioring_t *ior, size_t items) {
-  assert(items > 0 && items < INT_MAX / sizeof(ior_item_t));
+  ASSERT(items > 0 && items < INT_MAX / sizeof(ior_item_t));
 #if defined(_WIN32) || defined(_WIN64)
   if (ior->state & IOR_STATE_LOCKED)
     return MDBX_SUCCESS;
@@ -1081,7 +1004,7 @@ int osal_ioring_resize(osal_ioring_t *ior, size_t items) {
 #endif /* Windows */
 
   if (items != ior->allocated) {
-    assert(items >= osal_ioring_used(ior));
+    ASSERT(items >= osal_ioring_used(ior));
     if (items < ior->allocated)
       ior_cleanup(ior, items);
 #if defined(_WIN32) || defined(_WIN64)
@@ -1359,17 +1282,17 @@ int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env,
 #if STDIN_FILENO == 0 && STDOUT_FILENO == 1 && STDERR_FILENO == 2
   if (*fd == STDIN_FILENO) {
     WARNING("Got STD%s_FILENO/%d, avoid using it by dup(fd)", "IN", STDIN_FILENO);
-    assert(stub_fd0 == -1);
+    ASSERT(stub_fd0 == -1);
     *fd = dup(stub_fd0 = *fd);
   }
   if (*fd == STDOUT_FILENO) {
     WARNING("Got STD%s_FILENO/%d, avoid using it by dup(fd)", "OUT", STDOUT_FILENO);
-    assert(stub_fd1 == -1);
+    ASSERT(stub_fd1 == -1);
     *fd = dup(stub_fd1 = *fd);
   }
   if (*fd == STDERR_FILENO) {
     WARNING("Got STD%s_FILENO/%d, avoid using it by dup(fd)", "ERR", STDERR_FILENO);
-    assert(stub_fd2 == -1);
+    ASSERT(stub_fd2 == -1);
     *fd = dup(stub_fd2 = *fd);
   }
   const int err = errno;
@@ -1413,7 +1336,7 @@ int osal_closefile(mdbx_filehandle_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
   return CloseHandle(fd) ? MDBX_SUCCESS : (int)GetLastError();
 #else
-  assert(fd > STDERR_FILENO);
+  ASSERT(fd > STDERR_FILENO);
   return (close(fd) == 0) ? MDBX_SUCCESS : errno;
 #endif
 }
@@ -1562,7 +1485,7 @@ int osal_fsync(mdbx_filehandle_t fd, enum osal_syncmode_bits mode_bits) {
       break /* error */;
 #if defined(__linux__) || defined(__gnu_linux__)
     case MDBX_SYNC_SIZE:
-      assert(globals.linux_kernel_version >= 0x03060000);
+      ASSERT(globals.linux_kernel_version >= 0x03060000);
       return MDBX_SUCCESS;
 #endif /* Linux */
 #endif /* _POSIX_SYNCHRONIZED_IO > 0 */
@@ -1748,7 +1671,7 @@ int osal_msync(const osal_mmap_t *map, size_t length, enum osal_syncmode_bits mo
   // so just leave such optimization to the libc discretion.
   // NOTE: The MDBX_MMAP_NEEDS_JOLT must be defined to 1 for such cases.
   //
-  // assert(mdbx.linux_kernel_version > 0x02061300);
+  // ASSERT(mdbx.linux_kernel_version > 0x02061300);
   // if (mode_bits <= MDBX_SYNC_KICK)
   //   return MDBX_SUCCESS;
 #endif /* Linux */
@@ -2108,7 +2031,7 @@ static int check_mmap_limit(const size_t limit) {
 
 int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit, const unsigned options,
               const pathchar_t *pathname4logging) {
-  assert(size <= limit);
+  ASSERT(size <= limit);
   map->limit = 0;
   map->current = 0;
   map->base = nullptr;
@@ -2199,7 +2122,7 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
     map->base = nullptr;
     return osal_ntstatus2errcode(err);
   }
-  assert(map->base != MAP_FAILED);
+  ASSERT(map->base != MAP_FAILED);
 
   map->current = (size_t)SectionSize.QuadPart;
   map->limit = ViewSize;
@@ -2239,7 +2162,7 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
     map->limit = 0;
     map->current = 0;
     map->base = nullptr;
-    assert(errno != 0);
+    ASSERT(errno != 0);
     return errno;
   }
   map->limit = limit;
@@ -2287,14 +2210,14 @@ void osal_munmap(osal_mmap_t *map) {
 int osal_mresize(const int flags, osal_mmap_t *map, size_t size, size_t limit) {
   int rc = osal_filesize(map->fd, &map->filesize);
   VERBOSE("flags 0x%x, size %zu, limit %zu, filesize %" PRIu64, flags, size, limit, map->filesize);
-  assert(size <= limit);
+  ASSERT(size <= limit);
   if (rc != MDBX_SUCCESS) {
     map->filesize = 0;
     return rc;
   }
 
 #if defined(_WIN32) || defined(_WIN64)
-  assert(size != map->current || limit != map->limit || size < map->filesize);
+  ASSERT(size != map->current || limit != map->limit || size < map->filesize);
 
   NTSTATUS status;
   LARGE_INTEGER SectionSize;
@@ -2368,7 +2291,7 @@ int osal_mresize(const int flags, osal_mmap_t *map, size_t size, size_t limit) {
     if (ReservedAddress) {
       ReservedSize = 0;
       status = NtFreeVirtualMemory(GetCurrentProcess(), &ReservedAddress, &ReservedSize, MEM_RELEASE);
-      assert(NT_SUCCESS(status));
+      ASSERT(NT_SUCCESS(status));
       (void)status;
     }
     return err;
@@ -2454,7 +2377,7 @@ retry_mapview:;
     /* no way to recovery */
     goto bailout_ntstatus;
   }
-  assert(map->base != MAP_FAILED);
+  ASSERT(map->base != MAP_FAILED);
 
   map->current = (size_t)SectionSize.QuadPart;
   map->limit = ViewSize;
@@ -2501,7 +2424,7 @@ retry_mapview:;
     /* unmap an excess at end of mapping. */
     // coverity[offset_free : FALSE]
     if (unlikely(munmap(ptr_disp(map->base, limit), map->limit - limit))) {
-      assert(errno != 0);
+      ASSERT(errno != 0);
       return errno;
     }
     map->limit = limit;
@@ -2512,7 +2435,7 @@ retry_mapview:;
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 
-  assert(limit > map->limit);
+  ASSERT(limit > map->limit);
   void *ptr = MAP_FAILED;
 
 #if (defined(__linux__) || defined(__gnu_linux__)) && defined(_GNU_SOURCE)
@@ -2523,7 +2446,7 @@ retry_mapview:;
                                                0);
   if (ptr == MAP_FAILED) {
     err = errno;
-    assert(err != 0);
+    ASSERT(err != 0);
     switch (err) {
     default:
       return err;
@@ -2551,13 +2474,13 @@ retry_mapview:;
     else if (ptr != MAP_FAILED) {
       /* the desired address is busy, unmap unsuitable one */
       if (unlikely(munmap(ptr, limit - map->limit))) {
-        assert(errno != 0);
+        ASSERT(errno != 0);
         return errno;
       }
       ptr = MAP_FAILED;
     } else {
       err = errno;
-      assert(err != 0);
+      ASSERT(err != 0);
       switch (err) {
       default:
         return err;
@@ -2581,7 +2504,7 @@ retry_mapview:;
     }
 
     if (unlikely(munmap(map->base, map->limit))) {
-      assert(errno != 0);
+      ASSERT(errno != 0);
       return errno;
     }
 
@@ -2617,7 +2540,7 @@ retry_mapview:;
         map->limit = 0;
         map->current = 0;
         map->base = nullptr;
-        assert(errno != 0);
+        ASSERT(errno != 0);
         return errno;
       }
       rc = MDBX_UNABLE_EXTEND_MAPSIZE;
@@ -2625,7 +2548,7 @@ retry_mapview:;
     }
   }
 
-  assert(ptr && ptr != MAP_FAILED);
+  ASSERT(ptr && ptr != MAP_FAILED);
   if (map->base != ptr) {
     VALGRIND_MAKE_MEM_NOACCESS(map->base, map->current);
     /* Unpoisoning is required for ASAN to avoid false-positive diagnostic
@@ -2644,7 +2567,7 @@ retry_mapview:;
 
 #ifdef MADV_DONTFORK
   if (unlikely(madvise(map->base, map->limit, MADV_DONTFORK) != 0)) {
-    assert(errno != 0);
+    ASSERT(errno != 0);
     return errno;
   }
 #endif /* MADV_DONTFORK */
@@ -2656,7 +2579,7 @@ retry_mapview:;
 
   /* Zap: Redundant code */
   MDBX_SUPPRESS_GOOFY_MSVC_ANALYZER(6287);
-  assert(rc != MDBX_SUCCESS || (map->base != nullptr && map->base != MAP_FAILED && map->current == size &&
+  ASSERT(rc != MDBX_SUCCESS || (map->base != nullptr && map->base != MAP_FAILED && map->current == size &&
                                 map->limit == limit && map->filesize >= size));
   return rc;
 }
@@ -2956,7 +2879,7 @@ MDBX_MAYBE_UNUSED __cold static bool bootid_parse_uuid(bin128_t *s, const void *
         c -= 'A' - 10;
       else
         continue;
-      assert(c <= 15);
+      ASSERT(c <= 15);
       c ^= s->y >> 60;
       s->y = s->y << 4 | s->x >> 60;
       s->x = s->x << 4 | c;
@@ -3011,7 +2934,7 @@ __cold static bool proc_read_uuid(const char *path, bin128_t *target) {
                             ? read(fd, buf, sizeof(buf))
                             : -1;
     const int err = close(fd);
-    assert(err == 0);
+    ASSERT(err == 0);
     (void)err;
     if (len > 0)
       return bootid_parse_uuid(target, buf, len);
@@ -3197,7 +3120,7 @@ __cold static bin128_t osal_bootid(void) {
       char buf[42];
       const ssize_t len = read(fd, buf, sizeof(buf));
       const int err = close(fd);
-      assert(err == 0);
+      ASSERT(err == 0);
       (void)err;
       if (len > 0)
         got_machineid = bootid_parse_uuid(&uuid, buf, len);
@@ -3324,7 +3247,7 @@ __cold int mdbx_get_sysraminfo(intptr_t *page_size, intptr_t *total_pages, intpt
     return LOG_IFERR(MDBX_INCOMPATIBLE);
 
   MDBX_MAYBE_UNUSED const int log2page = log2n_powerof2(pagesize);
-  assert(pagesize == (INT64_C(1) << log2page));
+  ASSERT(pagesize == (INT64_C(1) << log2page));
   (void)log2page;
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -3485,7 +3408,7 @@ bin128_t osal_guid(const MDBX_env *env) {
   if (fd != -1) {
     const ssize_t len = read(fd, &uuid, sizeof(uuid));
     const int err = close(fd);
-    assert(err == 0);
+    ASSERT(err == 0);
     (void)err;
     if (len == sizeof(uuid) && check_uuid(uuid))
       return uuid;
@@ -3584,8 +3507,8 @@ void osal_ctor(void) {
 #endif
   if (globals.sys_allocation_granularity > 4 * MEGABYTE && globals.sys_pagesize < MEGABYTE)
     globals.sys_allocation_granularity = 4 * MEGABYTE;
-  assert(globals.sys_pagesize > 0 && (globals.sys_pagesize & (globals.sys_pagesize - 1)) == 0);
-  assert(globals.sys_allocation_granularity >= globals.sys_pagesize &&
+  ASSERT(globals.sys_pagesize > 0 && (globals.sys_pagesize & (globals.sys_pagesize - 1)) == 0);
+  ASSERT(globals.sys_allocation_granularity >= globals.sys_pagesize &&
          globals.sys_allocation_granularity % globals.sys_pagesize == 0);
   globals.sys_pagesize_ln2 = log2n_powerof2(globals.sys_pagesize);
 
@@ -3607,7 +3530,7 @@ void osal_ctor(void) {
     unsigned time_conversion_checkup = osal_monotime_to_16dot16(osal_16dot16_to_monotime(proba));
     unsigned one_more = (proba < UINT32_MAX) ? proba + 1 : proba;
     unsigned one_less = (proba > 0) ? proba - 1 : proba;
-    ENSURE(nullptr, time_conversion_checkup >= one_less && time_conversion_checkup <= one_more);
+    ENSURE(time_conversion_checkup >= one_less && time_conversion_checkup <= one_more);
     if (proba == 0)
       break;
     proba >>= 1;

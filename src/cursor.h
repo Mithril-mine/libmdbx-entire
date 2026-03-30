@@ -131,27 +131,27 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool is_inner(const M
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool is_poor(const MDBX_cursor *mc) {
   const bool r = mc->top < 0;
-  cASSERT(mc, r == (mc->top_and_flags < 0));
+  cASSERT0(mc, r == (mc->top_and_flags < 0));
   if (r && mc->subcur)
-    cASSERT(mc, mc->subcur->cursor.flags < 0 && mc->subcur->cursor.top < 0);
+    cASSERT0(mc, mc->subcur->cursor.flags < 0 && mc->subcur->cursor.top < 0);
   return r;
 }
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool is_pointed(const MDBX_cursor *mc) {
   const bool r = mc->top >= 0;
-  cASSERT(mc, r == (mc->top_and_flags >= 0));
+  cASSERT0(mc, r == (mc->top_and_flags >= 0));
   if (!r && mc->subcur)
-    cASSERT(mc, is_poor(&mc->subcur->cursor));
+    cASSERT0(mc, is_poor(&mc->subcur->cursor));
   return r;
 }
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool is_hollow(const MDBX_cursor *mc) {
   const bool r = mc->flags < 0;
   if (!r) {
-    cASSERT(mc, mc->top >= 0);
-    cASSERT(mc, (mc->flags & z_eof_hard) || mc->ki[mc->top] < page_numkeys(mc->pg[mc->top]));
+    cASSERT0(mc, mc->top >= 0);
+    cASSERT0(mc, (mc->flags & z_eof_hard) || mc->ki[mc->top] < page_numkeys(mc->pg[mc->top]));
   } else if (mc->subcur)
-    cASSERT(mc, is_poor(&mc->subcur->cursor) || (is_pointed(mc) && mc->subcur->cursor.flags < 0));
+    cASSERT0(mc, is_poor(&mc->subcur->cursor) || (is_pointed(mc) && mc->subcur->cursor.flags < 0));
   return r;
 }
 
@@ -175,14 +175,14 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool inner_pointed(co
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool inner_hollow(const MDBX_cursor *mc) {
   const bool r = !mc->subcur || is_hollow(&mc->subcur->cursor);
-#if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
+#if MDBX_CHECKING > 0
   if (!r) {
-    cASSERT(mc, is_filled(mc));
+    cASSERT0(mc, is_filled(mc));
     const page_t *mp = mc->pg[mc->top];
     const node_t *node = page_node(mp, mc->ki[mc->top]);
-    cASSERT(mc, node_flags(node) & N_DUP);
+    cASSERT0(mc, node_flags(node) & N_DUP);
   }
-#endif /* MDBX_DEBUG || MDBX_FORCE_ASSERTIONS */
+#endif /* MDBX_CHECKING > 0 */
   return r;
 }
 
@@ -203,21 +203,21 @@ MDBX_MAYBE_UNUSED static inline void be_poor(MDBX_cursor *mc) {
     mc->top_and_flags |= z_poor_mark;
     inner_gone(mc);
   }
-  cASSERT(mc, is_poor(mc) && !is_pointed(mc) && !is_filled(mc));
-  cASSERT(mc, inner == is_inner(mc));
+  cASSERT0(mc, is_poor(mc) && !is_pointed(mc) && !is_filled(mc));
+  cASSERT0(mc, inner == is_inner(mc));
 }
 
 MDBX_MAYBE_UNUSED static inline void be_filled(MDBX_cursor *mc) {
-  cASSERT(mc, mc->top >= 0);
-  cASSERT(mc, mc->ki[mc->top] < page_numkeys(mc->pg[mc->top]));
+  cASSERT0(mc, mc->top >= 0);
+  cASSERT0(mc, mc->ki[mc->top] < page_numkeys(mc->pg[mc->top]));
   const bool inner = is_inner(mc);
   mc->flags &= z_clear_mask;
-  cASSERT(mc, is_filled(mc));
-  cASSERT(mc, inner == is_inner(mc));
+  cASSERT0(mc, is_filled(mc));
+  cASSERT0(mc, inner == is_inner(mc));
 }
 
 MDBX_MAYBE_UNUSED static inline bool is_related(const MDBX_cursor *base, const MDBX_cursor *scan) {
-  cASSERT(base, base->top >= 0);
+  cASSERT0(base, base->top >= 0);
   return base->top <= scan->top && base != scan;
 }
 
@@ -236,9 +236,9 @@ enum cursor_checking {
 MDBX_INTERNAL int __must_check_result cursor_validate(const MDBX_cursor *mc);
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline size_t cursor_dbi(const MDBX_cursor *mc) {
-  cASSERT(mc, mc->txn->signature == txn_signature);
+  cASSERT0(mc, mc->txn->signature == txn_signature);
   size_t dbi = mc->dbi_state - mc->txn->dbi_state;
-  cASSERT(mc, dbi < mc->txn->env->n_dbi);
+  cASSERT0(mc, dbi < mc->txn->env->n_dbi);
   return dbi;
 }
 
@@ -284,7 +284,7 @@ MDBX_MAYBE_UNUSED static inline int __must_check_result cursor_push(MDBX_cursor 
 MDBX_MAYBE_UNUSED static inline void cursor_pop(MDBX_cursor *mc) {
   TRACE("popped page %" PRIaPGNO " off db %d cursor %p", mc->pg[mc->top]->pgno, cursor_dbi_dbg(mc),
         __Wpedantic_format_voidptr(mc));
-  cASSERT(mc, mc->top >= 0);
+  cASSERT0(mc, mc->top >= 0);
   mc->top -= 1;
 }
 
@@ -368,7 +368,7 @@ MDBX_INTERNAL MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t
  * Needed when the node which contains the sub-page may have moved.
  * Called with mp = mc->pg[mc->top], ki = mc->ki[mc->top]. */
 MDBX_MAYBE_UNUSED static inline void cursor_inner_refresh(const MDBX_cursor *mc, const page_t *mp, unsigned ki) {
-  cASSERT(mc, is_leaf(mp));
+  cASSERT0(mc, is_leaf(mp));
   const node_t *node = page_node(mp, ki);
   if ((node_flags(node) & (N_DUP | N_TREE)) == N_DUP)
     mc->subcur->cursor.pg[0] = node_data(node);

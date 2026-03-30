@@ -4,7 +4,7 @@
 #include "internals.h"
 
 static inline size_t dml_size2bytes(ptrdiff_t size) {
-  assert(size >= CURSOR_STACK_SIZE && (size_t)size <= PAGELIST_LIMIT);
+  ASSERT(size >= CURSOR_STACK_SIZE && (size_t)size <= PAGELIST_LIMIT);
 #if MDBX_DML_PREALLOC_FOR_RADIXSORT
   size += size;
 #endif /* MDBX_DML_PREALLOC_FOR_RADIXSORT */
@@ -23,7 +23,7 @@ static inline size_t dml_bytes2size(const ptrdiff_t bytes) {
 #if MDBX_DML_PREALLOC_FOR_RADIXSORT
   size >>= 1;
 #endif /* MDBX_DML_PREALLOC_FOR_RADIXSORT */
-  assert(size > CURSOR_STACK_SIZE && size <= PAGELIST_LIMIT + MDBX_PNL_GRANULATE);
+  ASSERT(size > CURSOR_STACK_SIZE && size <= PAGELIST_LIMIT + MDBX_PNL_GRANULATE);
   return size;
 }
 
@@ -37,7 +37,7 @@ __cold dml_t *dml_alloc(size_t size) {
     bytes = osal_malloc_usable_size(dml);
 #endif /* osal_malloc_usable_size */
     dml->limit = dml_bytes2size(bytes);
-    assert(dml->limit >= size);
+    ASSERT(dml->limit >= size);
   }
   return dml;
 }
@@ -61,14 +61,14 @@ static __cold dml_t *dml_extend(dml_t *dml) {
 
 da_t *dml_append(dml_t **pdml, pgno_t key) {
   dml_t *dml = *pdml;
-  assert(!dml || dml->length <= dml->limit);
+  ASSERT(!dml || dml->length <= dml->limit);
   if (unlikely(!dml || dml->length == dml->limit)) {
     dml = dml_extend(dml);
     if (unlikely(!dml))
       return nullptr;
     *pdml = dml;
   }
-  assert(dml->length < dml->limit);
+  ASSERT(dml->length < dml->limit);
 
   da_t *dm = &dml->items[dml->length++], init = {.key_or_pgno = key};
   *dm = init;
@@ -93,10 +93,10 @@ da_t *dml_search(dml_t *dml, pgno_t pgno) {
   const da_t *const begin = dml->items;
   const da_t *const it = dm_bsearch(begin, dml->length, pgno);
   const da_t *const end = begin + dml->length;
-  assert(it >= begin && it <= end);
+  ASSERT(it >= begin && it <= end);
   if (it != begin)
-    assert(DM_SEARCH_CMP(it[-1], pgno));
+    ASSERT(DM_SEARCH_CMP(it[-1], pgno));
   if (it != end)
-    assert(!DM_SEARCH_CMP(it[0], pgno));
+    ASSERT(!DM_SEARCH_CMP(it[0], pgno));
   return (da_t *)it;
 }

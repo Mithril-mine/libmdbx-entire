@@ -41,7 +41,7 @@ __cold static pgno_t default_rp_augment_limit(const MDBX_env *env) {
   const size_t one_third = env->geo_in_bytes.now / 3 >> env->ps2ln;
   const size_t augment_limit =
       (one_third > minimum) ? minimum + (one_third - minimum) / timeframe * remain_1sec : minimum;
-  eASSERT(env, augment_limit < PAGELIST_LIMIT);
+  eASSERT0(env, augment_limit < PAGELIST_LIMIT);
   return pnl_bytes2size(pnl_size2bytes(augment_limit));
 }
 
@@ -262,7 +262,7 @@ __cold int mdbx_env_set_option(MDBX_env *env, const MDBX_option_t option, uint64
       }
       env->options.dp_reserve_limit = (unsigned)value;
       while (env->shadow_reserve_len > env->options.dp_reserve_limit) {
-        eASSERT(env, env->shadow_reserve != nullptr);
+        eASSERT0(env, env->shadow_reserve != nullptr);
         page_t *dp = env->shadow_reserve;
         MDBX_ASAN_UNPOISON_MEMORY_REGION(dp, env->ps);
         VALGRIND_MAKE_MEM_DEFINED(&page_next(dp), sizeof(page_t *));

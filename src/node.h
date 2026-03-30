@@ -16,7 +16,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline pgno_t node_pgno(const node_t *const __
 
 /* Set the page number in a branch node */
 static inline void node_set_pgno(node_t *const __restrict node, pgno_t pgno) {
-  assert(pgno >= MIN_PAGENO && pgno <= MAX_PAGENO);
+  ASSERT(pgno >= MIN_PAGENO && pgno <= MAX_PAGENO);
   UNALIGNED_POKE_32(node, node_t, child_pgno, (uint32_t)pgno);
 }
 
@@ -27,7 +27,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline size_t node_ds(const node_t *const __re
 
 /* Set the size of the data for a leaf node */
 static inline void node_set_ds(node_t *const __restrict node, size_t size) {
-  assert(size < INT_MAX);
+  ASSERT(size < INT_MAX);
   UNALIGNED_POKE_32(node, node_t, dsize, (uint32_t)size);
 }
 
@@ -38,7 +38,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline size_t node_ks(const node_t *const __re
 
 /* Set the size of the key for a leaf node */
 static inline void node_set_ks(node_t *const __restrict node, size_t size) {
-  assert(size < INT16_MAX);
+  ASSERT(size < INT16_MAX);
   UNALIGNED_POKE_16(node, node_t, ksize, (uint16_t)size);
 }
 
@@ -70,7 +70,7 @@ MDBX_NOTHROW_PURE_FUNCTION static inline size_t node_size(const MDBX_val *key, c
 }
 
 MDBX_NOTHROW_PURE_FUNCTION static inline pgno_t node_largedata_pgno(const node_t *const __restrict node) {
-  assert(node_flags(node) & N_BIG);
+  ASSERT(node_flags(node) & N_BIG);
   return peek_pgno(node_data(node));
 }
 

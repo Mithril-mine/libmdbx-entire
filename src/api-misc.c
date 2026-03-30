@@ -54,7 +54,7 @@ int mdbx_dbi_sequence(MDBX_txn *txn, MDBX_dbi dbi, uint64_t *result, uint64_t in
     if (unlikely(new < increment))
       return MDBX_RESULT_TRUE;
 
-    tASSERT(txn, new > dbs->sequence);
+    cASSERT0(txn, new > dbs->sequence);
     if ((txn->dbi_state[dbi] & DBI_DIRTY) == 0) {
       txn->flags |= MDBX_TXN_DIRTY;
       txn->dbi_state[dbi] |= DBI_DIRTY;
@@ -103,16 +103,16 @@ int mdbx_dbi_sequence(MDBX_txn *txn, MDBX_dbi dbi, uint64_t *result, uint64_t in
 }
 
 int mdbx_cmp(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *a, const MDBX_val *b) {
-  eASSERT(nullptr, txn->signature == txn_signature);
-  tASSERT(txn, (dbi_state(txn, dbi) & DBI_VALID) && !dbi_changed(txn, dbi));
-  tASSERT(txn, dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID) != 0);
+  tASSERT0(txn, txn->signature == txn_signature);
+  tASSERT0(txn, (dbi_state(txn, dbi) & DBI_VALID) && !dbi_changed(txn, dbi));
+  tASSERT0(txn, dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID) != 0);
   return txn->env->kvs[dbi].clc.k.cmp(a, b);
 }
 
 int mdbx_dcmp(const MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *a, const MDBX_val *b) {
-  eASSERT(nullptr, txn->signature == txn_signature);
-  tASSERT(txn, (dbi_state(txn, dbi) & DBI_VALID) && !dbi_changed(txn, dbi));
-  tASSERT(txn, dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID));
+  tASSERT0(txn, txn->signature == txn_signature);
+  tASSERT0(txn, (dbi_state(txn, dbi) & DBI_VALID) && !dbi_changed(txn, dbi));
+  tASSERT0(txn, dbi < txn->env->n_dbi && (txn->env->dbs_flags[dbi] & DB_VALID));
   return txn->env->kvs[dbi].clc.v.cmp(a, b);
 }
 

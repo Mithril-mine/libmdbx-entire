@@ -3,15 +3,6 @@
 
 #pragma once
 
-/* Undefine the NDEBUG if debugging is enforced by MDBX_DEBUG */
-#if (defined(MDBX_DEBUG) && MDBX_DEBUG > 0) || (defined(MDBX_FORCE_ASSERTIONS) && MDBX_FORCE_ASSERTIONS)
-#undef NDEBUG
-#ifndef MDBX_DEBUG
-/* Чтобы избежать включения отладки только из-за включения assert-проверок */
-#define MDBX_DEBUG 0
-#endif
-#endif
-
 /*----------------------------------------------------------------------------*/
 
 /** Disables using GNU/Linux libc extensions.
@@ -836,7 +827,7 @@ __extern_C key_t ftok(const char *, int);
 #define MDBX_SUPPRESS_GOOFY_MSVC_ANALYZER(warn_id) __pragma(warning(suppress : warn_id))
 #endif
 #else
-#define MDBX_ANALYSIS_ASSUME(expr) assert(expr)
+#define MDBX_ANALYSIS_ASSUME(expr) ASSERT(expr)
 #define MDBX_SUPPRESS_GOOFY_MSVC_ANALYZER(warn_id)
 #endif /* MDBX_GOOFY_MSVC_STATIC_ANALYZER */
 
@@ -937,8 +928,6 @@ template <typename T, size_t N> char (&__ArraySizeHelper(T (&array)[N]))[N];
 #define XCONCAT(a, b) CONCAT(a, b)
 
 #define MDBX_TETRAD(a, b, c, d) ((uint32_t)(a) << 24 | (uint32_t)(b) << 16 | (uint32_t)(c) << 8 | (d))
-
-#define MDBX_STRING_TETRAD(str) MDBX_TETRAD(str[0], str[1], str[2], str[3])
 
 #define FIXME "FIXME: " __FILE__ ", " MDBX_STRINGIFY(__LINE__)
 

@@ -6,7 +6,7 @@
 /// mdbx_chk.c - memory-mapped database check tool
 ///
 
-#define xMDBX_TOOLS /* Avoid using internal eASSERT(), etc */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
 #include <ctype.h>
@@ -206,10 +206,10 @@ static void logger(MDBX_log_level_t level, const char *function, int line, const
   if (level < MDBX_LOG_VERBOSE)
     flush();
   if (level == MDBX_LOG_FATAL) {
-#if !MDBX_DEBUG && !MDBX_FORCE_ASSERTIONS
-    exit(EXIT_FAILURE_MDBX);
+#if MDBX_CHECKING > 0
+    panic("fatal-error");
 #endif
-    abort();
+    exit(EXIT_FAILURE_MDBX);
   }
 }
 

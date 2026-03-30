@@ -6,7 +6,7 @@
 /// mdbx_drop.c - memory-mapped database delete tool
 ///
 
-#define xMDBX_TOOLS /* Avoid using internal eASSERT(), etc */
+#define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
 #include <ctype.h>

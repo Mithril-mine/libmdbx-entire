@@ -128,7 +128,7 @@ static bool probe(mdbx::txn txn, mdbx::map_handle dbi, mdbx::cursor::move_operat
 static bool probe(mdbx::txn txn, mdbx::map_handle dbi, mdbx::cursor::move_operation op, predicate cmp) {
   const auto pair = buffer_pair(random_key(), random_value());
   const bool ok = probe(txn, dbi, op, cmp, pair);
-#if MDBX_DEBUG
+#if MDBX_DEBUG > 0
   if (!ok)
     // повтор для отладки и поиска причин
     probe(txn, dbi, op, cmp, pair);

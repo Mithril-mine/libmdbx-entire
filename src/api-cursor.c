@@ -65,7 +65,7 @@ int mdbx_cursor_bind(MDBX_txn *txn, MDBX_cursor *mc, MDBX_dbi dbi) {
     if (unlikely(rc != MDBX_SUCCESS))
       return (rc == MDBX_BAD_TXN) ? MDBX_EINVAL : rc;
   }
-  cASSERT(mc, mc->next == mc);
+  cASSERT0(mc, mc->next == mc);
 
   rc = cursor_init(mc, txn, dbi);
   if (unlikely(rc != MDBX_SUCCESS))
@@ -107,15 +107,15 @@ int mdbx_cursor_unbind(MDBX_cursor *mc) {
 
   if (mc->next != mc) {
     const size_t dbi = cursor_dbi(mc);
-    cASSERT(mc, dbi < mc->txn->n_dbi);
-    cASSERT(mc, &mc->txn->env->kvs[dbi].clc == mc->clc);
+    cASSERT0(mc, dbi < mc->txn->n_dbi);
+    cASSERT0(mc, &mc->txn->env->kvs[dbi].clc == mc->clc);
     if (dbi < mc->txn->n_dbi) {
       MDBX_cursor **prev = &mc->txn->cursors[dbi];
       while (/* *prev && */ *prev != mc) {
-        ENSURE(mc->txn->env, (*prev)->signature == cur_signature_live || (*prev)->signature == cur_signature_wait4eot);
+        ENSURE_OBJ(mc, (*prev)->signature == cur_signature_live || (*prev)->signature == cur_signature_wait4eot);
         prev = &(*prev)->next;
       }
-      cASSERT(mc, *prev == mc);
+      cASSERT0(mc, *prev == mc);
       *prev = mc->next;
     }
     mc->next = mc;
@@ -148,7 +148,7 @@ void mdbx_cursor_close(MDBX_cursor *cursor) {
   if (likely(cursor)) {
     int err = mdbx_cursor_close2(cursor);
     if (unlikely(err != MDBX_SUCCESS))
-      mdbx_panic("%s:%d error %d (%s) while closing cursor", __func__, __LINE__, err, mdbx_liberr2str(err));
+      panic_fmt(cursor, "error %d (%s) while closing cursor", err, mdbx_liberr2str(err));
   }
 }
 
@@ -182,15 +182,15 @@ int mdbx_cursor_close2(MDBX_cursor *mc) {
 
   if (mc->next != mc) {
     const size_t dbi = cursor_dbi(mc);
-    cASSERT(mc, dbi < mc->txn->n_dbi);
-    cASSERT(mc, &mc->txn->env->kvs[dbi].clc == mc->clc);
+    cASSERT0(mc, dbi < mc->txn->n_dbi);
+    cASSERT0(mc, &mc->txn->env->kvs[dbi].clc == mc->clc);
     if (likely(dbi < txn->n_dbi)) {
       MDBX_cursor **prev = &txn->cursors[dbi];
       while (/* *prev && */ *prev != mc) {
-        ENSURE(txn->env, (*prev)->signature == cur_signature_live || (*prev)->signature == cur_signature_wait4eot);
+        ENSURE_OBJ(txn, (*prev)->signature == cur_signature_live || (*prev)->signature == cur_signature_wait4eot);
         prev = &(*prev)->next;
       }
-      tASSERT(txn, *prev == mc);
+      cASSERT0(txn, *prev == mc);
       *prev = mc->next;
     }
     mc->next = mc;
@@ -210,11 +210,11 @@ int mdbx_cursor_copy(const MDBX_cursor *src, MDBX_cursor *dest) {
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-  assert(dest->tree == src->tree);
-  assert(cursor_dbi(dest) == cursor_dbi(src));
+  ASSERT(dest->tree == src->tree);
+  ASSERT(cursor_dbi(dest) == cursor_dbi(src));
 again:
-  assert(dest->clc == src->clc);
-  assert(dest->txn == src->txn);
+  ASSERT(dest->clc == src->clc);
+  ASSERT(dest->txn == src->txn);
   dest->top_and_flags = src->top_and_flags;
   for (intptr_t i = 0; i <= src->top; ++i) {
     dest->ki[i] = src->ki[i];
@@ -248,7 +248,7 @@ int mdbx_txn_release_all_cursors_ex(const MDBX_txn *txn, bool unbind, size_t *co
             mc->signature = cur_signature_wait4eot;
             cursor_drown((cursor_couple_t *)mc);
           } else
-            ENSURE(nullptr, mc->signature == cur_signature_wait4eot);
+            ENSURE(mc->signature == cur_signature_wait4eot);
           if (mc->backup) {
             MDBX_cursor *bk = mc->backup;
             mc->next = bk->next;
@@ -296,7 +296,7 @@ int mdbx_cursor_compare(const MDBX_cursor *l, const MDBX_cursor *r, bool ignore_
       return (l->txn->txnid > r->txn->txnid) ? incomparable * 6 : -incomparable * 6;
     return (l->clc > r->clc) ? incomparable * 5 : -incomparable * 5;
   }
-  assert(cursor_dbi(l) == cursor_dbi(r));
+  ASSERT(cursor_dbi(l) == cursor_dbi(r));
 
   int diff = is_pointed(l) - is_pointed(r);
   if (unlikely(diff))
@@ -313,24 +313,22 @@ int mdbx_cursor_compare(const MDBX_cursor *l, const MDBX_cursor *r, bool ignore_
   if (unlikely(l->top != r->top))
     return (l->top > r->top) ? incomparable * 3 : -incomparable * 3;
 
-  assert((l->subcur != nullptr) == (r->subcur != nullptr));
+  ASSERT((l->subcur != nullptr) == (r->subcur != nullptr));
   if (unlikely((l->subcur != nullptr) != (r->subcur != nullptr)))
     return l->subcur ? incomparable * 2 : -incomparable * 2;
   if (ignore_multival || !l->subcur)
     return 0;
 
-#if MDBX_DEBUG
   if (is_pointed(&l->subcur->cursor)) {
     const page_t *mp = l->pg[l->top];
     const node_t *node = page_node(mp, l->ki[l->top]);
-    assert(node_flags(node) & N_DUP);
+    ASSERT(node_flags(node) & N_DUP);
   }
   if (is_pointed(&r->subcur->cursor)) {
     const page_t *mp = r->pg[r->top];
     const node_t *node = page_node(mp, r->ki[r->top]);
-    assert(node_flags(node) & N_DUP);
+    ASSERT(node_flags(node) & N_DUP);
   }
-#endif /* MDBX_DEBUG */
 
   l = &l->subcur->cursor;
   r = &r->subcur->cursor;
@@ -370,7 +368,7 @@ int mdbx_cursor_count_ex(const MDBX_cursor *mc, size_t *count, MDBX_stat *ns, si
     if (!inner_hollow(mc)) {
       const page_t *mp = mc->pg[mc->top];
       const node_t *node = page_node(mp, mc->ki[mc->top]);
-      cASSERT(mc, node_flags(node) & N_DUP);
+      cASSERT0(mc, node_flags(node) & N_DUP);
       const tree_t *nt = &mc->subcur->nested_tree;
       nvals = unlikely(nt->items > PTRDIFF_MAX) ? PTRDIFF_MAX : (size_t)nt->items;
       if (ns) {
@@ -380,7 +378,7 @@ int mdbx_cursor_count_ex(const MDBX_cursor *mc, size_t *count, MDBX_stat *ns, si
           ns->ms_depth = nt->height;
           ns->ms_branch_pages = nt->branch_pages;
         }
-        cASSERT(mc, nt->large_pages == 0);
+        cASSERT0(mc, nt->large_pages == 0);
         ns->ms_leaf_pages = nt->leaf_pages;
         ns->ms_entries = nt->items;
         if (likely(bytes >= offsetof(MDBX_stat, ms_mod_txnid) + sizeof(ns->ms_mod_txnid)))
@@ -583,7 +581,7 @@ int mdbx_cursor_scan_from(MDBX_cursor *mc, MDBX_predicate_func predicate, void *
   if (unlikely(MDBX_IS_ERROR(rc)))
     return LOG_IFERR(rc);
 
-  cASSERT(mc, key != nullptr);
+  cASSERT0(mc, key != nullptr);
   MDBX_val stub;
   if (!value) {
     value = &stub;
@@ -633,7 +631,7 @@ int mdbx_cursor_get_batch(MDBX_cursor *mc, size_t *count, MDBX_val *pairs, size_
   size_t ki = mc->ki[mc->top];
   size_t n = 0;
   while (n + 2 <= limit) {
-    cASSERT(mc, ki < nkeys);
+    cASSERT0(mc, ki < nkeys);
     if (unlikely(ki >= nkeys))
       goto sibling;
 

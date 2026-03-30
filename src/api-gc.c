@@ -148,10 +148,10 @@ __cold int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast, size_t time_atl
     const pgno_t prev_stumble = dfc.stumble_pgno;
     rc = defrag_cycle(&dfc);
 
-#if MDBX_DEBUG || MDBX_FORCE_ASSERTIONS
+#if MDBX_CHECKING > 1
     pnl_free(dfc.repnl_clone);
     dfc.repnl_clone = nullptr;
-#endif /* MDBX_DEBUG || MDBX_FORCE_ASSERTIONS */
+#endif /* MDBX_CHECKING > 1 */
 
     if (MDBX_IS_ERROR(rc)) {
       txn->flags |= MDBX_TXN_ERROR;
@@ -174,8 +174,8 @@ __cold int mdbx_env_defrag(MDBX_env *env, size_t defrag_atleast, size_t time_atl
         txn->flags |= MDBX_TXN_ERROR;
       break;
     } else {
-      assert(!dfc.lp_reserve || pnl_size(dfc.lp_reserve) == 0);
-      assert(dfc.cycle_pages_scheduled == dfc.cycle_pages_moved);
+      ASSERT(!dfc.lp_reserve || pnl_size(dfc.lp_reserve) == 0);
+      ASSERT(dfc.cycle_pages_scheduled == dfc.cycle_pages_moved);
     }
 
     rc = txn_basal_checkpoint(txn, MDBX_TXN_NOMETASYNC, nullptr);
