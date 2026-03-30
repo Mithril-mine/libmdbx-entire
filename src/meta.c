@@ -488,6 +488,7 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
   }
 
   const uint64_t allocated_bytes = meta->geometry.first_unallocated * (uint64_t)meta->pagesize;
+  const uint64_t dxbsize_pages = env->dxb_mmap.filesize / (uint64_t)meta->pagesize;
   if (unlikely(allocated_bytes > env->dxb_mmap.filesize)) {
     /* Here could be a race with DB-shrinking performed by other process */
     int err = osal_filesize(env->lazy_fd, &env->dxb_mmap.filesize);
@@ -530,11 +531,12 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
     }
   }
 
+  /* It has already been verified above that the size of the allocated space does not exceed the file size. */
   pgno_t geo_upper = meta->geometry.upper;
   uint64_t mapsize_max = geo_upper * (uint64_t)meta->pagesize;
   STATIC_ASSERT(MIN_MAPSIZE < MAX_MAPSIZE);
   if (unlikely(mapsize_max > MAX_MAPSIZE ||
-               (MAX_PAGENO + 1) < ceil_powerof2((size_t)mapsize_max, globals.sys_pagesize) / (size_t)meta->pagesize)) {
+               (MAX_PAGENO + 1) < (mapsize_max + globals.sys_pagesize - 1) / meta->pagesize)) {
     if (mapsize_max > MAX_MAPSIZE64) {
       WARNING("meta[%u] has invalid max-mapsize (%" PRIu64 "), skip it", meta_number, mapsize_max);
       return MDBX_VERSION_MISMATCH;
@@ -545,30 +547,40 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
             "but size of allocated space still acceptable (%" PRIu64 ")",
             meta_number, mapsize_max, allocated_bytes);
     geo_upper = (pgno_t)((mapsize_max = MAX_MAPSIZE) / meta->pagesize);
-    if (geo_upper > MAX_PAGENO + 1) {
+    if (geo_upper > MAX_PAGENO + 1)
       geo_upper = MAX_PAGENO + 1;
-      mapsize_max = geo_upper * (uint64_t)meta->pagesize;
-    }
+  }
+
+  if (geo_upper < meta->geometry.first_unallocated) {
+    WARNING("meta[%u] has too less max-mapsize (%" PRIu64 "), "
+            "but size of allocated space still acceptable (%" PRIu64 ")",
+            meta_number, mapsize_max, allocated_bytes);
+    geo_upper = meta->geometry.first_unallocated;
+  }
+  if (meta->geometry.upper != geo_upper) {
     WARNING("meta[%u] consider get-%s pageno is %" PRIaPGNO " instead of wrong %" PRIaPGNO
             ", will be corrected on next commit(s)",
             meta_number, "upper", geo_upper, meta->geometry.upper);
     meta->geometry.upper = geo_upper;
+    mapsize_max = geo_upper * (uint64_t)meta->pagesize;
   }
 
   /* LY: check and silently put geometry.now into [geo.lower...geo.upper].
    *
-   * Copy-with-compaction by old version of libmdbx could produce DB-file
-   * less than meta.geo.lower bound, in case actual filling is low or no data
-   * at all. This is not a problem as there is no damage or loss of data.
-   * Therefore it is better not to consider such situation as an error, but
-   * silently correct it. */
+   * It has already been verified above that the size of the allocated space does not exceed the file size.
+   *
+   * Copy-with-compaction by old version of libmdbx could produce DB-file less than meta.geo.lower bound, in case actual
+   * filling is low or no data at all. This is not a problem as there is no damage or loss of data. Therefore it is
+   * better not to consider such situation as an error, but silently correct it. */
   pgno_t geo_now = meta->geometry.now;
   if (geo_now < geo_lower)
     geo_now = geo_lower;
-  if (geo_now > geo_upper && meta->geometry.first_unallocated <= geo_upper)
+  if (geo_now < dxbsize_pages)
+    geo_now = dxbsize_pages;
+  if (geo_now > geo_upper)
     geo_now = geo_upper;
 
-  if (unlikely(meta->geometry.first_unallocated > geo_now)) {
+  if (unlikely(/* paranoid */ meta->geometry.first_unallocated > geo_now)) {
     WARNING("meta[%u] next-pageno (%" PRIaPGNO ") is beyond end-pgno (%" PRIaPGNO "), skip it", meta_number,
             meta->geometry.first_unallocated, geo_now);
     return MDBX_CORRUPTED;
