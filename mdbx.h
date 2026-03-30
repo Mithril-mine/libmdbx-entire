@@ -607,6 +607,18 @@ typedef mode_t mdbx_mode_t;
 #endif
 #endif /* MDBX_UNLIKELY */
 
+#if defined(DOXYGEN) || (defined(MDBX_CHECKING) && MDBX_CHECKING > 0) || (defined(MDBX_DEBUG) && MDBX_DEBUG > 0)
+#define MDBX_INLINE_API_ASSERT(expr)                                                                                   \
+  do {                                                                                                                 \
+    if (MDBX_UNLIKELY(!(expr)))                                                                                        \
+      mdbx_assert_fail(#expr, __func__, __LINE__);                                                                     \
+  } while (0)
+#else
+/* clang-format off */
+#define MDBX_INLINE_API_ASSERT(expr) do {} while(0)
+/* clang-format on */
+#endif /* MDBX_INLINE_API_ASSERT */
+
 /** end of api_macros @} */
 
 /*----------------------------------------------------------------------------*/
@@ -724,14 +736,6 @@ void LIBMDBX_API NTAPI mdbx_module_handler(PVOID module, DWORD reason, PVOID res
 #endif
 
 #endif /* Windows && !DLL && MDBX_MANUAL_MODULE_HANDLER */
-
-#if (defined(MDBX_CHECKING) && MDBX_CHECKING > 0) || (defined(MDBX_DEBUG) && MDBX_DEBUG > 0)
-#define MDBX_INLINE_API_ASSERT(expr) assert(expr)
-#else
-/* clang-format off */
-#define MDBX_INLINE_API_ASSERT(expr) do {} while(0)
-/* clang-format on */
-#endif /* MDBX_INLINE_API_ASSERT */
 
 /* OPACITY STRUCTURES *********************************************************/
 
@@ -1031,6 +1035,9 @@ LIBMDBX_API int mdbx_setup_debug_nofmt(MDBX_log_level_t log_level, MDBX_debug_fl
  *                       'env', 'txn', 'cursor', etc. */
 typedef void (*MDBX_panic_func)(const char *msg, const char *function, unsigned line, const void *obj,
                                 const char *obj_class) MDBX_CXX17_NOEXCEPT;
+
+/** \brief Auxiliary function for MDBX_INLINE_API_ASSERT(). */
+MDBX_NORETURN LIBMDBX_API void mdbx_assert_fail(const char *msg, const char *func, unsigned line);
 
 /** \brief Sets or reset the callback for panic() and assert() for the current process.
  *
