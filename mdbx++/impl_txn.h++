@@ -74,14 +74,14 @@ inline void txn::renew_reading() { error::success_or_throw(::mdbx_txn_renew(hand
 inline txn_managed txn::clone(void *context) const {
   MDBX_txn *ptr = nullptr;
   error::success_or_throw(::mdbx_txn_clone(handle_, &ptr, context));
-  assert(ptr != nullptr);
+  MDBX_INLINE_API_ASSERT(ptr != nullptr);
   return txn_managed(ptr);
 }
 
 inline void txn::clone(txn_managed &txn_for_renew_into_clone, void *context) const {
   error::throw_on_nullptr(txn_for_renew_into_clone.handle_, MDBX_BAD_TXN);
   error::success_or_throw(::mdbx_txn_clone(handle_, &txn_for_renew_into_clone.handle_, context));
-  assert(txn_for_renew_into_clone.handle_ != nullptr);
+  MDBX_INLINE_API_ASSERT(txn_for_renew_into_clone.handle_ != nullptr);
 }
 
 inline void txn::park_reading(bool autounpark) { error::success_or_throw(::mdbx_txn_park(handle_, autounpark)); }
@@ -113,7 +113,7 @@ inline map_handle txn::open_map(const slice &name, const ::mdbx::key_mode key_mo
   map_handle map;
   error::success_or_throw(
       ::mdbx_dbi_open2(handle_, name, MDBX_db_flags_t(key_mode) | MDBX_db_flags_t(value_mode), &map.dbi));
-  assert(map.dbi != 0);
+  MDBX_INLINE_API_ASSERT(map.dbi != 0);
   return map;
 }
 
@@ -122,21 +122,21 @@ inline map_handle txn::open_map(const char *name, const ::mdbx::key_mode key_mod
   map_handle map;
   error::success_or_throw(
       ::mdbx_dbi_open(handle_, name, MDBX_db_flags_t(key_mode) | MDBX_db_flags_t(value_mode), &map.dbi));
-  assert(map.dbi != 0);
+  MDBX_INLINE_API_ASSERT(map.dbi != 0);
   return map;
 }
 
 inline map_handle txn::open_map_accede(const slice &name) const {
   map_handle map;
   error::success_or_throw(::mdbx_dbi_open2(handle_, name, MDBX_DB_ACCEDE, &map.dbi));
-  assert(map.dbi != 0);
+  MDBX_INLINE_API_ASSERT(map.dbi != 0);
   return map;
 }
 
 inline map_handle txn::open_map_accede(const char *name) const {
   map_handle map;
   error::success_or_throw(::mdbx_dbi_open(handle_, name, MDBX_DB_ACCEDE, &map.dbi));
-  assert(map.dbi != 0);
+  MDBX_INLINE_API_ASSERT(map.dbi != 0);
   return map;
 }
 
@@ -145,7 +145,7 @@ inline map_handle txn::create_map(const slice &name, const ::mdbx::key_mode key_
   map_handle map;
   error::success_or_throw(
       ::mdbx_dbi_open2(handle_, name, MDBX_CREATE | MDBX_db_flags_t(key_mode) | MDBX_db_flags_t(value_mode), &map.dbi));
-  assert(map.dbi != 0);
+  MDBX_INLINE_API_ASSERT(map.dbi != 0);
   return map;
 }
 
@@ -154,7 +154,7 @@ inline map_handle txn::create_map(const char *name, const ::mdbx::key_mode key_m
   map_handle map;
   error::success_or_throw(
       ::mdbx_dbi_open(handle_, name, MDBX_CREATE | MDBX_db_flags_t(key_mode) | MDBX_db_flags_t(value_mode), &map.dbi));
-  assert(map.dbi != 0);
+  MDBX_INLINE_API_ASSERT(map.dbi != 0);
   return map;
 }
 

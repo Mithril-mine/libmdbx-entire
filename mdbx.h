@@ -162,7 +162,7 @@ as a duplicates or as like a multiple values corresponds to keys.
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
-#if !defined(NDEBUG) && !defined(assert)
+#if !defined(assert)
 #include <assert.h>
 #endif /* NDEBUG */
 
@@ -708,6 +708,14 @@ void LIBMDBX_API NTAPI mdbx_module_handler(PVOID module, DWORD reason, PVOID res
 #endif
 
 #endif /* Windows && !DLL && MDBX_MANUAL_MODULE_HANDLER */
+
+#if (defined(MDBX_CHECKING) && MDBX_CHECKING > 0) || (defined(MDBX_DEBUG) && MDBX_DEBUG > 0)
+#define MDBX_INLINE_API_ASSERT(expr) assert(expr)
+#else
+/* clang-format off */
+#define MDBX_INLINE_API_ASSERT(expr) do {} while(0)
+/* clang-format on */
+#endif /* MDBX_INLINE_API_ASSERT */
 
 /* OPACITY STRUCTURES *********************************************************/
 
@@ -3021,9 +3029,7 @@ LIBMDBX_INLINE_API(int, mdbx_env_get_syncbytes, (const MDBX_env *env, size_t *th
   if (threshold) {
     uint64_t proxy = 0;
     rc = mdbx_env_get_option(env, MDBX_opt_sync_bytes, &proxy);
-#ifdef assert
-    assert(proxy <= SIZE_MAX);
-#endif /* assert */
+    MDBX_INLINE_API_ASSERT(proxy <= SIZE_MAX);
     *threshold = (size_t)proxy;
   }
   return rc;
@@ -3084,9 +3090,7 @@ LIBMDBX_INLINE_API(int, mdbx_env_get_syncperiod, (const MDBX_env *env, unsigned 
   if (period_seconds_16dot16) {
     uint64_t proxy = 0;
     rc = mdbx_env_get_option(env, MDBX_opt_sync_period, &proxy);
-#ifdef assert
-    assert(proxy <= UINT32_MAX);
-#endif /* assert */
+    MDBX_INLINE_API_ASSERT(proxy <= UINT32_MAX);
     *period_seconds_16dot16 = (unsigned)proxy;
   }
   return rc;

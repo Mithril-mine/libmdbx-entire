@@ -352,7 +352,7 @@ template <typename VISITOR> inline int env::enumerate_readers(VISITOR &visitor) 
 inline unsigned env::check_readers() {
   int dead_count;
   error::throw_on_failure(::mdbx_reader_check(*this, &dead_count));
-  assert(dead_count >= 0);
+  MDBX_INLINE_API_ASSERT(dead_count >= 0);
   return static_cast<unsigned>(dead_count);
 }
 
@@ -366,14 +366,14 @@ inline MDBX_hsr_func env::get_HandleSlowReaders() const noexcept { return ::mdbx
 inline txn_managed env::start_read() const {
   ::MDBX_txn *ptr;
   error::success_or_throw(::mdbx_txn_begin(handle_, nullptr, MDBX_TXN_RDONLY, &ptr));
-  assert(ptr != nullptr);
+  MDBX_INLINE_API_ASSERT(ptr != nullptr);
   return txn_managed(ptr);
 }
 
 inline txn_managed env::prepare_read() const {
   ::MDBX_txn *ptr;
   error::success_or_throw(::mdbx_txn_begin(handle_, nullptr, MDBX_TXN_RDONLY_PREPARE, &ptr));
-  assert(ptr != nullptr);
+  MDBX_INLINE_API_ASSERT(ptr != nullptr);
   return txn_managed(ptr);
 }
 
@@ -381,14 +381,14 @@ inline txn_managed env::start_write(bool dont_wait) {
   ::MDBX_txn *ptr;
   error::success_or_throw(
       ::mdbx_txn_begin(handle_, nullptr, dont_wait ? MDBX_TXN_READWRITE | MDBX_TXN_TRY : MDBX_TXN_READWRITE, &ptr));
-  assert(ptr != nullptr || dont_wait);
+  MDBX_INLINE_API_ASSERT(ptr != nullptr || dont_wait);
   return txn_managed(ptr);
 }
 
 inline txn_managed env::start_write(txn &parent) {
   ::MDBX_txn *ptr;
   error::success_or_throw(::mdbx_txn_begin(handle_, parent, MDBX_TXN_READWRITE, &ptr));
-  assert(ptr != nullptr);
+  MDBX_INLINE_API_ASSERT(ptr != nullptr);
   return txn_managed(ptr);
 }
 

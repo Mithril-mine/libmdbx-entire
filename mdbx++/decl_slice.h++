@@ -440,7 +440,7 @@ struct value_result {
   value_result(const value_result &) noexcept = default;
   value_result &operator=(const value_result &) noexcept = default;
   MDBX_CXX14_CONSTEXPR operator bool() const noexcept {
-    assert(!done || bool(value));
+    MDBX_INLINE_API_ASSERT(!done || bool(value));
     return done;
   }
 };
@@ -460,7 +460,7 @@ struct pair {
     return *this;
   }
   MDBX_CXX14_CONSTEXPR operator bool() const noexcept {
-    assert(bool(key) == bool(value));
+    MDBX_INLINE_API_ASSERT(bool(key) == bool(value));
     return key;
   }
   MDBX_CXX14_CONSTEXPR static pair invalid() noexcept { return pair(slice::invalid(), slice::invalid()); }
@@ -503,7 +503,7 @@ struct pair_result : public pair {
   pair_result(const pair_result &) noexcept = default;
   pair_result &operator=(const pair_result &) noexcept = default;
   MDBX_CXX14_CONSTEXPR operator bool() const noexcept {
-    assert(!done || (bool(key) && bool(value)));
+    MDBX_INLINE_API_ASSERT(!done || (bool(key) && bool(value)));
     return done;
   }
 };

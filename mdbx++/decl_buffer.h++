@@ -177,7 +177,7 @@ private:
     using allocator_const_pointer = typename allocator_traits::const_pointer;
 
     MDBX_CXX20_CONSTEXPR ::std::pair<allocator_pointer, size_t> allocate_storage(size_t bytes) {
-      assert(bytes >= sizeof(bin));
+      MDBX_INLINE_API_ASSERT(bytes >= sizeof(bin));
       constexpr size_t unit = sizeof(typename allocator_type::value_type);
       static_assert((unit & (unit - 1)) == 0, "size of ALLOCATOR::value_type should be a power of 2");
       static_assert(unit > 0, "size of ALLOCATOR::value_type must be > 0");
@@ -187,7 +187,7 @@ private:
 
     MDBX_CXX20_CONSTEXPR void deallocate_storage(allocator_pointer ptr, size_t bytes) {
       constexpr size_t unit = sizeof(typename allocator_type::value_type);
-      assert(ptr && bytes >= sizeof(bin) && bytes >= unit && bytes % unit == 0);
+      MDBX_INLINE_API_ASSERT(ptr && bytes >= sizeof(bin) && bytes >= unit && bytes % unit == 0);
       allocator_traits::deallocate(get_allocator(), ptr, bytes / unit);
     }
 
@@ -305,7 +305,7 @@ private:
           MDBX_CXX20_UNLIKELY throw_max_length_exceeded();
 
         const size_t advised = reservation_policy::advise(current, wanna, inplace_capacity());
-        assert(advised >= wanna);
+        MDBX_INLINE_API_ASSERT(advised >= wanna);
         return ::std::min(size_t(max_capacity), ::std::max(inplace_capacity(), advised));
       }
 
@@ -340,12 +340,12 @@ private:
     template <bool external_content>
     MDBX_CXX20_CONSTEXPR void *reshape(const size_t wanna_capacity, const size_t wanna_headroom,
                                        const void *const content, const size_t length) {
-      assert(wanna_capacity >= wanna_headroom + length);
+      MDBX_INLINE_API_ASSERT(wanna_capacity >= wanna_headroom + length);
       const size_t old_capacity = bin_.capacity();
       const size_t new_capacity = bin::advise_capacity(old_capacity, wanna_capacity);
       if (MDBX_LIKELY(new_capacity == old_capacity))
         MDBX_CXX20_LIKELY {
-          assert(bin_.is_inplace() == bin::is_suitable_for_inplace(new_capacity));
+          MDBX_INLINE_API_ASSERT(bin_.is_inplace() == bin::is_suitable_for_inplace(new_capacity));
           byte *const new_place = bin_.address() + wanna_headroom;
           if (MDBX_LIKELY(length))
             MDBX_CXX20_LIKELY {
@@ -353,7 +353,7 @@ private:
                 memcpy(new_place, content, length);
               else {
                 const size_t old_headroom = bin_.address() - static_cast<const byte *>(content);
-                assert(old_capacity >= old_headroom + length);
+                MDBX_INLINE_API_ASSERT(old_capacity >= old_headroom + length);
                 if (MDBX_UNLIKELY(old_headroom != wanna_headroom))
                   MDBX_CXX20_UNLIKELY ::std::memmove(new_place, content, length);
               }
@@ -362,7 +362,7 @@ private:
         }
 
       if (bin::is_suitable_for_inplace(new_capacity)) {
-        assert(bin_.is_allocated());
+        MDBX_INLINE_API_ASSERT(bin_.is_allocated());
         const auto old_allocated = ::std::move(bin_.allocated_ptr_);
         byte *const new_place = bin_.template make_inplace<true>() + wanna_headroom;
         if (MDBX_LIKELY(length))
@@ -373,7 +373,7 @@ private:
 
       if (bin_.is_inplace()) {
         const auto pair = allocate_storage(new_capacity);
-        assert(pair.second >= new_capacity);
+        MDBX_INLINE_API_ASSERT(pair.second >= new_capacity);
         byte *const new_place = static_cast<byte *>(to_address(pair.first)) + wanna_headroom;
         if (MDBX_LIKELY(length))
           MDBX_CXX20_LIKELY memcpy(new_place, content, length);
@@ -385,7 +385,7 @@ private:
       if (external_content)
         deallocate_storage(old_allocated, old_capacity);
       const auto pair = allocate_storage(new_capacity);
-      assert(pair.second >= new_capacity);
+      MDBX_INLINE_API_ASSERT(pair.second >= new_capacity);
       byte *const new_place = bin_.template make_allocated<false>(pair) + wanna_headroom;
       if (MDBX_LIKELY(length))
         MDBX_CXX20_LIKELY memcpy(new_place, content, length);
@@ -395,15 +395,15 @@ private:
     }
 
     MDBX_CXX20_CONSTEXPR const byte *get(size_t offset = 0) const noexcept {
-      assert(capacity() >= offset);
+      MDBX_INLINE_API_ASSERT(capacity() >= offset);
       return bin_.address() + offset;
     }
     MDBX_CXX20_CONSTEXPR byte *get(size_t offset = 0) noexcept {
-      assert(capacity() >= offset);
+      MDBX_INLINE_API_ASSERT(capacity() >= offset);
       return bin_.address() + offset;
     }
     MDBX_CXX20_CONSTEXPR byte *put(size_t offset, const void *ptr, size_t length) {
-      assert(capacity() >= offset + length);
+      MDBX_INLINE_API_ASSERT(capacity() >= offset + length);
       return static_cast<byte *>(memcpy(get(offset), ptr, length));
     }
 
@@ -487,7 +487,7 @@ private:
     MDBX_CXX20_CONSTEXPR silo(size_t capacity, size_t headroom, const void *ptr, size_t length,
                               const allocator_type &alloc = allocator_type())
         : silo(capacity, alloc) {
-      assert(capacity >= headroom + length);
+      MDBX_INLINE_API_ASSERT(capacity >= headroom + length);
       if (length)
         put(headroom, ptr, length);
     }
@@ -534,7 +534,7 @@ private:
   silo silo_;
 
   void insulate() {
-    assert(is_reference());
+    MDBX_INLINE_API_ASSERT(is_reference());
     iov_base = silo_.assign(iov_base, iov_len);
   }
 
@@ -753,12 +753,12 @@ public:
   buffer(size_t head_room, size_t tail_room, const allocator_type &alloc = allocator_type())
       : silo_(check_length(head_room, tail_room), alloc) {
     iov_base = silo_.get();
-    assert(iov_len == 0);
+    MDBX_INLINE_API_ASSERT(iov_len == 0);
   }
 
   buffer(size_t capacity, const allocator_type &alloc = allocator_type()) : silo_(check_length(capacity), alloc) {
     iov_base = silo_.get();
-    assert(iov_len == 0);
+    MDBX_INLINE_API_ASSERT(iov_len == 0);
   }
 
   buffer(size_t head_room, const slice &src, size_t tail_room, const allocator_type &alloc = allocator_type())
@@ -893,8 +893,8 @@ public:
         (wanna_tailroom < max_length - pettiness_threshold) ? wanna_tailroom + pettiness_threshold : wanna_tailroom);
     const size_t wanna_capacity = check_length(wanna_headroom, length(), wanna_tailroom);
     silo_.resize(wanna_capacity, wanna_headroom, *this);
-    assert(headroom() >= wanna_headroom && headroom() <= wanna_headroom + pettiness_threshold);
-    assert(tailroom() >= wanna_tailroom && tailroom() <= wanna_tailroom + pettiness_threshold);
+    MDBX_INLINE_API_ASSERT(headroom() >= wanna_headroom && headroom() <= wanna_headroom + pettiness_threshold);
+    MDBX_INLINE_API_ASSERT(tailroom() >= wanna_tailroom && tailroom() <= wanna_tailroom + pettiness_threshold);
   }
 
   /// \brief Reserves space before the payload.
