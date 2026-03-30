@@ -262,19 +262,12 @@ __cold void page_list(page_t *mp) {
 
 #if MDBX_CHECKING >= 0
 
-static bool osal_safe_read_uint32(const void *ptr, int32_t *dest) {
-  *dest = 0;
-  /* TODO: FIXME */
-  (void)ptr;
-  return false;
-}
-
 __cold const char *object2class(const void *ptr) {
   if (!ptr)
     return "null";
 
   int32_t snap_signature = 0;
-  if (!osal_safe_read_uint32(ptr, &snap_signature))
+  if (!osal_safe_peek_uint32(ptr, &snap_signature))
     return "bad";
 
   switch (snap_signature) {

@@ -568,6 +568,8 @@ MDBX_INTERNAL int osal_mb2w(const char *const src, wchar_t **const pdst);
 
 MDBX_INTERNAL bin128_t osal_guid(const MDBX_env *);
 
+MDBX_INTERNAL bool osal_safe_peek_uint32(const void *ptr, int32_t *dest);
+
 /*----------------------------------------------------------------------------*/
 
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline uint64_t osal_bswap64(uint64_t v) {

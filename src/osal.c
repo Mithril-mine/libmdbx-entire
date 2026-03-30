@@ -1120,6 +1120,10 @@ bool osal_pathequal(const pathchar_t *l, const pathchar_t *r, size_t len) {
 #endif
 }
 
+#if !(defined(_WIN32) || defined(_WIN64))
+static const char dev_null[] = "/dev/null";
+#endif /* !Windows */
+
 int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env, const pathchar_t *pathname,
                   mdbx_filehandle_t *fd, mdbx_mode_t unix_mode_bits) {
   *fd = INVALID_HANDLE_VALUE;
@@ -1247,7 +1251,6 @@ int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env,
   /* Safeguard for https://libmdbx.dqdkfa.ru/dead-github/issues/144 */
 #if STDIN_FILENO == 0 && STDOUT_FILENO == 1 && STDERR_FILENO == 2
   int stub_fd0 = -1, stub_fd1 = -1, stub_fd2 = -1;
-  static const char dev_null[] = "/dev/null";
   if (!is_valid_fd(STDIN_FILENO)) {
     WARNING("STD%s_FILENO/%d is invalid, open %s for temporary stub", "IN", STDIN_FILENO, dev_null);
     stub_fd0 = open(dev_null, O_RDONLY | O_NOCTTY);
@@ -3467,6 +3470,36 @@ const char *osal_getenv(const char *name, bool secure) {
 #endif /* glibc >= 2.17 */
   return getenv(name);
 #endif
+}
+
+bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
+  bool done = false;
+  *dest = 0;
+#if defined(_WIN32) || defined(_WIN64)
+  __try {
+    if (IsBadReadPtr(ptr, 4) == 0) {
+      memcpy(dest, ptr, 4);
+      done = true;
+    }
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    return false;
+    ;
+  }
+#else
+  static int nullfd = -1;
+  if (nullfd < 0) {
+    nullfd = open(dev_null, O_WRONLY
+#ifdef O_CLOEXEC
+                                | O_CLOEXEC
+#endif /* O_CLOEXEC */
+    );
+  }
+  if (write(nullfd, ptr, 4) == 4) {
+    memcpy(dest, ptr, 4);
+    done = true;
+  }
+#endif
+  return done;
 }
 
 /*--------------------------------------------------------------------------*/
