@@ -993,7 +993,7 @@ LIBMDBX_API int mdbx_setup_debug_nofmt(MDBX_log_level_t log_level, MDBX_debug_fl
 
 /** \brief A callback function for most assertion failures,
  * called before printing the message and aborting.
- * \see mdbx_env_set_assert()
+ * \see mdbx_env_set_panic()
  *
  * \param [in] msg       The assertion message, not including newline.
  * \param [in] function  The function name where the assertion check failed,
@@ -1008,9 +1008,8 @@ LIBMDBX_API int mdbx_setup_debug_nofmt(MDBX_log_level_t log_level, MDBX_debug_fl
 typedef void (*MDBX_panic_func)(const char *msg, const char *function, unsigned line, const void *obj,
                                 const char *obj_class) MDBX_CXX17_NOEXCEPT;
 
-/** \brief Set or reset the assert() callback of the environment.
+/** \brief Sets or reset the callback for panic() and assert() for the current process.
  *
- * \param [in] env   An environment handle returned by mdbx_env_create().
  * \param [in] func  An MDBX_assert_func function, or 0. */
 LIBMDBX_API void mdbx_set_panic(MDBX_panic_func func);
 

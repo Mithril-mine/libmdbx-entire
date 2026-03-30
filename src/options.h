@@ -586,7 +586,7 @@
  *                     Simultaneously sets the default logging level
  *                     to the `MDBX_DEBUG` value.
  *                     Also enables \ref MDBX_DBG_AUDIT if `MDBX_DEBUG >= 3`.
- * - `MDBX_DEBUG < 0`  Disables logging and error reporting at all, including any critical cases.
+ *  - `MDBX_DEBUG < 0` Disables logging and error reporting at all, including any critical cases.
  *
  * \ingroup build_option */
 #define MDBX_DEBUG 0...3
@@ -597,9 +597,11 @@
  *  - `MDBX_CHECKING = 0` Disables all assertion-like checks except those enforced using ENSURE() macros.
  *                        Debug flags \ref MDBX_DBG_ASSERT and \ref MDBX_DBG_AUDIT changing
  *                        by \ref mdbx_setup_debug() has no effect.
- *  - `MDBX_CHECKING = 1` Enables lite-costs checks by `CHECK0()` and `ASSERT()` macros, which are then always active in
- * code and NOT controlled by the \ref MDBX_DBG_ASSERT flag, since the cost of such control is comparable to a checks
- * itself. Debug flags \ref MDBX_DBG_ASSERT and \ref MDBX_DBG_AUDIT changing by \ref mdbx_setup_debug() has no effect.
+ *  - `MDBX_CHECKING = 1` Enables lite-costs checks by `CHECK0()` and `ASSERT()` macros, which are then
+ *                        always active in code and NOT controlled by the \ref MDBX_DBG_ASSERT flag,
+ *                        since the cost of such control is comparable to a checks itself.
+ *                        Debug flags \ref MDBX_DBG_ASSERT and \ref MDBX_DBG_AUDIT
+ *                        changing by \ref mdbx_setup_debug() has no effect.
  *  - `MDBX_CHECKING = 2` Additionally to `MDBX_CHECKING=1` enables medium-costs checks by `CHECK1()`,
  *                        which are then could be activated either disabled by the \ref MDBX_DBG_ASSERT flag.
  *  - `MDBX_CHECKING = 3` Additionally to `MDBX_CHECKING=2` enables high-costs checks by `CHECK2()`,
