@@ -684,7 +684,7 @@ __hot static int defrag_provide_span(dfc_t *const dfc, const size_t npages) {
   memset(dfc->cache_cost, 0, sizeof(dfc->cache_cost));
   size_t best_begin = MAX_PAGENO, best_cost = len;
 #if MDBX_PNL_ASCENDING
-#error "FIXME"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #else
   for (size_t span, i = len; i > 0 && pnl[i] <= dfc->defrag_enough - npages;) {
     for (span = 1; i > span && pnl[i - span] < dfc->defrag_enough && MDBX_PNL_CONTIGUOUS(pnl[i - span], pnl[i], span);

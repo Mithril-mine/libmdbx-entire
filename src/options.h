@@ -199,16 +199,6 @@
 #error MDBX_ENABLE_DBI_LOCKFREE must be defined as 0 or 1
 #endif /* MDBX_ENABLE_DBI_LOCKFREE */
 
-/** Controls sort order of internal page number lists.
- * This mostly experimental/advanced option with not for regular MDBX users.
- * \warning The database format depend on this option and libmdbx built with
- * different option value are incompatible. */
-#ifndef MDBX_PNL_ASCENDING
-#define MDBX_PNL_ASCENDING 0
-#elif !(MDBX_PNL_ASCENDING == 0 || MDBX_PNL_ASCENDING == 1)
-#error MDBX_PNL_ASCENDING must be defined as 0 or 1
-#endif /* MDBX_PNL_ASCENDING */
-
 /** Avoid dependence from MSVC CRT and use ntdll.dll instead. */
 #ifndef MDBX_WITHOUT_MSVC_CRT
 #if defined(MDBX_BUILD_CXX) && !MDBX_BUILD_CXX && (defined(_WIN32) || defined(_WIN64))
@@ -639,5 +629,8 @@
 #if MDBX_FORCE_ASSERTIONS && MDBX_CHECKING < 2
 #error "Please use one of MDBX_CHECKING either MDBX_FORCE_ASSERTIONS build options, but not both"
 #endif
+
+/* Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported. */
+#define MDBX_PNL_ASCENDING 0
 
 #endif /* DOXYGEN */

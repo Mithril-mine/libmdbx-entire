@@ -181,7 +181,7 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_MAYBE_UNUSED static inline bool pnl_contains_spa
                                                                                   pgno_t span) {
   size_t n = pnl_search_nochk(pnl, pgno);
 #if MDBX_PNL_ASCENDING
-#error "FIXME"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #else
   return n >= span && pnl[n] == pgno && MDBX_PNL_CONTIGUOUS(pnl[n - span + 1], pnl[n], span - 1);
 #endif /* MDBX_PNL_ASCENDING */

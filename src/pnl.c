@@ -280,7 +280,7 @@ __hot pgno_t pnl_get_best_sequence(const pnl_t pnl, const size_t seq, const pgno
   size_t best_extra = MAX_PAGENO;
 
 #if MDBX_PNL_ASCENDING
-#error "FIXME"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #else
   size_t len = pnl_size(pnl);
   for (size_t span, i = len; i >= seq && pnl[i] <= defrag_detent - seq; i -= span) {
@@ -313,7 +313,7 @@ pgno_t pnl_crop_tail_sequence(const pnl_t pnl) {
   const size_t len = pnl_size(pnl);
   ASSERT(len > 0);
 #if MDBX_PNL_ASCENDING
-#error "FIXME"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #else
   size_t span = 1;
   while (1 + span <= len && MDBX_PNL_CONTIGUOUS(pnl[1], pnl[1 + span], span))

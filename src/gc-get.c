@@ -326,7 +326,7 @@ MDBX_MAYBE_UNUSED __hot MDBX_ATTRIBUTE_TARGET_AVX2 static pgno_t *scan4seq_avx2(
                                                                                 const size_t seq) {
   ASSERT(seq > 0 && len > seq);
 #if MDBX_PNL_ASCENDING
-#error "FIXME: Not implemented"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #endif /* MDBX_PNL_ASCENDING */
   ASSERT(range[-(ptrdiff_t)len] == len);
   pgno_t *const detent = range - len + seq;
@@ -392,7 +392,7 @@ MDBX_MAYBE_UNUSED __hot MDBX_ATTRIBUTE_TARGET_AVX512BW static pgno_t *scan4seq_a
                                                                                         const size_t seq) {
   ASSERT(seq > 0 && len > seq);
 #if MDBX_PNL_ASCENDING
-#error "FIXME: Not implemented"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #endif /* MDBX_PNL_ASCENDING */
   ASSERT(range[-(ptrdiff_t)len] == len);
   pgno_t *const detent = range - len + seq;
@@ -467,7 +467,7 @@ static __always_inline size_t diffcmp2mask_neon(const pgno_t *const ptr, const p
 __hot static pgno_t *scan4seq_neon(pgno_t *range, const size_t len, const size_t seq) {
   ASSERT(seq > 0 && len > seq);
 #if MDBX_PNL_ASCENDING
-#error "FIXME: Not implemented"
+#error "FIXME: Since 2026-04-01 alternatives to MDBX_PNL_ASCENDING = 0 are no longer supported."
 #endif /* MDBX_PNL_ASCENDING */
   ASSERT(range[-(ptrdiff_t)len] == len);
   pgno_t *const detent = range - len + seq;
