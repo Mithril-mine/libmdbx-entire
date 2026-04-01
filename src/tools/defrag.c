@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
                           "U")) != EOF;) {
     switch (i) {
     case 'V':
-      printf("mdbx_defarg version %d.%d.%d.%d\n"
+      printf("mdbx_defrag version %d.%d.%d.%d\n"
              " - source: %s %s, commit %s, tree %s\n"
              " - anchor: %s\n"
              " - build: %s for %s by %s\n"

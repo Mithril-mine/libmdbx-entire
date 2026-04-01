@@ -497,7 +497,7 @@ int main(int argc, char *argv[]) {
   int envflags = MDBX_SAFE_NOSYNC | MDBX_ACCEDE, putflags = MDBX_UPSERT;
   bool rescue = false;
   bool purge = false;
-  unsigned desity_percent = 100;
+  unsigned density_percent = 100;
   bool override_geometry = false;
   intptr_t geometry_pagesize = -1;
   intptr_t geometry_lower = -1;
@@ -584,7 +584,7 @@ int main(int argc, char *argv[]) {
       }
       break;
     case 'd':
-      if (sscanf(optarg, "%u", &desity_percent) != 1 || desity_percent < 50 || desity_percent > 100) {
+      if (sscanf(optarg, "%u", &density_percent) != 1 || density_percent < 50 || density_percent > 100) {
         if (!quiet)
           fprintf(stderr, "%s: %s option: expecting %s, but got '%s'\n", prog, "-d",
                   "unsigned integer value in range between 50 and 100", optarg);
@@ -596,7 +596,7 @@ int main(int argc, char *argv[]) {
                  &geometry_pagesize) != 5) {
         if (!quiet)
           fprintf(stderr, "%s: %s option: expecting %s, but got '%s'\n", prog, "-G",
-                  "five numbers delimitied by a colon", optarg);
+                  "five numbers delimited by a colon", optarg);
         return EXIT_FAILURE;
       }
       override_geometry = true;
@@ -704,7 +704,7 @@ int main(int argc, char *argv[]) {
     goto bailout;
   }
 
-  err = mdbx_env_set_option(env, MDBX_opt_split_reserve, 65536u * (100u - desity_percent) / 100u);
+  err = mdbx_env_set_option(env, MDBX_opt_split_reserve, 65536u * (100u - density_percent) / 100u);
   if (unlikely(err != MDBX_SUCCESS)) {
     error("mdbx_env_set_option.split_reserve", err);
     goto bailout;
