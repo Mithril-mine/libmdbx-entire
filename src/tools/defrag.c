@@ -37,7 +37,7 @@ static void signal_handler(int sig) {
 static char *prog;
 static void usage(void) {
   fprintf(stderr,
-          "usage: %s [-V] [-q] [-c] [-d] [-p] [-u|U] db_pathname\n"
+          "usage: %s [-V] [-v[v[v...]]] [-q] [-1..9] [-t seconds] [-f percent] [-r percent] [-s megabytes] [-c] [-u|U] db_pathname\n"
           "  -V\t\tprint version and exit\n"
           "  -v\t\tmore verbose, could be repeated for extra details from debug-enabled builds.\n"
           "  -q\t\tbe quiet.\n"
