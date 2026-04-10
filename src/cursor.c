@@ -330,7 +330,7 @@ int cursor_dupsort_setup(MDBX_cursor *mc, const node_t *node, const page_t *mp) 
   const uint8_t flags = node_flags(node);
   switch (flags) {
   default:
-    ERROR("invalid node flags %u", flags);
+    bad_page(mp, "invalid node flags %u", flags);
     goto bailout;
   case N_DUP | N_TREE:
     if (!MDBX_DISABLE_VALIDATION && unlikely(node_ds(node) != sizeof(tree_t))) {
