@@ -405,12 +405,7 @@ int mdbx_cursor_on_first(const MDBX_cursor *mc) {
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  for (intptr_t i = 0; i <= mc->top; ++i) {
-    if (mc->ki[i])
-      return MDBX_RESULT_FALSE;
-  }
-
-  return MDBX_RESULT_TRUE;
+  return cursor_on_first(mc);
 }
 
 int mdbx_cursor_on_first_dup(const MDBX_cursor *mc) {
@@ -418,15 +413,7 @@ int mdbx_cursor_on_first_dup(const MDBX_cursor *mc) {
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  if (is_filled(mc) && mc->subcur) {
-    mc = &mc->subcur->cursor;
-    for (intptr_t i = 0; i <= mc->top; ++i) {
-      if (mc->ki[i])
-        return MDBX_RESULT_FALSE;
-    }
-  }
-
-  return MDBX_RESULT_TRUE;
+  return (is_filled(mc) && mc->subcur) ? cursor_on_first(&mc->subcur->cursor) : MDBX_RESULT_TRUE;
 }
 
 int mdbx_cursor_on_last(const MDBX_cursor *mc) {
@@ -434,13 +421,7 @@ int mdbx_cursor_on_last(const MDBX_cursor *mc) {
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  for (intptr_t i = 0; i <= mc->top; ++i) {
-    size_t nkeys = page_numkeys(mc->pg[i]);
-    if (mc->ki[i] < nkeys - 1)
-      return MDBX_RESULT_FALSE;
-  }
-
-  return MDBX_RESULT_TRUE;
+  return cursor_on_last(mc);
 }
 
 int mdbx_cursor_on_last_dup(const MDBX_cursor *mc) {
@@ -448,16 +429,7 @@ int mdbx_cursor_on_last_dup(const MDBX_cursor *mc) {
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  if (is_filled(mc) && mc->subcur) {
-    mc = &mc->subcur->cursor;
-    for (intptr_t i = 0; i <= mc->top; ++i) {
-      size_t nkeys = page_numkeys(mc->pg[i]);
-      if (mc->ki[i] < nkeys - 1)
-        return MDBX_RESULT_FALSE;
-    }
-  }
-
-  return MDBX_RESULT_TRUE;
+  return (is_filled(mc) && mc->subcur) ? cursor_on_last(&mc->subcur->cursor) : MDBX_RESULT_TRUE;
 }
 
 int mdbx_cursor_eof(const MDBX_cursor *mc) {

@@ -2396,3 +2396,20 @@ int cursor_check(const MDBX_cursor *mc, int txn_bad_bits) {
 
   return MDBX_SUCCESS;
 }
+
+int cursor_on_first(const MDBX_cursor *mc) {
+  for (intptr_t i = 0; i <= mc->top; ++i) {
+    if (mc->ki[i])
+      return MDBX_RESULT_FALSE;
+  }
+  return MDBX_RESULT_TRUE;
+}
+
+int cursor_on_last(const MDBX_cursor *mc) {
+  for (intptr_t i = 0; i <= mc->top; ++i) {
+    size_t nkeys = page_numkeys(mc->pg[i]);
+    if (mc->ki[i] < nkeys - 1)
+      return MDBX_RESULT_FALSE;
+  }
+  return MDBX_RESULT_TRUE;
+}

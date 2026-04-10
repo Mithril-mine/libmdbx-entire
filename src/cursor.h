@@ -362,6 +362,9 @@ MDBX_INTERNAL int __must_check_result cursor_touch(MDBX_cursor *const mc, const 
 
 MDBX_INTERNAL MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *couple);
 
+MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cursor_on_first(const MDBX_cursor *mc);
+MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL int cursor_on_last(const MDBX_cursor *mc);
+
 /*----------------------------------------------------------------------------*/
 
 /* Update sub-page pointer, if any, in mc->subcur.
