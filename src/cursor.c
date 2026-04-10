@@ -1628,7 +1628,7 @@ __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
 
     if ((node_flags(node) & N_TREE) && mc->subcur->cursor.tree->height) {
       /* add all the child DB's pages to the free list */
-      rc = tree_drop(&mc->subcur->cursor, false);
+      rc = tree_drop(&mc->subcur->cursor);
       if (unlikely(rc != MDBX_SUCCESS))
         goto fail;
     }

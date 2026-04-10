@@ -136,7 +136,7 @@ static inline sfr_t tree_search_foliage(MDBX_cursor *mc, const MDBX_val *key) {
   return mc->clc->k.search_foliage(mc, key);
 }
 
-MDBX_INTERNAL int tree_drop(MDBX_cursor *mc, const bool may_have_tables);
+MDBX_INTERNAL int tree_drop(MDBX_cursor *mc);
 MDBX_INTERNAL int __must_check_result tree_rebalance(MDBX_cursor *mc);
 MDBX_INTERNAL int __must_check_result tree_propagate_key(MDBX_cursor *mc, const MDBX_val *key);
 MDBX_INTERNAL void recalculate_merge_thresholds(MDBX_env *env);

@@ -11,18 +11,18 @@ void recalculate_merge_thresholds(MDBX_env *env) {
   eASSERT0(env, env->merge_threshold >= whole_page_space / 2u && env->merge_threshold <= whole_page_space * 63u / 64u);
 }
 
-int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
-  MDBX_txn *txn = mc->txn;
+int tree_drop(MDBX_cursor *mc) {
+  const bool may_have_subtrees = !is_inner(mc) && (cursor_is_main(mc) || (mc->tree->flags & MDBX_DUPSORT));
   int rc = tree_search(mc, nullptr, Z_FIRST);
   if (likely(rc == MDBX_SUCCESS)) {
     /* DUPSORT sub-DBs have no large-pages/tables. Omit scanning leaves.
      * This also avoids any P_DUPFIX pages, which have no nodes.
      * Also if the DB doesn't have sub-DBs and has no large/overflow
      * pages, omit scanning leaves. */
-    if (!(may_have_tables | mc->tree->large_pages))
+    if (!(may_have_subtrees | mc->tree->large_pages))
       cursor_pop(mc);
 
-    rc = pnl_need(&txn->wr.retired_pages,
+    rc = pnl_need(&mc->txn->wr.retired_pages,
                   (size_t)mc->tree->branch_pages + (size_t)mc->tree->leaf_pages + (size_t)mc->tree->large_pages);
     if (unlikely(rc != MDBX_SUCCESS))
       goto bailout;
@@ -42,7 +42,7 @@ int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
             rc = page_retire_ex(mc, node_largedata_pgno(node), nullptr, 0);
             if (unlikely(rc != MDBX_SUCCESS))
               goto bailout;
-            if (!(may_have_tables | mc->tree->large_pages))
+            if (!(may_have_subtrees | mc->tree->large_pages))
               goto popup;
           } else if (node_flags(node) & N_TREE) {
             if (unlikely((node_flags(node) & N_DUP) == 0)) {
@@ -52,7 +52,7 @@ int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
             rc = cursor_dupsort_setup(mc, node, mp);
             if (unlikely(rc != MDBX_SUCCESS))
               goto bailout;
-            rc = tree_drop(&mc->subcur->cursor, false);
+            rc = tree_drop(&mc->subcur->cursor);
             if (unlikely(rc != MDBX_SUCCESS))
               goto bailout;
           }
@@ -60,7 +60,7 @@ int tree_drop(MDBX_cursor *mc, const bool may_have_tables) {
       } else {
         cASSERT0(mc, mc->top + 1 < mc->tree->height);
         mc->checking |= z_retiring;
-        const unsigned pagetype = (is_frozen(txn, mp) ? P_FROZEN : 0) +
+        const unsigned pagetype = (is_frozen(mc->txn, mp) ? P_FROZEN : 0) +
                                   ((mc->top + 2 == mc->tree->height) ? (mc->checking & (P_LEAF | P_DUPFIX)) : P_BRANCH);
         for (size_t i = 0; i < nkeys; i++) {
           node_t *node = page_node(mp, i);
