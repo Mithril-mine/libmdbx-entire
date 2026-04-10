@@ -453,6 +453,20 @@ MDBX_cursor *cursor_clone_slightly(const MDBX_cursor *csrc, cursor_couple_t *cou
   return cursor_cpstk(csrc, cdst);
 }
 
+MDBX_cursor *cursor_clone_complete(const MDBX_cursor *csrc, cursor_couple_t *couple) {
+  if (unlikely(is_inner(csrc)))
+    return cursor_clone_slightly(csrc, couple);
+
+  cursor_clone_half(csrc, &couple->outer);
+  if (csrc->subcur) {
+    couple->outer.subcur = &couple->inner;
+    cursor_clone_half(&csrc->subcur->cursor, &couple->inner.cursor);
+    couple->inner.nested_tree = *couple->inner.cursor.tree;
+    couple->inner.cursor.tree = &couple->inner.nested_tree;
+  }
+  return &couple->outer;
+}
+
 static __always_inline int sibling(MDBX_cursor *mc, bool right) {
   if (mc->top < 1) {
     /* root has no siblings */
