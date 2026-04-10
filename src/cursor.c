@@ -397,7 +397,33 @@ bailout:
 
 /*----------------------------------------------------------------------------*/
 
-MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *couple) {
+MDBX_cursor *cursor_cpstk(const MDBX_cursor *csrc, MDBX_cursor *cdst) {
+  cASSERT0(cdst, cdst->txn == csrc->txn);
+  cASSERT0(cdst, cdst->tree == csrc->tree);
+  cASSERT0(cdst, cdst->clc == csrc->clc);
+  cASSERT0(cdst, cdst->dbi_state == csrc->dbi_state);
+  cdst->top_and_flags = csrc->top_and_flags;
+
+  for (intptr_t i = 0; i <= csrc->top; i++) {
+    cdst->pg[i] = csrc->pg[i];
+    cdst->ki[i] = csrc->ki[i];
+  }
+  return cdst;
+}
+
+static inline void cursor_clone_half(const MDBX_cursor *csrc, MDBX_cursor *cdst) {
+  cdst->next = nullptr;
+  cdst->backup = nullptr;
+  cdst->subcur = nullptr;
+  cdst->clc = csrc->clc;
+  cdst->txn = csrc->txn;
+  cdst->dbi_state = csrc->dbi_state;
+  cdst->checking = csrc->checking;
+  cdst->tree = csrc->tree;
+  cursor_cpstk(csrc, cdst);
+}
+
+MDBX_cursor *cursor_clone_slightly(const MDBX_cursor *csrc, cursor_couple_t *couple) {
   cASSERT0(csrc, csrc->txn->txnid >= csrc->txn->env->lck->cached_oldest_txnid.weak);
   couple->outer.next = nullptr;
   couple->outer.backup = nullptr;
@@ -423,21 +449,8 @@ MDBX_cursor *cursor_clone(const MDBX_cursor *csrc, cursor_couple_t *couple) {
   cdst->checking = csrc->checking;
   cdst->tree = csrc->tree;
   cdst->clc = csrc->clc;
+
   return cursor_cpstk(csrc, cdst);
-}
-
-MDBX_cursor *cursor_cpstk(const MDBX_cursor *csrc, MDBX_cursor *cdst) {
-  cASSERT0(cdst, cdst->txn == csrc->txn);
-  cASSERT0(cdst, cdst->tree == csrc->tree);
-  cASSERT0(cdst, cdst->clc == csrc->clc);
-  cASSERT0(cdst, cdst->dbi_state == csrc->dbi_state);
-  cdst->top_and_flags = csrc->top_and_flags;
-
-  for (intptr_t i = 0; i <= csrc->top; i++) {
-    cdst->pg[i] = csrc->pg[i];
-    cdst->ki[i] = csrc->ki[i];
-  }
-  return cdst;
 }
 
 static __always_inline int sibling(MDBX_cursor *mc, bool right) {

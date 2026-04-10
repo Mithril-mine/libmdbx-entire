@@ -155,7 +155,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
 
     if (cdst->ki[cdst->top] == 0) {
       cursor_couple_t couple;
-      MDBX_cursor *const mn = cursor_clone(cdst, &couple);
+      MDBX_cursor *const mn = cursor_clone_slightly(cdst, &couple);
       const int8_t top = cdst->top;
       cASSERT0(csrc, top >= 0);
 
@@ -334,7 +334,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       DEBUG("update separator for source page %" PRIaPGNO " to [%s]", psrc->pgno, DKEY_DEBUG(&key));
 
       cursor_couple_t couple;
-      MDBX_cursor *const mn = cursor_clone(csrc, &couple);
+      MDBX_cursor *const mn = cursor_clone_slightly(csrc, &couple);
       cASSERT0(csrc, mn->top > 0);
       mn->top -= 1;
 
@@ -368,7 +368,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       }
       DEBUG("update separator for destination page %" PRIaPGNO " to [%s]", pdst->pgno, DKEY_DEBUG(&key));
       cursor_couple_t couple;
-      MDBX_cursor *const mn = cursor_clone(cdst, &couple);
+      MDBX_cursor *const mn = cursor_clone_slightly(cdst, &couple);
       cASSERT0(cdst, mn->top > 0);
       mn->top -= 1;
 
@@ -442,7 +442,7 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
       key.iov_base = node_key(srcnode);
       if (pagetype & P_BRANCH) {
         cursor_couple_t couple;
-        MDBX_cursor *const mn = cursor_clone(csrc, &couple);
+        MDBX_cursor *const mn = cursor_clone_slightly(csrc, &couple);
 
         /* must find the lowest key below src */
         rc = tree_search_lowest(mn);
@@ -747,7 +747,7 @@ int tree_rebalance(MDBX_cursor *mc) {
 
   /* Find neighbors. */
   cursor_couple_t couple;
-  MDBX_cursor *const mn = cursor_clone(mc, &couple);
+  MDBX_cursor *const mn = cursor_clone_slightly(mc, &couple);
 
   page_t *left = nullptr, *right = nullptr;
   if (mn->ki[pre_top] > 0) {
