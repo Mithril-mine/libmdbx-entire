@@ -262,6 +262,19 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline bool cursor_is_core(c
   return mc->dbi_state < mc->txn->dbi_state + CORE_DBS;
 }
 
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline MDBX_cursor *cursor_outer(MDBX_cursor *mc) {
+  cASSERT0(mc, mc->flags & z_inner);
+  return &container_of(mc, cursor_couple_t, inner.cursor)->outer;
+}
+
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static inline tree_t *cursor_outer_tree(MDBX_cursor *mc) {
+  cASSERT0(mc, (mc->flags & z_inner) != 0);
+  subcur_t *mx = container_of(mc->tree, subcur_t, nested_tree);
+  cursor_couple_t *couple = container_of(mx, cursor_couple_t, inner);
+  cASSERT0(mc, mc->tree == &couple->outer.subcur->nested_tree && &mc->clc->k == &couple->outer.clc->v);
+  return couple->outer.tree;
+}
+
 MDBX_MAYBE_UNUSED static inline int cursor_dbi_dbg(const MDBX_cursor *mc) {
   /* Debugging output value of a cursor's DBI: Negative for a sub-cursor. */
   const int dbi = cursor_dbi(mc);

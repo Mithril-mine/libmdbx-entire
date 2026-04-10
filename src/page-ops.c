@@ -3,15 +3,6 @@
 
 #include "internals.h"
 
-static inline tree_t *outer_tree(MDBX_cursor *mc) {
-  cASSERT0(mc, (mc->flags & z_inner) != 0);
-  subcur_t *mx = container_of(mc->tree, subcur_t, nested_tree);
-  cursor_couple_t *couple = container_of(mx, cursor_couple_t, inner);
-  cASSERT0(mc, mc->tree == &couple->outer.subcur->nested_tree);
-  cASSERT0(mc, &mc->clc->k == &couple->outer.clc->v);
-  return couple->outer.tree;
-}
-
 pgr_t page_new(MDBX_cursor *mc, const unsigned flags) {
   cASSERT0(mc, (flags & P_LARGE) == 0);
   pgr_t ret = gc_alloc_single(mc);
@@ -32,7 +23,7 @@ pgr_t page_new(MDBX_cursor *mc, const unsigned flags) {
   mc->tree->branch_pages += is_branch;
   mc->tree->leaf_pages += 1 - is_branch;
   if (unlikely(mc->flags & z_inner)) {
-    tree_t *outer = outer_tree(mc);
+    tree_t *outer = cursor_outer_tree(mc);
     outer->branch_pages += is_branch;
     outer->leaf_pages += 1 - is_branch;
   }
@@ -481,7 +472,7 @@ status_done:
     const bool is_branch = pageflags & P_BRANCH;
     cASSERT0(mc, ((pageflags & P_LEAF) == 0) == is_branch);
     if (unlikely(mc->flags & z_inner)) {
-      tree_t *outer = outer_tree(mc);
+      tree_t *outer = cursor_outer_tree(mc);
       cASSERT0(mc, !is_branch || outer->branch_pages > 0);
       outer->branch_pages -= is_branch;
       cASSERT0(mc, is_branch || outer->leaf_pages > 0);
