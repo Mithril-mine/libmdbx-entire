@@ -897,3 +897,59 @@ int mdbx_cursor_bunch_delete(MDBX_cursor *mc, MDBX_bunch_action_t action, uint64
 
   return LOG_IFERR(rc);
 }
+
+int mdbx_cursor_delete_range(MDBX_cursor *begin, MDBX_cursor *end, bool end_including, uint64_t *number_of_affected) {
+  if (number_of_affected)
+    *number_of_affected = 0;
+  if (unlikely(!begin && !end))
+    return LOG_IFERR(MDBX_EINVAL);
+
+  int rc;
+  if (begin) {
+    rc = cursor_check_rw(begin);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+    if (unlikely(!is_pointed(begin)))
+      return LOG_IFERR(MDBX_ENODATA);
+  }
+
+  if (end) {
+    rc = cursor_check_rw(end);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+    if (unlikely(!is_pointed(end)))
+      return LOG_IFERR(MDBX_ENODATA);
+  }
+
+  if (unlikely(begin && end && begin->txn != end->txn && begin->tree != end->tree))
+    return LOG_IFERR(MDBX_EINVAL);
+
+  cursor_couple_t couple;
+  if (!begin) {
+    begin = cursor_clone_complete(end, &couple);
+    rc = outer_first(begin, nullptr, nullptr);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+    couple.outer.next = begin->txn->cursors[cursor_dbi(begin)];
+    begin->txn->cursors[cursor_dbi(begin)] = &couple.outer;
+  }
+
+  if (!end) {
+    end = cursor_clone_complete(begin, &couple);
+    rc = outer_last(end, nullptr, nullptr);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return LOG_IFERR(rc);
+    couple.outer.next = end->txn->cursors[cursor_dbi(end)];
+    end->txn->cursors[cursor_dbi(end)] = &couple.outer;
+  }
+
+  const uint64_t save_items = begin->tree->items;
+  rc = tree_curoff_range(begin, end, !!end_including);
+  if (number_of_affected)
+    *number_of_affected = save_items - begin->tree->items;
+
+  if (begin->txn->cursors[cursor_dbi(begin)] == &couple.outer)
+    couple.outer.txn->cursors[cursor_dbi(begin)] = couple.outer.next;
+
+  return LOG_IFERR(rc);
+}

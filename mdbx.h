@@ -6300,6 +6300,36 @@ LIBMDBX_API int mdbx_cursor_put(MDBX_cursor *cursor, const MDBX_val *key, MDBX_v
  * \retval MDBX_EINVAL        An invalid parameter was specified. */
 LIBMDBX_API int mdbx_cursor_del(MDBX_cursor *cursor, MDBX_put_flags_t flags);
 
+/** \brief Quickly removes given range of items.
+ * \ingroup c_crud
+ *
+ * Performs mass deletion of elements between positions of given cursors pair much faster,
+ * cutting out entire pages and branches from the B+ tree structure.
+ *
+ * \param [in] begin                Defines the beginning of the range to delete,
+ *                                  or can be NULL to delete starting the first item.
+ *
+ * \param [in] end                  Defines the ending of the range to delete,
+ *                                  or can be NULL to delete up to the last item.
+ *
+ * \param [in] end_including        The boolean flag determines whether the end of the given
+ *                                  interval should be included in the range to be deleted.
+ *
+ * \param [out] number_of_affected  Address to store the result
+ *                                  number of removed items.
+ *
+ * \see mdbx_cursor_bunch_delete()
+ * \returns A non-zero error value on failure and 0 on success,
+ *          some possible errors are:
+ * \retval MDBX_THREAD_MISMATCH  Given transaction is not owned
+ *                               by current thread.
+ * \retval MDBX_ENODATA       One or both of the given cursor(s) is not positioned to a data.
+ * \retval MDBX_TXN_FULL      The transaction has too many dirty pages.
+ * \retval MDBX_EACCES        An attempt was made to write in a read-only transaction.
+ * \retval MDBX_EINVAL        An invalid parameter was specified. */
+LIBMDBX_API int mdbx_cursor_delete_range(MDBX_cursor *begin, MDBX_cursor *end, bool end_including,
+                                         uint64_t *number_of_affected);
+
 /** \brief Modes for deleting bunches of neighboring items with self-documenting names.
  *
  * The EXCLUDING and INCLUDING suffixes mean correspondingly
