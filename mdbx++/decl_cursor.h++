@@ -27,11 +27,17 @@ public:
   inline cursor(cursor &&) noexcept;
   inline ~cursor() noexcept;
   inline cursor_managed clone(void *your_context = nullptr) const;
-  MDBX_CXX14_CONSTEXPR operator bool() const noexcept;
-  MDBX_CXX14_CONSTEXPR operator const MDBX_cursor *() const;
-  MDBX_CXX14_CONSTEXPR operator MDBX_cursor *();
-  friend MDBX_CXX11_CONSTEXPR bool operator==(const cursor &a, const cursor &b) noexcept;
-  friend MDBX_CXX11_CONSTEXPR bool operator!=(const cursor &a, const cursor &b) noexcept;
+  MDBX_CXX14_CONSTEXPR operator bool() const noexcept { return handle_ != nullptr; };
+  MDBX_CXX14_CONSTEXPR operator const MDBX_cursor *() const noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR operator MDBX_cursor *() noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR const MDBX_cursor *handle() const noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR MDBX_cursor *handle() noexcept { return handle_; };
+  friend MDBX_CXX11_CONSTEXPR bool operator==(const cursor &a, const cursor &b) noexcept {
+    return a.handle_ == b.handle_;
+  }
+  friend MDBX_CXX11_CONSTEXPR bool operator!=(const cursor &a, const cursor &b) noexcept {
+    return a.handle_ != b.handle_;
+  }
 
   friend inline int compare_position_nothrow(const cursor &left, const cursor &right, bool ignore_nested) noexcept;
   friend inline int compare_position(const cursor &left, const cursor &right, bool ignore_nested);

@@ -28,11 +28,13 @@ public:
   inline env(env &&) noexcept;
   inline ~env() noexcept;
 
-  MDBX_CXX14_CONSTEXPR operator bool() const noexcept;
-  MDBX_CXX14_CONSTEXPR operator const MDBX_env *() const;
-  MDBX_CXX14_CONSTEXPR operator MDBX_env *();
-  friend MDBX_CXX11_CONSTEXPR bool operator==(const env &a, const env &b) noexcept;
-  friend MDBX_CXX11_CONSTEXPR bool operator!=(const env &a, const env &b) noexcept;
+  MDBX_CXX14_CONSTEXPR operator bool() const noexcept { return handle_ != nullptr; };
+  MDBX_CXX14_CONSTEXPR operator const MDBX_env *() const noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR operator MDBX_env *() noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR const MDBX_env *handle() const noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR MDBX_env *handle() noexcept { return handle_; };
+  friend MDBX_CXX11_CONSTEXPR bool operator==(const env &a, const env &b) noexcept { return a.handle_ == b.handle_; }
+  friend MDBX_CXX11_CONSTEXPR bool operator!=(const env &a, const env &b) noexcept { return a.handle_ != b.handle_; }
 
   //----------------------------------------------------------------------------
 

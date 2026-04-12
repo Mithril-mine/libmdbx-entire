@@ -22,16 +22,6 @@ inline env::~env() noexcept {
 #endif
 }
 
-MDBX_CXX14_CONSTEXPR env::operator bool() const noexcept { return handle_ != nullptr; }
-
-MDBX_CXX14_CONSTEXPR env::operator const MDBX_env *() const { return handle_; }
-
-MDBX_CXX14_CONSTEXPR env::operator MDBX_env *() { return handle_; }
-
-MDBX_CXX11_CONSTEXPR bool operator==(const env &a, const env &b) noexcept { return a.handle_ == b.handle_; }
-
-MDBX_CXX11_CONSTEXPR bool operator!=(const env &a, const env &b) noexcept { return a.handle_ != b.handle_; }
-
 inline env::geometry &env::geometry::make_fixed(intptr_t size) noexcept {
   size_lower = size_now = size_upper = size;
   growth_step = shrink_threshold = 0;

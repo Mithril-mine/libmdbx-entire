@@ -22,16 +22,6 @@ inline txn::~txn() noexcept {
 #endif
 }
 
-MDBX_CXX14_CONSTEXPR txn::operator bool() const noexcept { return handle_ != nullptr; }
-
-MDBX_CXX14_CONSTEXPR txn::operator const MDBX_txn *() const { return handle_; }
-
-MDBX_CXX14_CONSTEXPR txn::operator MDBX_txn *() { return handle_; }
-
-MDBX_CXX11_CONSTEXPR bool operator==(const txn &a, const txn &b) noexcept { return a.handle_ == b.handle_; }
-
-MDBX_CXX11_CONSTEXPR bool operator!=(const txn &a, const txn &b) noexcept { return a.handle_ != b.handle_; }
-
 inline void *txn::get_context() const noexcept { return mdbx_txn_get_userctx(handle_); }
 
 inline txn &txn::set_context(void *ptr) {

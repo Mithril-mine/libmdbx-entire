@@ -35,16 +35,6 @@ inline cursor::~cursor() noexcept {
 #endif
 }
 
-MDBX_CXX14_CONSTEXPR cursor::operator bool() const noexcept { return handle_ != nullptr; }
-
-MDBX_CXX14_CONSTEXPR cursor::operator const MDBX_cursor *() const { return handle_; }
-
-MDBX_CXX14_CONSTEXPR cursor::operator MDBX_cursor *() { return handle_; }
-
-MDBX_CXX11_CONSTEXPR bool operator==(const cursor &a, const cursor &b) noexcept { return a.handle_ == b.handle_; }
-
-MDBX_CXX11_CONSTEXPR bool operator!=(const cursor &a, const cursor &b) noexcept { return a.handle_ != b.handle_; }
-
 inline int compare_position_nothrow(const cursor &left, const cursor &right, bool ignore_nested = false) noexcept {
   return mdbx_cursor_compare(left.handle_, right.handle_, ignore_nested);
 }

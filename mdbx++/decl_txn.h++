@@ -30,11 +30,13 @@ public:
   inline txn(txn &&) noexcept;
   inline ~txn() noexcept;
 
-  MDBX_CXX14_CONSTEXPR operator bool() const noexcept;
-  MDBX_CXX14_CONSTEXPR operator const MDBX_txn *() const;
-  MDBX_CXX14_CONSTEXPR operator MDBX_txn *();
-  friend MDBX_CXX11_CONSTEXPR bool operator==(const txn &a, const txn &b) noexcept;
-  friend MDBX_CXX11_CONSTEXPR bool operator!=(const txn &a, const txn &b) noexcept;
+  MDBX_CXX14_CONSTEXPR operator bool() const noexcept { return handle_ != nullptr; };
+  MDBX_CXX14_CONSTEXPR operator const MDBX_txn *() const noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR operator MDBX_txn *() noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR const MDBX_txn *handle() const noexcept { return handle_; }
+  MDBX_CXX14_CONSTEXPR MDBX_txn *handle() noexcept { return handle_; };
+  friend MDBX_CXX11_CONSTEXPR bool operator==(const txn &a, const txn &b) noexcept { return a.handle_ == b.handle_; }
+  friend MDBX_CXX11_CONSTEXPR bool operator!=(const txn &a, const txn &b) noexcept { return a.handle_ != b.handle_; }
 
   /// \brief Returns the transaction's environment.
   inline ::mdbx::env env() const noexcept;
