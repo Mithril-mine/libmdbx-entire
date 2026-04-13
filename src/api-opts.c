@@ -114,7 +114,9 @@ void env_options_init(MDBX_env *env) {
   env->options.rp_augment_limit = default_rp_augment_limit(env);
   env->options.dp_reserve_limit = default_dp_reserve_limit(env);
   env->options.dp_initial = default_dp_initial(env);
-  env->options.dp_limit = default_dp_limit(env);
+  env->options.dp_limit = (/* just to avoid extra syscalls and because dp_limit will be adjusted later */ true)
+                              ? env->options.dp_initial * 42
+                              : default_dp_limit(env);
   env->options.spill_max_denominator = default_spill_max_denominator(env);
   env->options.spill_min_denominator = default_spill_min_denominator(env);
   env->options.spill_parent4child_denominator = default_spill_parent4child_denominator(env);

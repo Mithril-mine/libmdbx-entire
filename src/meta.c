@@ -537,7 +537,11 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
   uint64_t mapsize_max = geo_upper * (uint64_t)meta->pagesize;
   STATIC_ASSERT(MIN_MAPSIZE < MAX_MAPSIZE);
   if (unlikely(mapsize_max > MAX_MAPSIZE ||
-               (MAX_PAGENO + 1) < (mapsize_max + globals.sys_pagesize - 1) / meta->pagesize)) {
+               (MAX_PAGENO + 1) < ceil_powerof2((/* допустимо, так как уже проверили что mapsize_max <= MAX_MAPSIZE,
+                                                  * а следовательно mapsize_max помещается в size_t */
+                                                 size_t)mapsize_max,
+                                                globals.sys_allocation_granularity) /
+                                      meta->pagesize)) {
     if (mapsize_max > MAX_MAPSIZE64) {
       WARNING("meta[%u] has invalid max-mapsize (%" PRIu64 "), skip it", meta_number, mapsize_max);
       return MDBX_VERSION_MISMATCH;
