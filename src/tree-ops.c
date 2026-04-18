@@ -564,8 +564,8 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   cASSERT0(cdst, cdst->top > 0);
   page_t *const top_page = cdst->pg[cdst->top];
   const indx_t top_indx = cdst->ki[cdst->top];
-  const int save_top = cdst->top;
   const uint16_t save_height = cdst->tree->height;
+  const int save_top = cdst->top;
   cursor_pop(cdst);
   rc = tree_rebalance(cdst);
   if (unlikely(rc != MDBX_SUCCESS))
@@ -583,9 +583,10 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   }
 
   cASSERT0(cdst, page_numkeys(top_page) == dst_nkeys + src_nkeys);
-
+  const int new_top = save_top - save_height + cdst->tree->height;
   if (unlikely(pagetype != page_type(top_page))) {
     /* LY: LEAF-page becomes BRANCH, unable restore cursor's stack */
+    ERROR("unexpected top-page type 0x%x, expect 0x%x", page_type(top_page), pagetype);
     goto bailout;
   }
 
@@ -596,9 +597,10 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
     return MDBX_SUCCESS;
   }
 
-  const int new_top = save_top - save_height + cdst->tree->height;
   if (unlikely(new_top < 0 || new_top >= cdst->tree->height)) {
     /* LY: out of range, unable restore cursor's stack */
+    ERROR("cursor top-new %i is out of range %u..%u (top-before %i, height-before %i, height-new %i)", new_top, 0,
+          cdst->tree->height, save_top, save_height, cdst->tree->height);
     goto bailout;
   }
 
@@ -611,10 +613,7 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
     return MDBX_SUCCESS;
   }
 
-  page_t *const stub_page = (page_t *)(~(uintptr_t)top_page);
-  const indx_t stub_indx = top_indx;
-  if (save_height > cdst->tree->height && ((cdst->pg[save_top] == top_page && cdst->ki[save_top] == top_indx) ||
-                                           (cdst->pg[save_top] == stub_page && cdst->ki[save_top] == stub_indx))) {
+  if (save_height > cdst->tree->height && cdst->pg[save_top] == top_page && cdst->ki[save_top] == top_indx) {
     /* LY: restore cursor stack */
     cdst->pg[new_top] = top_page;
     cdst->ki[new_top] = top_indx;
@@ -629,7 +628,12 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
   }
 
 bailout:
-  /* LY: unable restore cursor's stack */
+  ERROR("unable restore %scursor stack after merge; "
+        " new: height %i top %i top-idx %i top-page %p;"
+        " before: height %i top %i, top-indx %i top-page %p",
+        is_inner(cdst) ? "sub-" : "", cdst->tree->height, new_top, cdst->ki[save_top],
+        __Wpedantic_format_voidptr(cdst->pg[save_top]), save_height, save_top, top_indx,
+        __Wpedantic_format_voidptr(top_page));
   be_poor(cdst);
   return MDBX_CURSOR_FULL;
 }
