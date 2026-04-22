@@ -1544,7 +1544,7 @@ __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
       /* will subtract the final entry later */
       mc->tree->items -= mc->subcur->nested_tree.items - 1;
     } else {
-      if (!(node_flags(node) & N_TREE)) {
+      if ((node_flags(node) & N_TREE) == 0) {
         page_t *sp = node_data(node);
         cASSERT(mc, is_subpage(sp));
         sp->txnid = mp->txnid;
@@ -1559,26 +1559,32 @@ __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
           /* update table info */
           mc->subcur->nested_tree.mod_txnid = mc->txn->txnid;
           memcpy(node_data(node), &mc->subcur->nested_tree, sizeof(tree_t));
+          /* fix other sub-DB cursors pointed at the same sub-tree */
+          for (MDBX_cursor *m2 = mc->txn->cursors[cursor_dbi(mc)]; m2; m2 = m2->next) {
+            if (m2->pg[mc->top] == mp && m2->ki[mc->top] == mc->ki[mc->top] && is_related(mc, m2))
+              m2->subcur->nested_tree = mc->subcur->nested_tree;
+          }
         } else {
           /* shrink sub-page */
           node = node_shrink(mp, mc->ki[mc->top], node);
           mc->subcur->cursor.pg[0] = node_data(node);
           /* fix other sub-DB cursors pointed at sub-pages on this page */
           for (MDBX_cursor *m2 = mc->txn->cursors[cursor_dbi(mc)]; m2; m2 = m2->next) {
-            if (!is_related(mc, m2) || m2->pg[mc->top] != mp)
+            if (m2->pg[mc->top] != mp || !is_related(mc, m2))
               continue;
             const node_t *inner = node;
             if (unlikely(m2->ki[mc->top] >= page_numkeys(mp))) {
-              m2->flags = z_poor_mark;
+              m2->flags |= z_eof_hard | z_eof_soft | z_after_delete;
               m2->subcur->nested_tree.root = 0;
               m2->subcur->cursor.top_and_flags = z_inner | z_poor_mark;
               continue;
             }
             if (m2->ki[mc->top] != mc->ki[mc->top]) {
               inner = page_node(mp, m2->ki[mc->top]);
-              if (node_flags(inner) & N_TREE)
+              if (node_flags(inner) != N_DUP)
                 continue;
-            }
+            } else
+              m2->subcur->nested_tree = mc->subcur->nested_tree;
             m2->subcur->cursor.pg[0] = node_data(inner);
           }
         }
