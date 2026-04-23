@@ -242,6 +242,7 @@ int txn_ro_start(MDBX_txn *txn, bool prepare_only) {
 
   err = ro_start_continue(txn);
   if (unlikely(err != MDBX_SUCCESS)) {
+    txn->flags |= /* to avoid ENSURE-fail inside ro_slot_clean() */ MDBX_TXN_PARKED;
     txn_ro_reset(txn);
     return err;
   }
