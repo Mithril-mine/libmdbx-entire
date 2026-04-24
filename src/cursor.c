@@ -480,11 +480,13 @@ static __always_inline int sibling(MDBX_cursor *mc, bool right) {
   if (right ? (mc->ki[mc->top] + (size_t)1 >= page_numkeys(mc->pg[mc->top])) : (mc->ki[mc->top] == 0)) {
     DEBUG("no more keys aside, moving to next %s sibling", right ? "right" : "left");
     err = right ? cursor_sibling_right(mc) : cursor_sibling_left(mc);
-    if (err != MDBX_SUCCESS) {
-      if (likely(err == MDBX_NOTFOUND))
-        /* undo cursor_pop before returning */
+    if (unlikely(err != MDBX_SUCCESS)) {
+      if (likely(err == MDBX_NOTFOUND)) {
+        /* undo cursor_pop() before returning */
         mc->top += 1;
-      return err;
+        return err;
+      }
+      goto bailout;
     }
   } else {
     mc->ki[mc->top] += right ? 1 : -1;
@@ -501,6 +503,8 @@ static __always_inline int sibling(MDBX_cursor *mc, bool right) {
       return err;
   }
 
+bailout:
+  cASSERT0(mc, err != MDBX_NOTFOUND);
   be_poor(mc);
   return err;
 }
@@ -514,6 +518,7 @@ __hot int cursor_sibling_left(MDBX_cursor *mc) {
   size_t nkeys = page_numkeys(mc->pg[mc->top]);
   cASSERT0(mc, nkeys > 0);
   mc->ki[mc->top] = 0;
+  /* не очищаем состояние вложенного курсора, а остаёмся на предыдущей позиции */
   return MDBX_NOTFOUND;
 }
 
@@ -527,7 +532,7 @@ __hot int cursor_sibling_right(MDBX_cursor *mc) {
   cASSERT0(mc, nkeys > 0);
   mc->ki[mc->top] = (indx_t)nkeys - 1;
   mc->flags = z_eof_soft | z_eof_hard | (mc->flags & z_clear_mask);
-  inner_gone(mc);
+  /* не очищаем состояние вложенного курсора, а остаёмся на предыдущей позиции */
   return MDBX_NOTFOUND;
 }
 
@@ -693,8 +698,6 @@ static __always_inline int cursor_step(const bool inner, const bool forward, MDB
       if (op == (forward ? MDBX_NEXT_DUP : MDBX_PREV_DUP))
         return err;
     }
-    if (!inner)
-      inner_gone(mc);
   } else {
     if (mc->flags & z_hollow) {
       cASSERT0(mc, !inner_pointed(mc) || inner_hollow(mc));
@@ -1579,8 +1582,12 @@ __hot int cursor_put_checklen(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *da
 }
 
 __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
-  if (unlikely(!is_filled(mc)))
-    return MDBX_ENODATA;
+  if (unlikely(!is_filled(mc))) {
+    if (!F_ISSET(mc->flags, z_inner | z_eof_hard))
+      return MDBX_ENODATA;
+    if (outer_next(cursor_outer(mc), nullptr, nullptr, MDBX_NEXT) != MDBX_SUCCESS)
+      return MDBX_ENODATA;
+  }
 
   int rc = cursor_touch(mc, nullptr, nullptr);
   if (unlikely(rc != MDBX_SUCCESS))
