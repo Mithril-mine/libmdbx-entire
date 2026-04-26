@@ -399,7 +399,6 @@ bailout:
 
 MDBX_cursor *cursor_cpstk(const MDBX_cursor *csrc, MDBX_cursor *cdst) {
   cASSERT0(cdst, cdst->txn == csrc->txn);
-  cASSERT0(cdst, cdst->tree == csrc->tree);
   cASSERT0(cdst, cdst->clc == csrc->clc);
   cASSERT0(cdst, cdst->dbi_state == csrc->dbi_state);
   cdst->top_and_flags = csrc->top_and_flags;

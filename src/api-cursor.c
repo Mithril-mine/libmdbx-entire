@@ -202,6 +202,8 @@ int mdbx_cursor_close2(MDBX_cursor *mc) {
 }
 
 int mdbx_cursor_copy(const MDBX_cursor *src, MDBX_cursor *dest) {
+  if (unlikely(src == dest))
+    return LOG_IFERR(MDBX_EINVAL);
   int rc = cursor_check(src, MDBX_TXN_FINISHED | MDBX_TXN_HAS_CHILD);
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
@@ -210,24 +212,12 @@ int mdbx_cursor_copy(const MDBX_cursor *src, MDBX_cursor *dest) {
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-  ASSERT(dest->tree == src->tree);
-  ASSERT(cursor_dbi(dest) == cursor_dbi(src));
-again:
-  ASSERT(dest->clc == src->clc);
-  ASSERT(dest->txn == src->txn);
-  dest->top_and_flags = src->top_and_flags;
-  for (intptr_t i = 0; i <= src->top; ++i) {
-    dest->ki[i] = src->ki[i];
-    dest->pg[i] = src->pg[i];
-  }
-
+  cursor_cpstk(src, dest);
   if (src->subcur) {
     dest->subcur->nested_tree = src->subcur->nested_tree;
-    src = &src->subcur->cursor;
-    dest = &dest->subcur->cursor;
-    goto again;
+    dest->subcur->cursor.tree = &dest->subcur->nested_tree;
+    cursor_cpstk(&src->subcur->cursor, &dest->subcur->cursor);
   }
-
   return MDBX_SUCCESS;
 }
 
