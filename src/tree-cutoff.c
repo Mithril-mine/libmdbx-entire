@@ -308,7 +308,7 @@ static int cutoff_zikkurat(MDBX_cursor *begin, MDBX_cursor *end, intptr_t level,
             err = cursor_sibling_right(m3);
           if (unlikely(err != MDBX_SUCCESS) && err != MDBX_NOTFOUND)
             goto bailout;
-          err = tree_search_continue(m3, nullptr, (err == MDBX_NOTFOUND) ? Z_LAST : Z_FIRST);
+          err = tree_deepen_edge(m3, (err == MDBX_NOTFOUND) ? Z_LAST : Z_FIRST);
           if (unlikely(err != MDBX_SUCCESS))
             goto bailout;
           if (inner_pointed(m3))
