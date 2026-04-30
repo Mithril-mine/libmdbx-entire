@@ -8,7 +8,7 @@
 /* Search for the lowest key under the current branch page. This just bypasses a numkeys check in the current page
  * before calling tree_search_continue(), because the callers are all in situations where the current page is known
  * to be underfilled. */
-__hot __noinline int tree_search_lowest(MDBX_cursor *mc) {
+__hot __noinline int tree_deepen_lowest(MDBX_cursor *mc) {
   cASSERT0(mc, mc->top >= 0);
   page_t *mp = mc->pg[mc->top];
   cASSERT0(mc, is_branch(mp));
@@ -22,7 +22,7 @@ __hot __noinline int tree_search_lowest(MDBX_cursor *mc) {
   err = cursor_push(mc, mp, 0);
   if (unlikely(err != MDBX_SUCCESS))
     return err;
-  return tree_search_continue(mc, nullptr, Z_FIRST);
+  return tree_deepen_edge(mc, Z_FIRST);
 }
 
 __hot int tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags) {
@@ -69,36 +69,63 @@ __hot int tree_search(MDBX_cursor *mc, const MDBX_val *key, int flags) {
   if (flags & Z_ROOTONLY)
     return MDBX_SUCCESS;
 
-  return tree_search_continue(mc, key, flags);
-}
+  if (flags & (Z_FIRST | Z_LAST))
+    return tree_deepen_edge(mc, flags);
 
-__hot __noinline int tree_search_continue(MDBX_cursor *mc, const MDBX_val *key, int flags) {
-  cASSERT0(mc, !is_poor(mc));
   DKBUF_DEBUG;
-  int err;
   page_t *mp = mc->pg[mc->top];
-  intptr_t ki = (flags & Z_FIRST) ? 0 : page_numkeys(mp) - 1;
   while (is_branch(mp)) {
     DEBUG("branch page %" PRIaPGNO " has %zu keys", mp->pgno, page_numkeys(mp));
     cASSERT0(mc, page_numkeys(mp) > 1);
-    DEBUG("found index 0 to page %" PRIaPGNO, node_pgno(page_node(mp, 0)));
+    TRACE("found index 0 to page %" PRIaPGNO, node_pgno(page_node(mp, 0)));
 
-    if ((flags & (Z_FIRST | Z_LAST)) == 0) {
-      ki = tree_search_branch(mc, key);
-      DEBUG("following index %zu for key [%s]", ki, DKEY_DEBUG(key));
-    }
+    const intptr_t ki = tree_search_branch(mc, key);
+    TRACE("following index %zu for key [%s]", ki, DKEY_DEBUG(key));
 
+    mc->ki[mc->top] = (indx_t)ki;
     err = page_get(mc, node_pgno(page_node(mp, ki)), &mp, mp->txnid);
     if (unlikely(err != MDBX_SUCCESS))
       goto bailout;
 
-    mc->ki[mc->top] = (indx_t)ki;
-    ki = (flags & Z_FIRST) ? 0 : page_numkeys(mp) - 1;
-    err = cursor_push(mc, mp, ki);
+    err = cursor_push(mc, mp, 0);
     if (unlikely(err != MDBX_SUCCESS))
       goto bailout;
 
-    if (flags & Z_MODIFY) {
+    if (unlikely(flags & Z_MODIFY)) {
+      err = page_touch(mc);
+      if (unlikely(err != MDBX_SUCCESS))
+        goto bailout;
+      mp = mc->pg[mc->top];
+    }
+  }
+
+  if (!MDBX_DISABLE_VALIDATION && unlikely(!check_leaf_type(mc, mp))) {
+    ERROR("unexpected leaf-page #%" PRIaPGNO " type 0x%x seen by cursor", mp->pgno, mp->flags);
+    err = MDBX_CORRUPTED;
+    goto bailout;
+  }
+
+  DEBUG("found leaf page %" PRIaPGNO " for key [%s]", mp->pgno, DKEY_DEBUG(key));
+  return MDBX_SUCCESS;
+}
+
+__hot __noinline int tree_deepen_edge(MDBX_cursor *mc, int flags) {
+  cASSERT0(mc, !is_poor(mc));
+  int err;
+  page_t *mp = mc->pg[mc->top];
+  while (is_branch(mp)) {
+    DEBUG("branch page %" PRIaPGNO " has %zu keys", mp->pgno, page_numkeys(mp));
+    cASSERT0(mc, page_numkeys(mp) > 1);
+
+    err = page_get(mc, node_pgno(page_node(mp, mc->ki[mc->top])), &mp, mp->txnid);
+    if (unlikely(err != MDBX_SUCCESS))
+      goto bailout;
+
+    err = cursor_push(mc, mp, (flags & Z_FIRST) ? 0 : page_numkeys(mp) - 1);
+    if (unlikely(err != MDBX_SUCCESS))
+      goto bailout;
+
+    if (unlikely(flags & Z_MODIFY)) {
       err = page_touch(mc);
       if (unlikely(err != MDBX_SUCCESS))
         goto bailout;
@@ -114,12 +141,7 @@ __hot __noinline int tree_search_continue(MDBX_cursor *mc, const MDBX_val *key, 
     return err;
   }
 
-  DEBUG("found leaf page %" PRIaPGNO " for key [%s]", mp->pgno, DKEY_DEBUG(key));
-  /* Логически верно, но (в текущем понимании) нет необходимости.
-     Однако, стоит ещё по-проверять/по-тестировать.
-     Возможно есть сценарий, в котором очистка флагов всё-таки требуется.
-
-     be_filled(mc); */
+  DEBUG("seek leaf page %" PRIaPGNO " for @%s", mp->pgno, (flags & Z_FIRST) ? "first" : "last");
   return MDBX_SUCCESS;
 }
 

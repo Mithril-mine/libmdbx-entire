@@ -131,7 +131,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       const int8_t top = csrc->top;
       cASSERT0(csrc, top >= 0);
       /* must find the lowest key below src */
-      rc = tree_search_lowest(csrc);
+      rc = tree_deepen_lowest(csrc);
       page_t *lowest_page = csrc->pg[csrc->top];
       if (unlikely(rc != MDBX_SUCCESS))
         return rc;
@@ -164,7 +164,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
       cASSERT0(csrc, top >= 0);
 
       /* must find the lowest key below dst */
-      rc = tree_search_lowest(mn);
+      rc = tree_deepen_lowest(mn);
       if (unlikely(rc != MDBX_SUCCESS))
         return rc;
       page_t *const lowest_page = mn->pg[mn->top];
@@ -449,7 +449,7 @@ static int page_merge(MDBX_cursor *csrc, MDBX_cursor *cdst) {
         MDBX_cursor *const mn = cursor_clone_slightly(csrc, &couple);
 
         /* must find the lowest key below src */
-        rc = tree_search_lowest(mn);
+        rc = tree_deepen_lowest(mn);
         cASSERT0(csrc, rc != MDBX_RESULT_TRUE);
         if (unlikely(rc != MDBX_SUCCESS))
           return rc;
