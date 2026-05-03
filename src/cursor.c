@@ -1624,7 +1624,7 @@ __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
           memcpy(node_data(node), &mc->subcur->nested_tree, sizeof(tree_t));
           /* fix other sub-DB cursors pointed at the same sub-tree */
           for (MDBX_cursor *m2 = mc->txn->cursors[cursor_dbi(mc)]; m2; m2 = m2->next) {
-            if (m2->pg[mc->top] == mp && m2->ki[mc->top] == mc->ki[mc->top] && is_related(mc, m2))
+            if (is_related(mc, m2) && m2->pg[mc->top] == mp && m2->ki[mc->top] == mc->ki[mc->top])
               m2->subcur->nested_tree = mc->subcur->nested_tree;
           }
         } else {
@@ -1633,7 +1633,7 @@ __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
           mc->subcur->cursor.pg[0] = node_data(node);
           /* fix other sub-DB cursors pointed at sub-pages on this page */
           for (MDBX_cursor *m2 = mc->txn->cursors[cursor_dbi(mc)]; m2; m2 = m2->next) {
-            if (m2->pg[mc->top] != mp || !is_related(mc, m2))
+            if (!is_related(mc, m2) || m2->pg[mc->top] != mp)
               continue;
             const node_t *inner = node;
             if (unlikely(m2->ki[mc->top] >= page_numkeys(mp))) {
