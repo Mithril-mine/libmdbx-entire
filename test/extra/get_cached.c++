@@ -231,7 +231,7 @@ struct generator {
     uint32_t base = 0;
     switch (order) {
     default:
-      base = uint32_t((salt >> 32) + (salt ^ serial * INT64_C(36207372675342559)) % UINT64_C(14635046041047337));
+      base = uint32_t((salt >> 32) + (salt ^ serial * UINT64_C(36207372675342559)) % UINT64_C(14635046041047337));
       debug(__LINE__, "%s(%i) key-base %0x08u", "rnd", serial, base);
       break;
     case increasing:
