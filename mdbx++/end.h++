@@ -31,7 +31,7 @@ inline ::std::ostream &operator<<(::std::ostream &out, const MDBX_error_t &errco
 
 //------------------------------------------------------------------------------
 
-/// \brief The `std:: namespace part of libmdbx C++ API
+/// \brief The `std` namespace part of libmdbx C++ API
 /// \ingroup cxx_api
 namespace std {
 

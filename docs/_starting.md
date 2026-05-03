@@ -98,7 +98,7 @@ opened the file across all threads. The reason for this is:
    once will remove all the locks held on it, and the other instances will be
    vulnerable to corruption from other processes.
  + For compatibility with LMDB which allows multi-opening, MDBX can be
-   configured at runtime by \ref mdbx_setup_debug() with \ref MDBX_DBG_LEGACY_MULTIOPEN` option
+   configured at runtime by \ref mdbx_setup_debug() with \ref MDBX_DBG_LEGACY_MULTIOPEN option
    prior to calling other MDBX functions. In this way MDBX will track
    databases opening, detect multi-opening cases and then recover POSIX file
    locks as necessary. However, lock recovery can cause unexpected pauses,

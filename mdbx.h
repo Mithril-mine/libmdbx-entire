@@ -255,7 +255,7 @@ typedef mode_t mdbx_mode_t;
 #define __has_builtin(x) (0)
 #endif /* __has_builtin */
 
-/** \brief The 'pure' function attribute for optimization.
+/** \brief The `pure` function attribute for optimization.
  * \details Many functions have no effects except the return value and their
  * return value depends only on the parameters and/or global variables.
  * Such a function can be subject to common subexpression elimination
@@ -273,7 +273,7 @@ typedef mode_t mdbx_mode_t;
 #define MDBX_PURE_FUNCTION
 #endif /* MDBX_PURE_FUNCTION */
 
-/** \brief The 'pure nothrow' function attribute for optimization.
+/** \brief The `pure nothrow` function attribute for optimization.
  * \details Like \ref MDBX_PURE_FUNCTION with addition `noexcept` restriction
  * that is compatible to CLANG and proposed [[pure]]. */
 #if defined(DOXYGEN)
@@ -292,7 +292,7 @@ typedef mode_t mdbx_mode_t;
 #define MDBX_NOTHROW_PURE_FUNCTION
 #endif /* MDBX_NOTHROW_PURE_FUNCTION */
 
-/** \brief The 'const' function attribute for optimization.
+/** \brief The `const` function attribute for optimization.
  * \details Many functions do not examine any values except their arguments,
  * and have no effects except the return value. Basically this is just
  * slightly more strict class than the PURE attribute, since function
@@ -314,7 +314,7 @@ typedef mode_t mdbx_mode_t;
 #define MDBX_CONST_FUNCTION MDBX_PURE_FUNCTION
 #endif /* MDBX_CONST_FUNCTION */
 
-/** \brief The 'const nothrow' function attribute for optimization.
+/** \brief The `const nothrow` function attribute for optimization.
  * \details Like \ref MDBX_CONST_FUNCTION with addition `noexcept` restriction
  * that is compatible to CLANG and future [[const]]. */
 #if defined(DOXYGEN)
@@ -333,7 +333,7 @@ typedef mode_t mdbx_mode_t;
 #define MDBX_NOTHROW_CONST_FUNCTION MDBX_NOTHROW_PURE_FUNCTION
 #endif /* MDBX_NOTHROW_CONST_FUNCTION */
 
-/** \brief The 'deprecated' attribute to produce warnings when used.
+/** \brief The `deprecated` attribute to produce warnings when used.
  * \note This macro may be predefined as empty to avoid "deprecated" warnings.
  */
 #ifndef MDBX_DEPRECATED
@@ -1032,7 +1032,7 @@ LIBMDBX_API int mdbx_setup_debug_nofmt(MDBX_log_level_t log_level, MDBX_debug_fl
  *                       it could be MDBX_env, MDBX_txn,
  *                       MDBX_cursor or an internal page structure.
  * \param [in] obj_class A value corresponding to the object type:
- *                       'env', 'txn', 'cursor', etc. */
+ *                       `env`, `txn`, `cursor`, etc. */
 typedef void (*MDBX_panic_func)(const char *msg, const char *function, unsigned line, const void *obj,
                                 const char *obj_class) MDBX_CXX17_NOEXCEPT;
 
@@ -2205,7 +2205,7 @@ typedef enum MDBX_option {
   /** \brief Controls the in-process limit to grow a cache of dirty
    * pages for reuse in the current transaction.
    *
-   * \details A 'dirty page' refers to a page that has been updated in memory
+   * \details A `dirty page` refers to a page that has been updated in memory
    * only, the changes to a dirty page are not yet stored on disk.
    * To reduce overhead, it is reasonable to release not all such pages
    * immediately, but to leave some ones in cache for reuse in the current
@@ -2218,7 +2218,7 @@ typedef enum MDBX_option {
   /** \brief Controls the in-process limit of a pre-allocated memory items
    * for dirty pages.
    *
-   * \details A 'dirty page' refers to a page that has been updated in memory
+   * \details A `dirty page` refers to a page that has been updated in memory
    * only, the changes to a dirty page are not yet stored on disk.
    * Without \ref MDBX_WRITEMAP dirty pages are allocated from memory and
    * released when a transaction is committed. To reduce overhead, it is
@@ -2232,7 +2232,7 @@ typedef enum MDBX_option {
   /** \brief Controls the in-process limit of dirty pages
    * for a write transaction.
    *
-   * \details A 'dirty page' refers to a page that has been updated in memory
+   * \details A `dirty page` refers to a page that has been updated in memory
    * only, the changes to a dirty page are not yet stored on disk.
    * Without \ref MDBX_WRITEMAP dirty pages are allocated from memory and will
    * be busy until are written to disk. Therefore for a large transactions is
@@ -4676,7 +4676,7 @@ LIBMDBX_API int mdbx_txn_park(MDBX_txn *txn, bool autounpark);
  *                           either released using \ref mdbx_txn_abort().
  *
  * \retval MDBX_RESULT_TRUE  The reading transaction was ousted but has now been restarted to read recent
- *                           MVCC-snapshot, since `restart_if_ousted` was set to `true'.
+ *                           MVCC-snapshot, since `restart_if_ousted` was set to `true`.
  *
  * \retval MDBX_BAD_TXN      The transaction has already been finished either it has not been started,
  *                           or it is not a reading transaction. */
@@ -4740,7 +4740,7 @@ LIBMDBX_API int mdbx_txn_refresh(MDBX_txn *txn);
  * \see mdbx_canary_get()
  *
  * The `x`, `y` and `z` values could be set by \ref mdbx_canary_put(), while the
- * 'v' will be always set to the transaction number. Updated values becomes
+ * `v` will be always set to the transaction number. Updated values becomes
  * visible outside the current transaction only after it was committed. Current
  * values could be retrieved by \ref mdbx_canary_get(). */
 struct MDBX_canary {
@@ -4759,7 +4759,7 @@ typedef struct MDBX_canary MDBX_canary;
  * \param [in] canary  A optional pointer to \ref MDBX_canary structure for `x`,
  *              `y` and `z` values from.
  *            - If canary is NOT NULL then the `x`, `y` and `z` values will be
- *              updated from given canary argument, but the 'v' be always set
+ *              updated from given canary argument, but the `v` be always set
  *              to the current transaction number if at least one `x`, `y` or
  *              `z` values have changed (i.e. if `x`, `y` and `z` have the same
  *              values as currently present then nothing will be changes or
@@ -6075,13 +6075,13 @@ LIBMDBX_API int mdbx_cursor_scan(MDBX_cursor *cursor, MDBX_predicate_func predic
  *
  * \details The function accepts a cursor, which should be bound to some transaction and a table DBI-descriptor,
  * performs the initial cursor positioning determined by the `from_op` argument, as well as the arguments `from_key`
- * and `from_value'. Next, each key-value pair is probed using the given predicative function `predict`, and then,
+ * and `from_value`. Next, each key-value pair is probed using the given predicative function `predict`, and then,
  * if necessary, move on to the next using the `turn_op` operation, until one of the four events occurs:
  *
  *  - the end of data is reached;
  *  - an error occurs when positioning the cursor;
  *  - the probing function returns \ref MDBX_RESULT_TRUE,
- *    signaling the need to stop further scanning.;
+ *    signaling the need to stop further scanning;
  *  - the probing function returns a value other than \ref MDBX_RESULT_FALSE or \ref MDBX_RESULT_TRUE,
  *    signaling an error.
  *
@@ -6149,7 +6149,7 @@ LIBMDBX_API int mdbx_cursor_scan_from(MDBX_cursor *cursor, MDBX_predicate_func p
  * \ref MDBX_DUPSORT option. For `MDBX_DUPSORT` tables please
  * use \ref MDBX_GET_MULTIPLE and \ref MDBX_NEXT_MULTIPLE.
  *
- * The number of key and value items is returned in the `size_t count`
+ * The number of key and value items is returned in the `count`
  * refers. The addresses and lengths of the keys and values are returned in the
  * array to which `pairs` refers.
  * \see mdbx_cursor_get()
@@ -7179,7 +7179,7 @@ typedef struct MDBX_chk_context {
  * integration of application logic that verifies the integrity of a data structure above the key-value level, the
  * preparation and structured output of information about both the progress and the results of verification.
  *
- * All callback functions are optional, unused ones must be set to `nullptr'.
+ * All callback functions are optional, unused ones must be set to `nullptr`.
  *
  * \note This API has not been frozen yet, and there may be improvements and changes in subsequent versions.
  *
@@ -7214,7 +7214,7 @@ typedef struct MDBX_chk_callbacks {
  * \ingroup c_extra
  *
  * \details Interaction with the application code is implemented through callback functions provided by the application
- * using the 'cb` parameter. During such interaction, the application can monitor the verification process, including
+ * using the `cb` parameter. During such interaction, the application can monitor the verification process, including
  * skipping/filtering the processing of individual elements, as well as implement additional verification of the
  * structure and/or information, taking into account the purpose and semantic significance for an application. For
  * example, an application can check its own indexes and the correctness of database entries. It is for this purpose
