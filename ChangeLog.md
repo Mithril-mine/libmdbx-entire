@@ -26,6 +26,7 @@ BTC `bc1qzvl9uegf2ea6cwlytnanrscyv8snwsvrc0xfsu`, SOL `FTCTgbHajoLVZGr8aEFWMzx3N
  - [Chloe Cano](https://github.com/Segwaz) for fuzzing, bug reporing and fixes.
  - [Weixie Cui](https://github.com/cuiweixie) for bug fixing through many pull-requests.
  - [Александру Кельчину](https://serebrium.ru/) (Компания Серебриум) за сообщения об ошибках и прототипы эксплоитов.
+ - [Anton Maisak](https://public.git.amsoft.spb.ru/libmdbx/libmdbx-dotnet) for new .NET bindings.
 
 Новое:
 
