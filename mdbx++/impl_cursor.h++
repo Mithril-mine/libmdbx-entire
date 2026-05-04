@@ -325,14 +325,14 @@ inline bool cursor::scroll(intptr_t distance, unsigned deepness, bool throw_notf
 
 inline bool cursor::distribute(const cursor from, const cursor to, cursor *cursors_array, intptr_t cursors_array_size,
                                unsigned deepness) {
-  static_assert(sizeof(cursors_array[0]) == sizeof(MDBX_cursor *));
+  static_assert(sizeof(cursors_array[0]) == sizeof(MDBX_cursor *), "oops");
   const int err = ::mdbx_cursor_distribute(from, to, &cursors_array[0].handle_, cursors_array_size, deepness);
   return error::boolean_or_throw(err);
 }
 
 inline bool cursor::distribute(const cursor from, const cursor to, const std::vector<cursor> &cursors_array,
                                unsigned deepness) {
-  static_assert(sizeof(cursor) == sizeof(MDBX_cursor *));
+  static_assert(sizeof(cursor) == sizeof(MDBX_cursor *), "oops");
   const int err = ::mdbx_cursor_distribute(from, to, const_cast<MDBX_cursor **>(&cursors_array[0].handle_),
                                            cursors_array.size(), deepness);
   return error::boolean_or_throw(err);
@@ -340,7 +340,7 @@ inline bool cursor::distribute(const cursor from, const cursor to, const std::ve
 
 inline bool cursor::distribute(const cursor from, const cursor to, const std::vector<cursor_managed> &cursors_array,
                                unsigned deepness) {
-  static_assert(sizeof(cursor_managed) == sizeof(MDBX_cursor *));
+  static_assert(sizeof(cursor_managed) == sizeof(MDBX_cursor *), "oops");
   const int err = ::mdbx_cursor_distribute(from, to, const_cast<MDBX_cursor **>(&cursors_array[0].handle_),
                                            cursors_array.size(), deepness);
   return error::boolean_or_throw(err);
