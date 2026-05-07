@@ -839,7 +839,7 @@ int main(int argc, char *argv[]) {
       if (should_checkpoint) {
         err = mdbx_txn_checkpoint(txn, MDBX_TXN_NOMETASYNC, nullptr);
         if (unlikely(err != MDBX_SUCCESS)) {
-          error("mdbx_txn_commit", err);
+          error("mdbx_txn_checkpoint", err);
           goto bailout;
         }
         count = 0;
