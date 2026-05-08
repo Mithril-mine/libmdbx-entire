@@ -188,11 +188,7 @@ __hot int mdbx_estimate_move(const MDBX_cursor *cursor, MDBX_val *key, MDBX_val 
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  cursor_cpstk(cursor, &next.outer);
-  if (cursor->tree->flags & MDBX_DUPSORT) {
-    subcur_t *mx = &container_of(cursor, cursor_couple_t, outer)->inner;
-    cursor_cpstk(&mx->cursor, &next.inner.cursor);
-  }
+  cursor_copy_position(cursor, &next.outer);
 
   MDBX_val stub_data;
   if (data == nullptr) {
@@ -215,7 +211,6 @@ __hot int mdbx_estimate_move(const MDBX_cursor *cursor, MDBX_val *key, MDBX_val 
     key = &stub_key;
   }
 
-  next.outer.signature = cur_signature_live;
   rc = cursor_ops(&next.outer, key, data, move_op);
   if (unlikely(rc != MDBX_SUCCESS && (rc != MDBX_NOTFOUND || !is_pointed(&next.outer))))
     return LOG_IFERR(rc);

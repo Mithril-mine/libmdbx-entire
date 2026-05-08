@@ -45,7 +45,7 @@ static int cutoff_leaf(MDBX_cursor *axe, unsigned alldups) {
 #ifndef NDEBUG
   DKBUF_DEBUG;
   page_t *mp;
-  MDBX_val k, v;
+  MDBX_val k = {.iov_base = nullptr, .iov_len = 0}, v = {.iov_base = nullptr, .iov_len = 0};
   MDBX_cursor *blade = nullptr;
   const char *s = nullptr;
   const char *sk = nullptr;

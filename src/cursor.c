@@ -2799,7 +2799,7 @@ int cursor_distribute(const MDBX_cursor *begin, const MDBX_cursor *end, MDBX_cur
     return MDBX_RESULT_TRUE;
   }
 
-  MDBX_cursor *iter = nullptr;
+  MDBX_cursor *iter = (MDBX_cursor *)begin;
   for (intptr_t i = array_size; --i >= 0;) {
     if (array[i] != begin && array[i] != end) {
       iter = array[i];
