@@ -45,7 +45,6 @@ __hot static int cursor_diff(const MDBX_cursor *const __restrict x, const MDBX_c
       r->diff = CMP2INT(x->flags & z_eof_hard, y->flags & z_eof_hard);
       return MDBX_SUCCESS;
     }
-    nkeys = page_numkeys(x->pg[r->level]);
   }
 
   while (unlikely(r->diff == 1) && likely(r->level < depth)) {
