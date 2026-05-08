@@ -132,7 +132,7 @@ int mdbx_dbi_close(MDBX_env *env, MDBX_dbi dbi) {
   if (unlikely(dbi >= env->n_dbi)) {
     rc = MDBX_BAD_DBI;
   bailout:
-    osal_fastmutex_release(&env->dbi_lock);
+    ENSURE(osal_fastmutex_release(&env->dbi_lock) == MDBX_SUCCESS);
     return LOG_IFERR(rc);
   }
 
