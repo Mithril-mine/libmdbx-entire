@@ -3483,7 +3483,6 @@ bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
     }
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     return false;
-    ;
   }
 #else
   static int nullfd = -1;
@@ -3493,6 +3492,10 @@ bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
                                 | O_CLOEXEC
 #endif /* O_CLOEXEC */
     );
+    if (unlikely(nullfd < 0)) {
+      ERROR("unable open(%s), err %d", dev_null, errno);
+      return false;
+    }
   }
   if (write(nullfd, ptr, 4) == 4) {
     memcpy(dest, ptr, 4);
