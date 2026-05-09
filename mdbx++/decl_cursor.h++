@@ -26,7 +26,7 @@ public:
   inline cursor &operator=(cursor &&) noexcept;
   inline cursor(cursor &&) noexcept;
   inline ~cursor() noexcept;
-  inline cursor_managed clone(void *your_context = nullptr) const;
+  cursor_managed clone(void *your_context = nullptr) const;
   inline cursor &assign(const cursor &);
   MDBX_CXX14_CONSTEXPR operator bool() const noexcept { return handle_ != nullptr; };
   MDBX_CXX14_CONSTEXPR operator const MDBX_cursor *() const noexcept { return handle_; }
@@ -464,23 +464,10 @@ public:
   }
 
   /// \brief Explicitly closes the cursor.
-  inline void close() {
-    error::success_or_throw(::mdbx_cursor_close2(handle_));
-    handle_ = nullptr;
-  }
+  void close();
 
   cursor_managed(cursor_managed &&) = default;
-  cursor_managed &operator=(cursor_managed &&other) {
-    if (this != &other) {
-      if (MDBX_UNLIKELY(handle_))
-        MDBX_CXX20_UNLIKELY {
-          assert(handle_ != other.handle_);
-          close();
-        }
-      inherited::operator=(std::move(other));
-    }
-    return *this;
-  }
+  cursor_managed &operator=(cursor_managed &&other);
 
   inline MDBX_cursor *withdraw_handle() noexcept {
     MDBX_cursor *handle = handle_;

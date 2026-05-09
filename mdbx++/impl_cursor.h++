@@ -13,19 +13,6 @@ inline cursor &cursor::assign(const cursor &src) {
   return *this;
 }
 
-inline cursor_managed cursor::clone(void *your_context) const {
-  cursor_managed clone(your_context);
-  clone.assign(*this);
-  return clone;
-}
-
-inline void *cursor::get_context() const noexcept { return mdbx_cursor_get_userctx(handle_); }
-
-inline cursor &cursor::set_context(void *ptr) {
-  error::success_or_throw(::mdbx_cursor_set_userctx(handle_, ptr));
-  return *this;
-}
-
 inline cursor &cursor::operator=(cursor &&other) noexcept {
   if (this != &other) {
     handle_ = other.handle_;
@@ -40,6 +27,13 @@ inline cursor::~cursor() noexcept {
 #if (defined(MDBX_CHECKING) && MDBX_CHECKING > 0) || (defined(MDBX_DEBUG) && MDBX_DEBUG > 0)
   handle_ = reinterpret_cast<MDBX_cursor *>(uintptr_t(0xDeadBeef));
 #endif
+}
+
+inline void *cursor::get_context() const noexcept { return mdbx_cursor_get_userctx(handle_); }
+
+inline cursor &cursor::set_context(void *ptr) {
+  error::success_or_throw(::mdbx_cursor_set_userctx(handle_, ptr));
+  return *this;
 }
 
 inline int compare_position_nothrow(const cursor &left, const cursor &right, bool ignore_nested = false) noexcept {

@@ -1359,6 +1359,18 @@ static inline MDBX_env *create_env() {
   return ptr;
 }
 
+env_managed &env_managed::operator=(env_managed &&other) {
+  if (this != &other) {
+    if (MDBX_UNLIKELY(handle_))
+      MDBX_CXX20_UNLIKELY {
+        assert(handle_ != other.handle_);
+        close();
+      }
+    inherited::operator=(std::move(other));
+  }
+  return *this;
+}
+
 __cold env_managed::~env_managed() {
   if (MDBX_UNLIKELY(handle_))
     /* coverity[UNCAUGHT_EXCEPT] */
@@ -1454,6 +1466,29 @@ __cold env_managed::env_managed(const MDBX_STD_FILESYSTEM_PATH &pathname, const 
 
 //------------------------------------------------------------------------------
 
+void cursor_managed::close() {
+  error::success_or_throw(::mdbx_cursor_close2(handle_));
+  handle_ = nullptr;
+}
+
+cursor_managed cursor::clone(void *your_context) const {
+  cursor_managed clone(your_context);
+  clone.assign(*this);
+  return clone;
+}
+
+cursor_managed &cursor_managed::operator=(cursor_managed &&other) {
+  if (this != &other) {
+    if (MDBX_UNLIKELY(handle_))
+      MDBX_CXX20_UNLIKELY {
+        assert(handle_ != other.handle_);
+        close();
+      }
+    inherited::operator=(std::move(other));
+  }
+  return *this;
+}
+
 cursor_managed::~cursor_managed() {
   if (handle_)
     /* coverity[UNCAUGHT_EXCEPT] */
@@ -1471,6 +1506,18 @@ txn_managed txn::start_nested(bool readonly) {
       ::mdbx_txn_begin(mdbx_txn_env(handle_), handle_, readonly ? MDBX_TXN_RDONLY : MDBX_TXN_READWRITE, &nested));
   ASSERT(nested != nullptr);
   return txn_managed(nested);
+}
+
+txn_managed &txn_managed::operator=(txn_managed &&other) {
+  if (this != &other) {
+    if (MDBX_UNLIKELY(handle_))
+      MDBX_CXX20_UNLIKELY {
+        assert(handle_ != other.handle_);
+        abort();
+      }
+    inherited::operator=(std::move(other));
+  }
+  return *this;
 }
 
 txn_managed::~txn_managed() {
