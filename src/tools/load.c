@@ -684,7 +684,7 @@ int main(int argc, char *argv[]) {
         if (!quiet)
           fprintf(stderr,
                   "Database size is too large for current system (mapsize=%" PRIu64
-                  " is great than system-limit %zu)\n",
+                  " is greater than system-limit %zu)\n",
                   envinfo.mi_mapsize, (size_t)MAX_MAPSIZE);
         goto bailout;
       }
