@@ -114,7 +114,6 @@ static bool valbool(char *line, const char *item, bool *value) {
 
 static char *subname = nullptr;
 static int dbi_flags;
-static txnid_t txnid;
 static uint64_t sequence;
 static MDBX_canary canary;
 static MDBX_envinfo envinfo;
@@ -148,7 +147,6 @@ static int readhdr(void) {
     subname = nullptr;
   }
   dbi_flags = 0;
-  txnid = 0;
   sequence = 0;
 
   while (true) {
@@ -267,8 +265,7 @@ static int readhdr(void) {
         if (!quiet)
           fprintf(stderr, "%s: line %" PRIiSIZE ": ignore unsupported value 0x%" PRIx64 " for %s\n", prog, lineno, u64,
                   "txnid");
-      } else
-        txnid = u64;
+      }
       continue;
     }
 
