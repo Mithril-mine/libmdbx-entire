@@ -26,6 +26,7 @@
 #include <set>
 #include <unordered_set>
 #include <vector>
+#include <cstdint>
 
 mdbx::path db_filename = "test-revins";
 
@@ -51,7 +52,7 @@ int doit() {
   unsigned prev_height = 0;
   for (uint64_t order = INT16_MAX; order > 0; --order) {
     char buf[32];
-    size_t kl = snprintf(buf, sizeof(buf), "%04lx", order);
+    size_t kl = snprintf(buf, sizeof(buf), "%04x", unsigned(order));
     const auto kv = mdbx::default_buffer_pair(mdbx::slice(buf, kl), "");
     std::cout << "+" << kv << "\n";
     txn.insert(map1, kv);
@@ -70,7 +71,7 @@ int doit() {
   prev_height = 0;
   for (uint64_t order = 0; order < INT16_MAX; ++order) {
     char buf[32];
-    size_t kl = snprintf(buf, sizeof(buf), "%04lx", order);
+    size_t kl = snprintf(buf, sizeof(buf), "%04x", unsigned(order));
     const auto kv = mdbx::default_buffer_pair(mdbx::slice(buf, kl), "");
     std::cout << "+" << kv << "\n";
     txn.insert(map2, kv);
