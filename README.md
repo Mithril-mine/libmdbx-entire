@@ -375,7 +375,9 @@ Another ways to build is potentially possible but not supported and will not. Th
 
 It should be noted that in _libmdbx_ was efforts to avoid runtime dependencies from CRT and other MSVC libraries. For this is enough to pass the `-DMDBX_WITHOUT_MSVC_CRT:BOOL=ON` option during configure by CMake.
 
+<!-- dist-cutoff-begin -->
 To run the [long stochastic test scenario](test/stochastic.sh), [bash](https://en.wikipedia.org/wiki/Bash_(Unix_shell)) is required, and such testing is recommended with placing the test data on the [RAM-disk](https://en.wikipedia.org/wiki/RAM_drive).
+<!-- dist-cutoff-end -->
 
 ### Windows Subsystem for Linux
 _libmdbx_ could be used in [WSL2](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux#WSL_2) but NOT in [WSL1](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux#WSL_1) environment. This is a consequence of the fundamental shortcomings of _WSL1_ and cannot be fixed. To avoid data loss, _libmdbx_ returns the `ENOLCK` (37, "No record locks available") error when opening the database in a _WSL1_ environment.
@@ -385,16 +387,18 @@ Current [native build tools](https://en.wikipedia.org/wiki/Xcode) for MacOS incl
 
 Next, to build the library, it is enough to run `make all` in the directory with source code, and run `make check` to execute the base tests. If something goes wrong, it is recommended to install [Homebrew](https://brew.sh/) and try again.
 
+<!-- dist-cutoff-begin -->
 To run the [long stochastic test scenario](test/stochastic.sh), you will need to install the current (not outdated) version of [Bash](https://en.wikipedia.org/wiki/Bash_(Unix_shell)). Just install it as noted above.
+<!-- dist-cutoff-end -->
 
 ### Harmony OS
 Please use CMake with the ["toolchain file"](https://cmake.org/cmake/help/latest/variable/CMAKE_TOOLCHAIN_FILE.html) provided by HarmonyOS SDK.
 
 ### Android
-I recommend using CMake to build _libmdbx_ for Android. Please refer to the [official guide](https://developer.android.com/studio/projects/add-native-code).
+Please using CMake to build _libmdbx_ for Android. Please refer to the [official guide](https://developer.android.com/studio/projects/add-native-code).
 
 ### iOS
-To build _libmdbx_ for iOS, I recommend using CMake with the ["toolchain file"](https://cmake.org/cmake/help/latest/variable/CMAKE_TOOLCHAIN_FILE.html) from the [ios-cmake](https://github.com/leetal/ios-cmake) project.
+To build _libmdbx_ for iOS, please use CMake with the ["toolchain file"](https://cmake.org/cmake/help/latest/variable/CMAKE_TOOLCHAIN_FILE.html) from the [ios-cmake](https://github.com/leetal/ios-cmake) project.
 
 <!-- section-end -->
 

@@ -676,7 +676,7 @@ docs/__$(1).md: $(2) $(lastword $(MAKEFILE_LIST))
 	$(QUIET)$(SED) -n '/<!-- section-begin $(1) -->/,/<!-- section-end -->/p' $(2) >$$@ && test -s $$@
 
 endef
-$(foreach section,overview mithril characteristics improvements history usage performance bindings,$(eval $(call md-extract-section,$(section),README.md)))
+$(foreach section,overview mithril characteristics improvements history usage performance bindings,$(eval $(call md-extract-section,$(section),$(DIST_DIR)/README.md)))
 
 docs/contrib.fame: src/version.c $(lastword $(MAKEFILE_LIST))
 	@echo '  MAKE $@'
@@ -901,6 +901,7 @@ $(1): $(2) src/version.c $(lastword $(MAKEFILE_LIST))
 		-e '/^\s*#> dist-cutoff-begin/,/^\s*#< dist-cutoff-end/d' \
 		-e '/^\s*\/\/\s*> dist-cutoff-begin/,/^\s*\/\/\s*< dist-cutoff-end/d' \
 		-e '/^\s*\/\*\s*> dist-cutoff-begin/,/^\s*\/\*\s*< dist-cutoff-end/d' \
+		-e '/^\s*<!-- dist-cutoff-begin -->/,/^\s*<!-- dist-cutoff-end -->/d' \
 		-e "s|@MDBX_GIT_TIMESTAMP@|$$(MDBX_GIT_TIMESTAMP)|" \
 		-e "s|@MDBX_GIT_DESCRIBE@|$$(MDBX_GIT_DESCRIBE)|" \
 	$$< | cat -s >$$@
