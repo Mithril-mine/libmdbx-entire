@@ -227,7 +227,7 @@ static std::string safe_dump_current(mdbx::cursor cursor) {
   }
 }
 
-  static bool eq(const iterator &iter, mdbx::cursor cursor, const char *caption) {
+static bool eq(const iterator &iter, mdbx::cursor cursor, const char *caption) {
   try {
     const auto pair = cursor.current();
     if (*iter == pair)
