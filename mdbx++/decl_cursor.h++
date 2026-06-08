@@ -153,7 +153,7 @@ protected:
 
 public:
   template <typename CALLABLE_PREDICATE>
-  bool scan(CALLABLE_PREDICATE predicate, move_operation start = first, move_operation turn = next) {
+  bool scan_until(CALLABLE_PREDICATE predicate, move_operation start = first, move_operation turn = next) {
     struct wrapper : public exception_thunk {
       static int probe(void *context, MDBX_val *key, MDBX_val *value, void *arg) noexcept {
         auto thunk = static_cast<wrapper *>(context);
@@ -173,12 +173,12 @@ public:
   }
 
   template <typename CALLABLE_PREDICATE> bool fullscan(CALLABLE_PREDICATE predicate, bool backward = false) {
-    return scan(std::move(predicate), backward ? last : first, backward ? previous : next);
+    return scan_until(std::move(predicate), backward ? last : first, backward ? previous : next);
   }
 
   template <typename CALLABLE_PREDICATE>
-  bool scan_from(CALLABLE_PREDICATE predicate, slice &from, move_operation start = key_greater_or_equal,
-                 move_operation turn = next) {
+  bool scan_until_from(CALLABLE_PREDICATE predicate, slice &from, move_operation start = key_greater_or_equal,
+                       move_operation turn = next) {
     struct wrapper : public exception_thunk {
       static int probe(void *context, MDBX_val *key, MDBX_val *value, void *arg) noexcept {
         auto thunk = static_cast<wrapper *>(context);
@@ -198,8 +198,8 @@ public:
   }
 
   template <typename CALLABLE_PREDICATE>
-  bool scan_from(CALLABLE_PREDICATE predicate, pair &from, move_operation start = pair_greater_or_equal,
-                 move_operation turn = next) {
+  bool scan_until_from(CALLABLE_PREDICATE predicate, pair &from, move_operation start = pair_greater_or_equal,
+                       move_operation turn = next) {
     struct wrapper : public exception_thunk {
       static int probe(void *context, MDBX_val *key, MDBX_val *value, void *arg) noexcept {
         auto thunk = static_cast<wrapper *>(context);
