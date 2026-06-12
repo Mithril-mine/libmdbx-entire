@@ -82,7 +82,8 @@ bool testcase_jitter::run() {
       check_dbi_error(MDBX_BAD_DBI, "dropped-uncommitted");
       dbi = db_table_open(true);
       check_dbi_error(MDBX_SUCCESS, "recreated-uncommitted");
-      if (flipcoin()) {
+      const bool drop_recreate_aborted = flipcoin();
+      if (drop_recreate_aborted) {
         txn_end(true);
         // check after aborted txn
         txn_begin(false);
@@ -91,9 +92,24 @@ bool testcase_jitter::run() {
 
       v = {(void *)"v002", 4};
       err = mdbx_put(txn_guard.get(), dbi, &k, &v, MDBX_UPSERT);
-      if (err != MDBX_BAD_DBI)
-        failure_perror("jitter.put-2", err);
-      check_dbi_error(MDBX_BAD_DBI, "dropped-recreated-aborted");
+      if (renamed) {
+        // исходная таблица была переименована, а затем повторно создана и удалена в прерванной/откаченной транзакции,
+        // поэтому сейчас хенд должен быть невалиден
+        if (err != MDBX_BAD_DBI)
+          failure_perror(drop_recreate_aborted ? "jitter.put-rename-drop-recreate-abort"
+                                               : "jitter.put-rename-dropped-recreated-rollback",
+                         err);
+        check_dbi_error(MDBX_BAD_DBI, drop_recreate_aborted ? "jitter.put-rename-drop-recreate-abort"
+                                                            : "jitter.put-rename-dropped-recreated-rollback");
+      } else {
+        // таблица была удалена в прерванной/откаченной транзакции, поэтому сейчас хенд должен быть валиден
+        if (err != MDBX_SUCCESS)
+          failure_perror(
+              drop_recreate_aborted ? "jitter.put-drop-recreate-abort" : "jitter.put-dropped-recreated-rollback", err);
+        check_dbi_error(MDBX_SUCCESS, drop_recreate_aborted ? "jitter.put-drop-recreate-abort"
+                                                            : "jitter.put-dropped-recreated-rollback");
+      }
+
       // restore DBI
       dbi = db_table_open(false, renamed);
       if (renamed) {

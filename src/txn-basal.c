@@ -264,8 +264,11 @@ int txn_basal_update_tbl_roots(MDBX_txn *txn) {
       cx.outer.next = txn->cursors[MAIN_DBI];
       txn->cursors[MAIN_DBI] = &cx.outer;
       TXN_FOREACH_DBI_USER(txn, i) {
-        if ((txn->dbi_state[i] & DBI_DIRTY) == 0)
+        if ((txn->dbi_state[i] & DBI_DIRTY) == 0) {
+          tASSERT0(txn, !(txn->dbi_state[i] & DBI_CREAT));
           continue;
+        }
+        tASSERT0(txn, !(txn->dbi_state[i] & DBI_SLAIN));
         tree_t *const db = &txn->dbs[i];
         DEBUG("update main's entry for sub-db %zu, mod_txnid %" PRIaTXN " -> %" PRIaTXN, i, db->mod_txnid, txn->txnid);
         /* Может быть mod_txnid > front после коммита вложенных тразакций */
@@ -343,7 +346,7 @@ int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
   if ((!txn->wr.dirtylist || txn->wr.dirtylist->length == 0) &&
       (txn->flags & (MDBX_TXN_DIRTY | MDBX_TXN_SPILLS | MDBX_TXN_NOSYNC | MDBX_TXN_NOMETASYNC)) == 0 &&
       !need_flush_for_nometasync && !head.is_steady && !CHECKS2_ENABLED()) {
-    TXN_FOREACH_DBI_ALL(txn, i) { cASSERT0(txn, !(txn->dbi_state[i] & DBI_DIRTY)); }
+    TXN_FOREACH_DBI_ALL(txn, i) { cASSERT0(txn, !(txn->dbi_state[i] & (DBI_DIRTY | DBI_SLAIN))); }
     /* fast completion of pure transaction */
     return MDBX_NOSUCCESS_PURE_COMMIT ? MDBX_RESULT_TRUE : MDBX_SUCCESS;
   }
