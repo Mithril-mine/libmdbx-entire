@@ -27,6 +27,8 @@
 #include <set>
 #include <vector>
 
+static bool skip_since_msvc_STL_bugs;
+
 #if defined(__cpp_lib_int_pow2) && __cpp_lib_int_pow2 >= 202002L
 #include <bit>
 using std::bit_width;
@@ -256,9 +258,9 @@ static bool eq(const iterator &iter, mdbx::cursor cursor, const char *caption) {
 }
 
 static void checker_erase(verifier &checker, iterator &target) {
-#ifndef NDEBUG
-  std::cout << "checker-erase " << *target << "\n";
-#endif /* NDEBUG */
+  // #ifndef NDEBUG
+  //   std::cout << "checker-erase " << *target << "\n";
+  // #endif /* NDEBUG */
   checker.erase(target);
 }
 
@@ -311,15 +313,15 @@ static bool turn_bunch_delete(mdbx::txn txn, const case_kind &kvg, verifier &che
     ++next_next_iter;
 
   uint64_t count = 0xDEADBEEF;
-#ifndef NDEBUG
-  static unsigned turn_counter;
-  if (turn_counter == 999999) {
-    mdbx_setup_debug_nofmt(MDBX_LOG_VERBOSE, MDBX_DBG_ASSERT | MDBX_DBG_AUDIT, logger_nofmt, log_buffer,
-                           sizeof(log_buffer));
-    debug(__LINE__, "got it (%u)", turn_counter);
-  }
-  debug(__LINE__, "turn: number %u, size %zu, pos %zu", ++turn_counter, size_before, pos);
-#endif /* NDEBUG */
+  // #ifndef NDEBUG
+  //   static unsigned turn_counter;
+  //   if (turn_counter == 999999) {
+  //     mdbx_setup_debug_nofmt(MDBX_LOG_VERBOSE, MDBX_DBG_ASSERT | MDBX_DBG_AUDIT, logger_nofmt, log_buffer,
+  //                            sizeof(log_buffer));
+  //     debug(__LINE__, "got it (%u)", turn_counter);
+  //   }
+  //   debug(__LINE__, "turn: number %u, size %zu, pos %zu", ++turn_counter, size_before, pos);
+  // #endif /* NDEBUG */
   int err = mdbx_cursor_bunch_delete(cursor, op, &count);
   if (err != MDBX_SUCCESS)
     return failed(__LINE__);
@@ -418,12 +420,12 @@ static bool turn_bunch_delete(mdbx::txn txn, const case_kind &kvg, verifier &che
   }
 
 #if defined(_MSC_VER) && _ITERATOR_DEBUG_LEVEL > 0
-  std::cerr << "skips validation due to MSVC C++ STL bugs (the behavior of iterators does not conform "
-               "https://cppreference.com)"
-            << std::endl;
-  const bool skip_since_msvc_STL_bugs = true;
-#else
-  const bool skip_since_msvc_STL_bugs = false;
+  if (!skip_since_msvc_STL_bugs) {
+    std::cerr << "skips validation due to MSVC C++ STL bugs (the behavior of iterators does not conform "
+                 "https://cppreference.com)"
+              << std::endl;
+    skip_since_msvc_STL_bugs = true;
+  }
 #endif
 
   cursor.to_first(false);
@@ -486,10 +488,10 @@ static bool probe_bunch_delete(mdbx::env env, case_kind &kvg, unsigned deep, con
     size_t n = 0, unchanged = 0;
     do {
       const auto prev_size = copy.size();
-      debug(__LINE__, ">> #%zu, size %zu, deep %zu", n, prev_size, txn.get_map_stat(kvg.table).ms_depth);
+      // debug(__LINE__, ">> #%zu, size %zu, deep %zu", n, prev_size, txn.get_map_stat(kvg.table).ms_depth);
       if (!turn_bunch_delete(txn, kvg, copy, op))
         return false;
-      debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, copy.size(), txn.get_map_stat(kvg.table).ms_depth);
+      // debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, copy.size(), txn.get_map_stat(kvg.table).ms_depth);
       unchanged = (prev_size != copy.size()) ? 0 : unchanged + 1;
     } while (!copy.empty() && (++n < 10 || !is_simple) && unchanged < copy.size() + 2);
     txn.abort();
@@ -500,10 +502,10 @@ static bool probe_bunch_delete(mdbx::env env, case_kind &kvg, unsigned deep, con
   do {
     const auto prev_size = checker.size();
     auto txn = env.start_write();
-    debug(__LINE__, ">> #%zu, size %zu, deep %zu", n, prev_size, txn.get_map_stat(kvg.table).ms_depth);
+    // debug(__LINE__, ">> #%zu, size %zu, deep %zu", n, prev_size, txn.get_map_stat(kvg.table).ms_depth);
     if (!turn_bunch_delete(txn, kvg, checker, op))
       return false;
-    debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, checker.size(), txn.get_map_stat(kvg.table).ms_depth);
+    // debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, checker.size(), txn.get_map_stat(kvg.table).ms_depth);
     txn.commit();
     unchanged = (prev_size != checker.size()) ? 0 : unchanged + 1;
   } while (!checker.empty() && (++n < 10 || !is_simple) && unchanged < checker.size() + 2);
@@ -525,16 +527,16 @@ static bool turn_delete_range(mdbx::txn txn, const case_kind &kvg, verifier &che
   const bool end_including = prng() & 1;
   uint64_t count = 0xDEADBEEF;
 
-#ifndef NDEBUG
-  static unsigned turn_counter;
-  if (turn_counter == 999999) {
-    mdbx_setup_debug_nofmt(MDBX_LOG_VERBOSE, MDBX_DBG_ASSERT | MDBX_DBG_AUDIT, logger_nofmt, log_buffer,
-                           sizeof(log_buffer));
-    debug(__LINE__, "got it (%u)", turn_counter);
-  }
-  debug(__LINE__, "turn: number %u, size %zu, begin_pos %zu, end_pos %zu, end_including %c, b/e-case %i",
-        ++turn_counter, size_before, begin_pos, end_pos, end_including ? 'Y' : 'N', begin_end_case);
-#endif /* NDEBUG */
+  // #ifndef NDEBUG
+  //   static unsigned turn_counter;
+  //   if (turn_counter == 999999) {
+  //     mdbx_setup_debug_nofmt(MDBX_LOG_VERBOSE, MDBX_DBG_ASSERT | MDBX_DBG_AUDIT, logger_nofmt, log_buffer,
+  //                            sizeof(log_buffer));
+  //     debug(__LINE__, "got it (%u)", turn_counter);
+  //   }
+  //   debug(__LINE__, "turn: number %u, size %zu, begin_pos %zu, end_pos %zu, end_including %c, b/e-case %i",
+  //         ++turn_counter, size_before, begin_pos, end_pos, end_including ? 'Y' : 'N', begin_end_case);
+  // #endif /* NDEBUG */
 
   auto begin_cursor = txn.open_cursor(kvg.table);
   auto begin_iter = checker.begin();
@@ -594,12 +596,12 @@ static bool turn_delete_range(mdbx::txn txn, const case_kind &kvg, verifier &che
   }
 
 #if defined(_MSC_VER) && _ITERATOR_DEBUG_LEVEL > 0
-  std::cerr << "skips validation due to MSVC C++ STL bugs (the behavior of iterators does not conform "
-               "https://cppreference.com)"
-            << std::endl;
-  const bool skip_since_msvc_STL_bugs = true;
-#else
-  const bool skip_since_msvc_STL_bugs = false;
+  if (!skip_since_msvc_STL_bugs) {
+    std::cerr << "skips validation due to MSVC C++ STL bugs (the behavior of iterators does not conform "
+                 "https://cppreference.com)"
+              << std::endl;
+    skip_since_msvc_STL_bugs = true;
+  }
 #endif
 
   auto cursor = txn.open_cursor(kvg.table);
@@ -630,11 +632,11 @@ static bool probe_delete_range(mdbx::env env, case_kind &kvg, unsigned deep, int
     size_t n = 0, unchanged = 0;
     do {
       const auto prev_size = copy.size();
-      debug(__LINE__, ">> #%zu, size %zu, deep %zu, begin_end_case %i", n, prev_size,
-            txn.get_map_stat(kvg.table).ms_depth, begin_end_case);
+      // debug(__LINE__, ">> #%zu, size %zu, deep %zu, begin_end_case %i", n, prev_size,
+      //       txn.get_map_stat(kvg.table).ms_depth, begin_end_case);
       if (!turn_delete_range(txn, kvg, copy, begin_end_case))
         return false;
-      debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, copy.size(), txn.get_map_stat(kvg.table).ms_depth);
+      // debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, copy.size(), txn.get_map_stat(kvg.table).ms_depth);
       unchanged = (prev_size != copy.size()) ? 0 : unchanged + 1;
     } while (!copy.empty() && ++n < 10 && unchanged < copy.size() + 2);
     txn.abort();
@@ -645,11 +647,11 @@ static bool probe_delete_range(mdbx::env env, case_kind &kvg, unsigned deep, int
   do {
     const auto prev_size = checker.size();
     auto txn = env.start_write();
-    debug(__LINE__, ">> #%zu, size %zu, deep %zu, begin_end_case %i", n, prev_size,
-          txn.get_map_stat(kvg.table).ms_depth, begin_end_case);
+    // debug(__LINE__, ">> #%zu, size %zu, deep %zu, begin_end_case %i", n, prev_size,
+    //       txn.get_map_stat(kvg.table).ms_depth, begin_end_case);
     if (!turn_delete_range(txn, kvg, checker, begin_end_case))
       return false;
-    debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, checker.size(), txn.get_map_stat(kvg.table).ms_depth);
+    // debug(__LINE__, "<< #%zu, size %zu, deep %zu", n, checker.size(), txn.get_map_stat(kvg.table).ms_depth);
     txn.commit();
     unchanged = (prev_size != checker.size()) ? 0 : unchanged + 1;
   } while (!checker.empty() && ++n < 10 && unchanged < checker.size() + 2);
