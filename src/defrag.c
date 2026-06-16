@@ -506,8 +506,8 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
   if (unlikely(npages > 1)) {
     MDBX_env *env = txn->env;
     for (pgno_t i = 1; i < npages; ++i) {
-      off_t off_src = pgno2bytes(env, arc->key_or_pgno + i);
-      off_t off_dst = pgno2bytes(env, arc->mapped + i);
+      const size_t off_src = pgno2bytes(env, arc->key_or_pgno + i);
+      const size_t off_dst = pgno2bytes(env, arc->mapped + i);
       if ((txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC && env_is_page_incore(env, arc->mapped + i)) {
         if (env_is_page_incore(env, arc->key_or_pgno + i))
           memcpy(ptr_disp(env->dxb_mmap.base, off_dst), ptr_disp(env->dxb_mmap.base, off_src), env->ps);
@@ -519,7 +519,10 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
       } else {
 #if MDBX_USE_COPYFILERANGE
         const ssize_t remainted = pgno2bytes(env, npages - i);
-        const ssize_t copied = copy_file_range(env->dxb_mmap.fd, &off_src, env->dxb_mmap.fd, &off_dst, remainted, 0);
+        off_t off_dst_proxy = off_dst;
+        off_t off_src_proxy = off_src;
+        const ssize_t copied =
+            copy_file_range(env->dxb_mmap.fd, &off_src_proxy, env->dxb_mmap.fd, &off_dst_proxy, remainted, 0);
         err = MDBX_SUCCESS;
         if (unlikely(copied != remainted))
           err = (copied < 0) ? errno : MDBX_EIO;
