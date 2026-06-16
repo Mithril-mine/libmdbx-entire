@@ -591,9 +591,20 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
     return MDBX_CORRUPTED;
   }
   if (meta->geometry.now != geo_now) {
-    WARNING("meta[%u] consider geo-%s pageno is %" PRIaPGNO " instead of wrong %" PRIaPGNO
-            ", will be corrected on next commit(s)",
-            meta_number, "now", geo_now, meta->geometry.now);
+    const int level = (meta->geometry.now < geo_now && meta->geometry.now >= meta->geometry.first_unallocated)
+                          ?
+    /* to avoid confusing  extra logging on Windows, where DXB-file can not be shrinked timely due system limitation. */
+#if defined(_WIN32) || defined(_WIN64)
+                          MDBX_LOG_VERBOSE
+#else
+                          MDBX_LOG_NOTICE
+#endif /* Windows */
+                          : MDBX_LOG_WARN;
+    if (LOG_ENABLED(level))
+      debug_log(level, __func__, __LINE__,
+                "meta[%u] consider geo-%s pageno is %" PRIaPGNO " instead of wrong %" PRIaPGNO
+                ", will be corrected on next commit(s)\n",
+                meta_number, "now", geo_now, meta->geometry.now);
     meta->geometry.now = geo_now;
   }
 
