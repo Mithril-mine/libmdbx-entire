@@ -590,7 +590,7 @@ int doit() {
   std::cout << std::endl;
   prng.seed(seed);
 
-  mdbx::path db_filename = "test-range-delete";
+  mdbx::path db_filename = "test-distance-scroll";
   mdbx::env_managed::remove(db_filename);
 
   mdbx::env_managed::create_parameters create_parameters;
