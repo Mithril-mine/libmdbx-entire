@@ -190,7 +190,7 @@ __cold int mdbx_env_set_option(MDBX_env *env, const MDBX_option_t option, uint64
   switch (option) {
   case MDBX_opt_sync_bytes:
     if (value == /* default */ UINT64_MAX)
-      value = MAX_WRITE;
+      value = MAX_IO_BYTES;
     if (unlikely(env->flags & MDBX_RDONLY))
       return LOG_IFERR(MDBX_EACCESS);
     if (unlikely(!(env->flags & ENV_ACTIVE)))

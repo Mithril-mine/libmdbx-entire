@@ -576,7 +576,7 @@ static inline ior_item_t *ior_next(ior_item_t *item, size_t sgvcnt) {
 
 int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const size_t bytes) {
   ASSERT(bytes && data);
-  ASSERT(bytes % MDBX_MIN_PAGESIZE == 0 && bytes <= MAX_WRITE);
+  ASSERT(bytes % MDBX_MIN_PAGESIZE == 0 && bytes <= MAX_IO_BYTES);
   ASSERT(offset % MDBX_MIN_PAGESIZE == 0 && offset + (uint64_t)bytes <= MAX_MAPSIZE);
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -588,7 +588,7 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
   if (likely(ior->last)) {
     item = ior->last;
     if (unlikely(ior_offset(item) + ior_last_bytes(ior, item) == offset) &&
-        likely(ior_last_bytes(ior, item) + bytes <= MAX_WRITE)) {
+        likely(ior_last_bytes(ior, item) + bytes <= MAX_IO_BYTES)) {
 #if defined(_WIN32) || defined(_WIN64)
       if (use_gather &&
           ((bytes | (uintptr_t)data | ior->last_bytes | (uintptr_t)(uint64_t)item->sgv[0].Buffer) &
@@ -710,7 +710,7 @@ void osal_ioring_walk(osal_ioring_t *ior, iov_ctx_t *ctx,
         ++i;
       }
     }
-    ASSERT(bytes < MAX_WRITE);
+    ASSERT(bytes < MAX_IO_BYTES);
     callback(ctx, offset, data, bytes);
 #elif MDBX_HAVE_PWRITEV
     ASSERT(item->sgvcnt > 0);
@@ -749,7 +749,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
         bytes += ior->pagesize;
         ++i;
       }
-      ASSERT(bytes < MAX_WRITE);
+      ASSERT(bytes < MAX_IO_BYTES);
       item->ov.hEvent = ior_get_event(ior);
       if (unlikely(!item->ov.hEvent)) {
       bailout_geterr:
@@ -777,7 +777,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
         *--wait_for = item->ov.hEvent;
       }
     } else if (fd == ior->overlapped_fd) {
-      ASSERT(bytes < MAX_WRITE);
+      ASSERT(bytes < MAX_IO_BYTES);
     retry:
       item->ov.hEvent = ior;
       if (WriteFileEx(fd, item->single.iov_base, (DWORD)bytes, &item->ov, ior_wocr)) {
@@ -812,7 +812,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
         }
       }
     } else {
-      ASSERT(bytes < MAX_WRITE);
+      ASSERT(bytes < MAX_IO_BYTES);
       DWORD written = 0;
       if (!WriteFile(fd, item->single.iov_base, (DWORD)bytes, &written, &item->ov)) {
         r.err = (int)GetLastError();
@@ -1345,7 +1345,7 @@ int osal_closefile(mdbx_filehandle_t fd) {
 }
 
 int osal_pread(mdbx_filehandle_t fd, void *buf, size_t bytes, uint64_t offset) {
-  if (bytes > MAX_WRITE)
+  if (bytes > MAX_IO_BYTES)
     return MDBX_EINVAL;
 #if defined(_WIN32) || defined(_WIN64)
   OVERLAPPED ov;
@@ -1384,13 +1384,13 @@ int osal_pwrite(mdbx_filehandle_t fd, const void *buf, size_t bytes, uint64_t of
     ov.OffsetHigh = HIGH_DWORD(offset);
 
     DWORD written;
-    if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_WRITE) ? (DWORD)bytes : MAX_WRITE, &written, &ov)))
+    if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_IO_BYTES) ? (DWORD)bytes : MAX_IO_BYTES, &written, &ov)))
       return (int)GetLastError();
     if (likely(bytes == written))
       return MDBX_SUCCESS;
 #else
     STATIC_ASSERT_MSG(sizeof(off_t) >= sizeof(size_t), "libmdbx requires 64-bit file I/O on 64-bit systems");
-    const intptr_t written = pwrite(fd, buf, likely(bytes <= MAX_WRITE) ? bytes : MAX_WRITE, offset);
+    const intptr_t written = pwrite(fd, buf, likely(bytes <= MAX_IO_BYTES) ? bytes : MAX_IO_BYTES, offset);
     if (likely(bytes == (size_t)written))
       return MDBX_SUCCESS;
     if (written < 0) {
@@ -1410,13 +1410,13 @@ int osal_write(mdbx_filehandle_t fd, const void *buf, size_t bytes) {
   while (true) {
 #if defined(_WIN32) || defined(_WIN64)
     DWORD written;
-    if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_WRITE) ? (DWORD)bytes : MAX_WRITE, &written, nullptr)))
+    if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_IO_BYTES) ? (DWORD)bytes : MAX_IO_BYTES, &written, nullptr)))
       return (int)GetLastError();
     if (likely(bytes == written))
       return MDBX_SUCCESS;
 #else
     STATIC_ASSERT_MSG(sizeof(off_t) >= sizeof(size_t), "libmdbx requires 64-bit file I/O on 64-bit systems");
-    const intptr_t written = write(fd, buf, likely(bytes <= MAX_WRITE) ? bytes : MAX_WRITE);
+    const intptr_t written = write(fd, buf, likely(bytes <= MAX_IO_BYTES) ? bytes : MAX_IO_BYTES);
     if (likely(bytes == (size_t)written))
       return MDBX_SUCCESS;
     if (written < 0) {

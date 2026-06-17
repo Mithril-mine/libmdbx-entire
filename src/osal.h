@@ -382,11 +382,11 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL void osal_jitter(bool tiny);
 
 /* max bytes to write in one call */
 #if defined(_WIN64)
-#define MAX_WRITE UINT32_C(0x10000000)
+#define MAX_IO_BYTES UINT32_C(0x10000000)
 #elif defined(_WIN32)
-#define MAX_WRITE UINT32_C(0x04000000)
+#define MAX_IO_BYTES UINT32_C(0x04000000)
 #else
-#define MAX_WRITE UINT32_C(0x3f000000)
+#define MAX_IO_BYTES UINT32_C(0x3f000000)
 
 #if defined(F_GETLK64) && defined(F_SETLK64) && defined(F_SETLKW64) && !defined(__ANDROID_API__)
 #define MDBX_F_SETLK F_SETLK64
