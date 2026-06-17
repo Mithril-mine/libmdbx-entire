@@ -9,7 +9,7 @@
 #define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 /* Bit of madness for Windows console */
 #define mdbx_strerror mdbx_strerror_ANSI2OEM
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
   if (optind != argc - 1)
     usage();
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SetConsoleCtrlHandler(ConsoleBreakHandlerRoutine, true);
   is_console = _isatty(_fileno(stdout)) != 0;
 #else
@@ -316,7 +316,7 @@ int main(int argc, char *argv[]) {
   if (rc == MDBX_SUCCESS)
     rc = mdbx_env_open(env, db_pathname, env_flags, 0);
   if ((env_flags & MDBX_EXCLUSIVE) && (rc == MDBX_BUSY ||
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                                        rc == ERROR_LOCK_VIOLATION || rc == ERROR_SHARING_VIOLATION
 #else
                                        rc == EBUSY || rc == EAGAIN

@@ -51,7 +51,7 @@ typedef struct bind_reader_slot_result {
 #include "txl.h"
 #include "unaligned.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #include "windows-import.h"
 #endif /* Windows */
 
@@ -393,7 +393,7 @@ struct MDBX_env {
   osal_mmap_t dxb_mmap; /* The main data file */
 #define lazy_fd dxb_mmap.fd
   mdbx_filehandle_t dsync_fd, fd4meta;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   HANDLE dxb_lock_event;
   HANDLE lck_lock_event;
 #endif                  /* Windows */
@@ -442,7 +442,7 @@ struct MDBX_env {
     uint8_t spill_parent4child_denominator;
     uint16_t merge_threshold_dot16;
     uint16_t split_reserve_dot16;
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
     unsigned writethrough_threshold;
 #endif /* Windows */
     bool prefault_write;
@@ -520,7 +520,7 @@ struct MDBX_env {
 
   osal_ioring_t ioring;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   osal_srwlock_t remap_lock;
   /* Workaround for LockFileEx and WriteFile multithread bug */
   CRITICAL_SECTION lck_event_cs;

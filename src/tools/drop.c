@@ -11,7 +11,7 @@
 
 #include <ctype.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 /* Bit of madness for Windows console */
 #define mdbx_strerror mdbx_strerror_ANSI2OEM
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
   if (optind != argc - 1)
     usage();
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SetConsoleCtrlHandler(ConsoleBreakHandlerRoutine, true);
 #else
 #ifdef SIGPIPE

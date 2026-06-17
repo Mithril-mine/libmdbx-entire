@@ -249,7 +249,7 @@ int txn_ro_start(MDBX_txn *txn, bool prepare_only) {
 
   eASSERT0(env, pgno2bytes(env, txn->geo.first_unallocated) <= env->dxb_mmap.current);
   eASSERT0(env, env->dxb_mmap.limit >= env->dxb_mmap.current);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   const size_t used_bytes = pgno2bytes(env, txn->geo.first_unallocated);
   if (((used_bytes > env->geo_in_bytes.lower && env->geo_in_bytes.shrink) ||
        (globals.running_under_Wine &&
@@ -283,7 +283,7 @@ int txn_ro_reset(MDBX_txn *txn) {
   cASSERT0(txn, (txn->flags & txn_may_have_cursors) == 0);
   txn->n_dbi = 0; /* prevent further DBI activity */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if ((txn->flags & (MDBX_TXN_FINISHED | txn_shrink_allowed)) == txn_shrink_allowed)
     imports.srwl_ReleaseShared(&txn->env->remap_lock);
 #endif /* Windows */

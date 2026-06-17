@@ -93,7 +93,7 @@ time from_ms(uint64_t ms) {
 #endif /* GCC/MINGW */
 
 time now_realtime() {
-#if defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS)
+#if IS_WINDOWS
   static void(WINAPI * query_time)(LPFILETIME);
   if (unlikely(!query_time)) {
     HMODULE hModule = GetModuleHandle(TEXT("kernel32.dll"));
@@ -117,7 +117,7 @@ time now_realtime() {
 }
 
 time now_monotonic() {
-#if defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS)
+#if IS_WINDOWS
   static uint64_t reciprocal;
   static LARGE_INTEGER Frequency;
   if (reciprocal == 0) {

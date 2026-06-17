@@ -101,7 +101,7 @@ static bool doit(const mdbx::path &database_pathname) {
 int main(int, const char *[]) {
   try {
     const mdbx::path bench_database =
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !(defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS))
         "/tmp/"
 #endif /* !Windows */
         "bench_example_database.mdbx";

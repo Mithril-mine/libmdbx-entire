@@ -21,7 +21,7 @@
 
 #include "test.h++"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 /* Map a result from an NTAPI call to WIN32 error code. */
 static int osal_ntstatus2errcode(NTSTATUS status) {

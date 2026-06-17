@@ -137,7 +137,7 @@ void output_nocheckloglevel_ap(const logging::loglevel priority, const char *for
   struct tm tm;
 #ifdef _MSC_VER
   int rc = _localtime32_s(&tm, (const __time32_t *)&now.utc);
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
   const time_t time_proxy = now.utc;
   int rc = localtime_s(&tm, &time_proxy);
 #else

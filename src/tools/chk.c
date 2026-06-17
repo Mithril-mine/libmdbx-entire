@@ -11,7 +11,7 @@
 
 #include <ctype.h>
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 /* Bit of madness for Windows console */
 #define mdbx_strerror mdbx_strerror_ANSI2OEM
@@ -408,7 +408,7 @@ int main(int argc, char *argv[]) {
   if (argc < 2)
     usage(progname);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   uint64_t timestamp_start, timestamp_finish;
   timestamp_start = GetMilliseconds();
 #else
@@ -539,7 +539,7 @@ int main(int argc, char *argv[]) {
   if (rc)
     exit(rc);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SetConsoleCtrlHandler(ConsoleBreakHandlerRoutine, true);
 #else
 #ifdef SIGPIPE
@@ -583,7 +583,7 @@ int main(int argc, char *argv[]) {
   } else {
     rc = mdbx_env_open(env, db_pathname, env_flags, 0);
     if ((env_flags & MDBX_EXCLUSIVE) && (rc == MDBX_BUSY ||
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                                          rc == ERROR_LOCK_VIOLATION || rc == ERROR_SHARING_VIOLATION
 #else
                                          rc == EBUSY || rc == EAGAIN
@@ -635,7 +635,7 @@ bailout:
     return EXIT_FAILURE_MDBX;
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   timestamp_finish = GetMilliseconds();
   const uint64_t elapsed_msec = (timestamp_finish - timestamp_start);
 #else

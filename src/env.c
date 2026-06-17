@@ -119,7 +119,7 @@ retry:;
         eASSERT0(env, ((flags ^ env->flags) & MDBX_WRITEMAP) == 0);
         if (flags & MDBX_WRITEMAP) {
           /* Acquire guard to avoid collision with remap */
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
           imports.srwl_AcquireShared(&env->remap_lock);
 #else
           err = osal_fastmutex_acquire(&env->remap_lock);
@@ -127,7 +127,7 @@ retry:;
             return err;
 #endif
           err = dxb_msync(env, head.ptr_c->geometry.first_unallocated, MDBX_SYNC_DATA);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
           imports.srwl_ReleaseShared(&env->remap_lock);
 #else
           int unlock_err = osal_fastmutex_release(&env->remap_lock);
@@ -298,7 +298,7 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
   osal_fseek(env->lazy_fd, safe_parking_lot_offset);
 
   env->fd4meta = env->lazy_fd;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   env->dxb_lock_event = CreateEventW(nullptr, true, false, nullptr);
   if (unlikely(!env->dxb_lock_event))
     return (int)GetLastError();
@@ -369,7 +369,7 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
 
   eASSERT0(env, env->dsync_fd == INVALID_HANDLE_VALUE);
   if (!(env->flags & (MDBX_RDONLY | MDBX_SAFE_NOSYNC | DEPRECATED_MAPASYNC
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                       | MDBX_EXCLUSIVE
 #endif /* !Windows */
                       ))) {
@@ -490,7 +490,7 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
 
   rc = (env->flags & MDBX_RDONLY) ? MDBX_SUCCESS
                                   : osal_ioring_create(&env->ioring
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                                                        ,
                                                        ior_direct, env->ioring.overlapped_fd
 #endif /* Windows */
@@ -536,7 +536,7 @@ __cold int env_close(MDBX_env *env, bool resurrect_after_fork) {
 #endif /* ENABLE_MEMCHECK */
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   eASSERT0(env, !env->ioring.overlapped_fd || env->ioring.overlapped_fd == INVALID_HANDLE_VALUE);
   if (env->dxb_lock_event != INVALID_HANDLE_VALUE) {
     CloseHandle(env->dxb_lock_event);

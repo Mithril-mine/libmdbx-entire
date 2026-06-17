@@ -27,7 +27,7 @@ __cold static int compacting_walk_tree(ctx_t *ctx, tree_t *tree);
 __cold static THREAD_RESULT THREAD_CALL compacting_write_thread(void *arg) {
   ctx_t *const ctx = arg;
 
-#if defined(EPIPE) && !(defined(_WIN32) || defined(_WIN64))
+#if defined(EPIPE) && !IS_WINDOWS
   sigset_t sigset;
   sigemptyset(&sigset);
   sigaddset(&sigset, SIGPIPE);
@@ -54,7 +54,7 @@ __cold static THREAD_RESULT THREAD_CALL compacting_write_thread(void *arg) {
     if (!ctx->error) {
       int err = osal_write(ctx->fd, ptr, wsize);
       if (err != MDBX_SUCCESS) {
-#if defined(EPIPE) && !(defined(_WIN32) || defined(_WIN64))
+#if defined(EPIPE) && !IS_WINDOWS
         if (err == EPIPE) {
           /* Collect the pending SIGPIPE,
            * otherwise at least OS X gives it to the process on thread-exit. */
@@ -717,7 +717,7 @@ __cold static int copy2pathname(MDBX_txn *txn, const pathchar_t *dest_path, MDBX
   mdbx_filehandle_t newfd = INVALID_HANDLE_VALUE;
   int rc = osal_openfile((flags & MDBX_CP_OVERWRITE) ? MDBX_OPEN_COPY_OVERWRITE : MDBX_OPEN_COPY_EXCL, txn->env,
                          dest_path, &newfd,
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                          (mdbx_mode_t)-1
 #else
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
@@ -726,7 +726,7 @@ __cold static int copy2pathname(MDBX_txn *txn, const pathchar_t *dest_path, MDBX
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   /* no locking required since the file opened with ShareMode == 0 */
 #else
   MDBX_STRUCT_FLOCK lock_op;
@@ -829,7 +829,7 @@ __cold int mdbx_env_copy2fd(MDBX_env *env, mdbx_filehandle_t fd, MDBX_copy_flags
 }
 
 __cold int mdbx_txn_copy2pathname(MDBX_txn *txn, const char *dest_path, MDBX_copy_flags_t flags) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   wchar_t *dest_pathW = nullptr;
   int rc = osal_mb2w(dest_path, &dest_pathW);
   if (likely(rc == MDBX_SUCCESS)) {
@@ -850,7 +850,7 @@ __cold int mdbx_txn_copy2pathnameW(MDBX_txn *txn, const wchar_t *dest_path, MDBX
 }
 
 __cold int mdbx_env_copy(MDBX_env *env, const char *dest_path, MDBX_copy_flags_t flags) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   wchar_t *dest_pathW = nullptr;
   int rc = osal_mb2w(dest_path, &dest_pathW);
   if (likely(rc == MDBX_SUCCESS)) {

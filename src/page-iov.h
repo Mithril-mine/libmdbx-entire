@@ -5,7 +5,7 @@
 
 #include "essentials.h"
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 #define MDBX_WRITETHROUGH_THRESHOLD_DEFAULT 2
 #endif
 

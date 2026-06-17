@@ -21,7 +21,7 @@
 
 #include "test.h++"
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 
 #include <atomic>
 #include <pthread.h>

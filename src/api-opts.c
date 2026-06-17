@@ -125,7 +125,7 @@ void env_options_init(MDBX_env *env) {
   if (default_prefer_waf_insteadof_balance(env))
     env->options.prefer_waf_insteadof_balance = true;
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
   env->options.writethrough_threshold =
 #if defined(__linux__) || defined(__gnu_linux__)
       globals.running_on_WSL1 ? MAX_PAGENO :
@@ -382,7 +382,7 @@ __cold int mdbx_env_set_option(MDBX_env *env, const MDBX_option_t option, uint64
     break;
 
   case MDBX_opt_writethrough_threshold:
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     /* позволяем "установить" значение по-умолчанию и совпадающее
      * с поведением соответствующим текущей установке MDBX_NOMETASYNC */
     if (value != /* default */ UINT64_MAX && value != ((env->flags & MDBX_NOMETASYNC) ? 0 : UINT_MAX))
@@ -550,7 +550,7 @@ __cold int mdbx_env_get_option(const MDBX_env *env, const MDBX_option_t option, 
     break;
 
   case MDBX_opt_writethrough_threshold:
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     *pvalue = (env->flags & MDBX_NOMETASYNC) ? 0 : INT_MAX;
 #else
     *pvalue = env->options.writethrough_threshold;

@@ -828,7 +828,7 @@ __cold static int chk_tree(MDBX_chk_scope_t *const scope) {
   MDBX_env *const env = usr->env;
   MDBX_txn *const txn = usr->txn;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SetLastError(ERROR_SUCCESS);
 #else
   errno = 0;
@@ -1484,7 +1484,7 @@ __cold static int env_chk(MDBX_chk_scope_t *const scope) {
     }
     cASSERT0(txn, txn->geo.now == chk->envinfo.mi_geo.current / chk->envinfo.mi_dxb_pagesize);
     chk_line_end(chk_print(line, ", %u pages", txn->geo.now));
-#if defined(_WIN32) || defined(_WIN64) || MDBX_DEBUG > 0
+#if IS_WINDOWS || MDBX_DEBUG > 0
     if (txn->geo.shrink_pv && txn->geo.now != txn->geo.upper && scope->verbosity >= MDBX_chk_verbose) {
       line = chk_line_begin(inner, MDBX_chk_notice);
       chk_line_feed(chk_print(line, " > WARNING: Due Windows system limitations a file couldn't"));

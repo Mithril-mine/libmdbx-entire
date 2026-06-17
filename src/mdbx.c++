@@ -1293,7 +1293,7 @@ __cold env &env::copy(const ::std::string &destination, bool compactify, bool fo
   return copy(destination.c_str(), compactify, force_dynamic_size);
 }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 __cold env &env::copy(const wchar_t *destination, bool compactify, bool force_dynamic_size) {
   error::success_or_throw(::mdbx_env_copyW(handle_, destination,
                                            (compactify ? MDBX_CP_COMPACT : MDBX_CP_DEFAULTS) |
@@ -1313,7 +1313,7 @@ __cold env &env::copy(const MDBX_STD_FILESYSTEM_PATH &destination, bool compacti
 #endif /* MDBX_STD_FILESYSTEM_PATH */
 
 __cold const mdbx::path_char *env::get_path() const {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   const wchar_t *c_wstr = nullptr;
   error::success_or_throw(::mdbx_env_get_pathW(handle_, &c_wstr));
   static_assert(sizeof(path::value_type) == sizeof(wchar_t), "Oops");
@@ -1334,7 +1334,7 @@ __cold bool env::remove(const ::std::string &pathname, const remove_mode mode) {
   return remove(pathname.c_str(), mode);
 }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 __cold bool env::remove(const wchar_t *pathname, const remove_mode mode) {
   return !error::boolean_or_throw(::mdbx_env_deleteW(pathname, MDBX_env_delete_mode_t(mode)));
 }
@@ -1425,7 +1425,7 @@ __cold env_managed::env_managed(const ::std::string &pathname, const env_managed
                                 const env::operate_parameters &op, bool accede)
     : env_managed(pathname.c_str(), cp, op, accede) {}
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 __cold env_managed::env_managed(const wchar_t *pathname, const operate_parameters &op, bool accede)
     : env_managed(create_env()) {
   setup(op.max_maps, op.max_readers);

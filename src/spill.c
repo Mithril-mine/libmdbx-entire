@@ -344,7 +344,7 @@ __cold int spill_slowpath(MDBX_txn *const txn, MDBX_cursor *const m0, const intp
 
     iov_ctx_t ctx;
     rc = iov_init(txn, &ctx, amount_entries, amount_npages,
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                   txn->env->ioring.overlapped_fd ? txn->env->ioring.overlapped_fd :
 #endif
                                                  txn->env->lazy_fd,

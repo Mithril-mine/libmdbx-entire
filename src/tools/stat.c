@@ -11,7 +11,7 @@
 
 enum { MDBX_STAT_MAXDBS = 2 };
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 /* Bit of madness for Windows console */
 #define mdbx_strerror mdbx_strerror_ANSI2OEM
@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
   if (optind != argc - 1)
     usage(prog);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SetConsoleCtrlHandler(ConsoleBreakHandlerRoutine, true);
 #else
 #ifdef SIGPIPE
@@ -316,7 +316,7 @@ int main(int argc, char *argv[]) {
              mei.mi_mapsize / mei.mi_dxb_pagesize);
       printf("  Current datafile: %" PRIu64 " bytes, %" PRIu64 " pages\n", mei.mi_geo.current,
              mei.mi_geo.current / mei.mi_dxb_pagesize);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       if (mei.mi_geo.shrink && mei.mi_geo.current != mei.mi_geo.upper)
         printf("                    WARNING: Due Windows system limitations a "
                "file couldn't\n                    be truncated while database "

@@ -37,7 +37,7 @@
 
 /** Controls checking PID against reuse DB environment after the fork() */
 #ifndef MDBX_ENV_CHECKPID
-#if defined(MADV_DONTFORK) || defined(_WIN32) || defined(_WIN64)
+#if defined(MADV_DONTFORK) || IS_WINDOWS
 /* PID check could be omitted:
  *  - on Linux when madvise(MADV_DONTFORK) is available, i.e. after the fork()
  *    mapped pages will not be available for child process.
@@ -109,7 +109,7 @@
 /** Controls using Unix' mincore() to determine whether DB-pages
  * are resident in memory. */
 #ifndef MDBX_USE_MINCORE
-#if defined(MINCORE_INCORE) || !(defined(_WIN32) || defined(_WIN64))
+#if defined(MINCORE_INCORE) || !IS_WINDOWS
 #define MDBX_USE_MINCORE 1
 #else
 #define MDBX_USE_MINCORE 0
@@ -183,7 +183,7 @@
  * persist ones by write(). This may be reasonable for goofy systems (Windows)
  * which low performance of msync() and/or zany LRU tracking. */
 #ifndef MDBX_AVOID_MSYNC
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #define MDBX_AVOID_MSYNC 1
 #else
 #define MDBX_AVOID_MSYNC 0
@@ -208,7 +208,7 @@
 
 /** Avoid dependence from MSVC CRT and use ntdll.dll instead. */
 #ifndef MDBX_WITHOUT_MSVC_CRT
-#if defined(MDBX_BUILD_CXX) && !MDBX_BUILD_CXX && (defined(_WIN32) || defined(_WIN64))
+#if defined(MDBX_BUILD_CXX) && !MDBX_BUILD_CXX && IS_WINDOWS
 #define MDBX_WITHOUT_MSVC_CRT 1
 #else
 #define MDBX_WITHOUT_MSVC_CRT 0
@@ -333,7 +333,7 @@
 #define MDBX_LOCKING_POSIX2008 2008
 
 /** Advanced: Choices the locking implementation (autodetection by default). */
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #define MDBX_LOCKING MDBX_LOCKING_WIN32FILES
 #else
 #ifndef MDBX_LOCKING

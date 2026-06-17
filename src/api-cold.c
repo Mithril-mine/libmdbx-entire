@@ -175,7 +175,7 @@ __cold int mdbx_env_warmup(const MDBX_env *env, const MDBX_txn *txn, MDBX_warmup
   int rc = MDBX_SUCCESS;
   if (flags & MDBX_warmup_touchlimit) {
     const size_t estimated_rss = estimate_rss(used_range);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     SIZE_T current_ws_lower, current_ws_upper;
     if (GetProcessWorkingSetSize(GetCurrentProcess(), &current_ws_lower, &current_ws_upper) &&
         current_ws_lower < estimated_rss) {
@@ -243,7 +243,7 @@ __cold int mdbx_env_warmup(const MDBX_env *env, const MDBX_txn *txn, MDBX_warmup
   if ((flags & MDBX_warmup_force) != 0 && (rc == MDBX_SUCCESS || rc == MDBX_ENOSYS)) {
     const volatile uint8_t *ptr = env->dxb_mmap.base;
     size_t offset = 0, unused = 42;
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
     if (flags & MDBX_warmup_oomsafe) {
       const int null_fd = open("/dev/null", O_WRONLY);
       if (unlikely(null_fd < 0))
@@ -293,7 +293,7 @@ __cold int mdbx_env_warmup(const MDBX_env *env, const MDBX_txn *txn, MDBX_warmup
 
   if ((flags & MDBX_warmup_lock) != 0 && (rc == MDBX_SUCCESS || rc == MDBX_ENOSYS) &&
       atomic_load32(&env->mlocked_pgno, mo_AcquireRelease) < mlock_pgno) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if (VirtualLock(env->dxb_mmap.base, used_range)) {
       update_mlcnt(env, mlock_pgno, true);
       rc = MDBX_SUCCESS;
@@ -399,7 +399,7 @@ __cold MDBX_hsr_func mdbx_env_get_hsr(const MDBX_env *env) {
   return likely(env && env->signature.weak == env_signature) ? env->hsr_callback : nullptr;
 }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 __cold int mdbx_env_get_pathW(const MDBX_env *env, const wchar_t **arg) {
   int rc = check_env(env, true);
   if (unlikely(rc != MDBX_SUCCESS))
@@ -421,7 +421,7 @@ __cold int mdbx_env_get_path(const MDBX_env *env, const char **arg) {
   if (unlikely(!arg))
     return LOG_IFERR(MDBX_EINVAL);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (!env->pathname_char) {
     *arg = nullptr;
     DWORD flags = /* WC_ERR_INVALID_CHARS */ 0x80;

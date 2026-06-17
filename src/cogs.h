@@ -461,7 +461,7 @@ MDBX_CONST_FUNCTION static inline lck_t *lckless_stub(const MDBX_env *env) {
   return (lck_t *)stub;
 }
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 MDBX_CONST_FUNCTION static inline int ignore_enosys(int err) {
 #ifdef ENOSYS
   if (err == ENOSYS)
@@ -498,7 +498,7 @@ MDBX_MAYBE_UNUSED MDBX_CONST_FUNCTION static inline int ignore_enosys_and_eremot
   return (err == MDBX_EREMOTE) ? MDBX_RESULT_TRUE : ignore_enosys(err);
 }
 
-#endif /* defined(_WIN32) || defined(_WIN64) */
+#endif /* IS_WINDOWS */
 
 static inline int check_env(const MDBX_env *env, const bool wanna_active) {
   if (unlikely(!env))

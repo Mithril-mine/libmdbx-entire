@@ -5,7 +5,7 @@
 
 #include "internals.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 #include <psapi.h>
 #include <winioctl.h>
@@ -198,7 +198,7 @@ __extern_C void __assert(const char *function, const char *file, int line, const
 
 __cold void osal_panic(const char *msg, const char *func, unsigned line) {
   while (1) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #if defined(_DEBUG) && !MDBX_WITHOUT_MSVC_CRT
     _CrtDbgReport(_CRT_ASSERT, func, line, "libmdbx", "assertion failed: %s", msg);
 #else
@@ -234,7 +234,7 @@ int osal_vasprintf(char **strp, const char *fmt, va_list ap) {
 
   *strp = osal_malloc(needed + (size_t)1);
   if (unlikely(*strp == nullptr)) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     SetLastError(MDBX_ENOMEM);
 #else
     errno = MDBX_ENOMEM;
@@ -265,7 +265,7 @@ int osal_asprintf(char **strp, const char *fmt, ...) {
 #ifndef osal_memalign_alloc
 int osal_memalign_alloc(size_t alignment, size_t bytes, void **result) {
   ASSERT(is_powerof2(alignment) && alignment >= sizeof(void *));
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   (void)alignment;
   *result = VirtualAlloc(nullptr, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
   return *result ? MDBX_SUCCESS : MDBX_ENOMEM /* ERROR_OUTOFMEMORY */;
@@ -286,7 +286,7 @@ int osal_memalign_alloc(size_t alignment, size_t bytes, void **result) {
 
 #ifndef osal_memalign_free
 void osal_memalign_free(void *ptr) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   VirtualFree(ptr, 0, MEM_RELEASE);
 #else
   osal_free(ptr);
@@ -311,7 +311,7 @@ char *osal_strdup(const char *str) {
 int osal_condpair_init(osal_condpair_t *condpair) {
   int rc;
   memset(condpair, 0, sizeof(osal_condpair_t));
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (!(condpair->mutex = CreateMutexW(nullptr, FALSE, nullptr))) {
     rc = (int)GetLastError();
     goto bailout_mutex;
@@ -348,7 +348,7 @@ bailout_mutex:
 }
 
 int osal_condpair_destroy(osal_condpair_t *condpair) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   int rc = CloseHandle(condpair->mutex) ? MDBX_SUCCESS : (int)GetLastError();
   rc = CloseHandle(condpair->event[0]) ? rc : (int)GetLastError();
   rc = CloseHandle(condpair->event[1]) ? rc : (int)GetLastError();
@@ -362,7 +362,7 @@ int osal_condpair_destroy(osal_condpair_t *condpair) {
 }
 
 int osal_condpair_lock(osal_condpair_t *condpair) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   DWORD code = WaitForSingleObject(condpair->mutex, INFINITE);
   return osal_waitstatus2errcode(code);
 #else
@@ -371,7 +371,7 @@ int osal_condpair_lock(osal_condpair_t *condpair) {
 }
 
 int osal_condpair_unlock(osal_condpair_t *condpair) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   return ReleaseMutex(condpair->mutex) ? MDBX_SUCCESS : (int)GetLastError();
 #else
   return pthread_mutex_unlock(&condpair->mutex);
@@ -379,7 +379,7 @@ int osal_condpair_unlock(osal_condpair_t *condpair) {
 }
 
 int osal_condpair_signal(osal_condpair_t *condpair, bool part) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   return SetEvent(condpair->event[part]) ? MDBX_SUCCESS : (int)GetLastError();
 #else
   return pthread_cond_signal(&condpair->cond[part]);
@@ -387,7 +387,7 @@ int osal_condpair_signal(osal_condpair_t *condpair, bool part) {
 }
 
 int osal_condpair_wait(osal_condpair_t *condpair, bool part) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   DWORD code = SignalObjectAndWait(condpair->mutex, condpair->event[part], INFINITE, FALSE);
   if (code == WAIT_OBJECT_0) {
     code = WaitForSingleObject(condpair->mutex, INFINITE);
@@ -403,7 +403,7 @@ int osal_condpair_wait(osal_condpair_t *condpair, bool part) {
 /*----------------------------------------------------------------------------*/
 
 int osal_fastmutex_init(osal_fastmutex_t *fastmutex) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   InitializeCriticalSection(fastmutex);
   return MDBX_SUCCESS;
 #elif MDBX_CHECKING > 1
@@ -422,7 +422,7 @@ int osal_fastmutex_init(osal_fastmutex_t *fastmutex) {
 }
 
 int osal_fastmutex_destroy(osal_fastmutex_t *fastmutex) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   DeleteCriticalSection(fastmutex);
   return MDBX_SUCCESS;
 #else
@@ -431,7 +431,7 @@ int osal_fastmutex_destroy(osal_fastmutex_t *fastmutex) {
 }
 
 int osal_fastmutex_acquire(osal_fastmutex_t *fastmutex) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   __try {
     EnterCriticalSection(fastmutex);
   } __except ((GetExceptionCode() == 0xC0000194 /* STATUS_POSSIBLE_DEADLOCK / EXCEPTION_POSSIBLE_DEADLOCK */)
@@ -446,7 +446,7 @@ int osal_fastmutex_acquire(osal_fastmutex_t *fastmutex) {
 }
 
 int osal_fastmutex_release(osal_fastmutex_t *fastmutex) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   LeaveCriticalSection(fastmutex);
   return MDBX_SUCCESS;
 #else
@@ -456,7 +456,7 @@ int osal_fastmutex_release(osal_fastmutex_t *fastmutex) {
 
 /*----------------------------------------------------------------------------*/
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 int osal_mb2w(const char *const src, wchar_t **const pdst) {
   const size_t dst_wlen = MultiByteToWideChar(CP_THREAD_ACP, MB_ERR_INVALID_CHARS, src, -1, nullptr, 0);
@@ -487,7 +487,7 @@ bailout:
 
 /*----------------------------------------------------------------------------*/
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #define ior_alignment_mask (ior->pagesize - 1)
 #define ior_WriteFile_flag 1
 #define OSAL_IOV_MAX (4096 / sizeof(ior_sgv_element))
@@ -529,14 +529,14 @@ static size_t osal_iov_max;
 #endif /* OSAL_IOV_MAX */
 
 int osal_ioring_create(osal_ioring_t *ior
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                        ,
                        bool enable_direct, mdbx_filehandle_t overlapped_fd
 #endif /* Windows */
 ) {
   memset(ior, 0, sizeof(osal_ioring_t));
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   ior->overlapped_fd = overlapped_fd;
   ior->direct = enable_direct && overlapped_fd;
   ior->pagesize = globals.sys_pagesize;
@@ -555,7 +555,7 @@ int osal_ioring_create(osal_ioring_t *ior
 }
 
 static inline size_t ior_offset(const ior_item_t *item) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   return item->ov.Offset |
          (size_t)((sizeof(size_t) > sizeof(item->ov.Offset)) ? (uint64_t)item->ov.OffsetHigh << 32 : 0);
 #else
@@ -579,7 +579,7 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
   ASSERT(bytes % MDBX_MIN_PAGESIZE == 0 && bytes <= MAX_IO_BYTES);
   ASSERT(offset % MDBX_MIN_PAGESIZE == 0 && offset + (uint64_t)bytes <= MAX_MAPSIZE);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   const unsigned segments = (unsigned)(bytes >> ior->pagesize_ln2);
   const bool use_gather = ior->direct && ior->overlapped_fd && ior->slots_left >= segments;
 #endif /* Windows */
@@ -589,7 +589,7 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
     item = ior->last;
     if (unlikely(ior_offset(item) + ior_last_bytes(ior, item) == offset) &&
         likely(ior_last_bytes(ior, item) + bytes <= MAX_IO_BYTES)) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       if (use_gather &&
           ((bytes | (uintptr_t)data | ior->last_bytes | (uintptr_t)(uint64_t)item->sgv[0].Buffer) &
            ior_alignment_mask) == 0 &&
@@ -647,7 +647,7 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
     return MDBX_RESULT_TRUE;
 
   unsigned slots_used = 1;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   item->ov.Internal = item->ov.InternalHigh = 0;
   item->ov.Offset = (DWORD)offset;
   item->ov.OffsetHigh = HIGH_DWORD(offset);
@@ -689,7 +689,7 @@ int osal_ioring_add(osal_ioring_t *ior, const size_t offset, void *data, const s
 void osal_ioring_walk(osal_ioring_t *ior, iov_ctx_t *ctx,
                       void (*callback)(iov_ctx_t *ctx, size_t offset, void *data, size_t bytes)) {
   for (ior_item_t *item = ior->pool; item <= ior->last;) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     size_t offset = ior_offset(item);
     char *data = item->single.iov_base;
     size_t bytes = item->single.iov_len - ior_WriteFile_flag;
@@ -731,7 +731,7 @@ void osal_ioring_walk(osal_ioring_t *ior, iov_ctx_t *ctx,
 osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle_t fd) {
   osal_ioring_write_result_t r = {MDBX_SUCCESS, 0};
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   HANDLE *const end_wait_for = ior->event_pool + ior->allocated +
                                /* был выделен один дополнительный элемент для async_done */ 1;
   HANDLE *wait_for = end_wait_for;
@@ -950,7 +950,7 @@ osal_ioring_write_result_t osal_ioring_write(osal_ioring_t *ior, mdbx_filehandle
 }
 
 void osal_ioring_reset(osal_ioring_t *ior) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (ior->last) {
     for (ior_item_t *item = ior->pool; item <= ior->last;) {
       if (!HasOverlappedIoCompleted(&item->ov)) {
@@ -979,7 +979,7 @@ void osal_ioring_reset(osal_ioring_t *ior) {
 
 static void ior_cleanup(osal_ioring_t *ior, const size_t since) {
   osal_ioring_reset(ior);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   for (size_t i = since; i < ior->event_stack; ++i) {
     /* Zap: Using uninitialized memory '**ior.event_pool' */
     MDBX_SUPPRESS_GOOFY_MSVC_ANALYZER(6001);
@@ -993,7 +993,7 @@ static void ior_cleanup(osal_ioring_t *ior, const size_t since) {
 
 int osal_ioring_resize(osal_ioring_t *ior, size_t items) {
   ASSERT(items > 0 && items < INT_MAX / sizeof(ior_item_t));
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (ior->state & IOR_STATE_LOCKED)
     return MDBX_SUCCESS;
   const bool useSetFileIoOverlappedRange = ior->overlapped_fd && imports.SetFileIoOverlappedRange && items > 42;
@@ -1007,7 +1007,7 @@ int osal_ioring_resize(osal_ioring_t *ior, size_t items) {
     ASSERT(items >= osal_ioring_used(ior));
     if (items < ior->allocated)
       ior_cleanup(ior, items);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     void *ptr = osal_realloc(ior->event_pool, (items + /* extra for waiting the async_done */ 1) * sizeof(HANDLE));
     if (unlikely(!ptr))
       return MDBX_ENOMEM;
@@ -1031,7 +1031,7 @@ int osal_ioring_resize(osal_ioring_t *ior, size_t items) {
       memset(ior->pool + ior->allocated, 0, sizeof(ior_item_t) * (items - ior->allocated));
     ior->allocated = (unsigned)items;
     ior->boundary = ptr_disp(ior->pool, ior->allocated);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if (useSetFileIoOverlappedRange) {
       if (imports.SetFileIoOverlappedRange(ior->overlapped_fd, ptr, (ULONG)bytes))
         ior->state += IOR_STATE_LOCKED;
@@ -1046,7 +1046,7 @@ int osal_ioring_resize(osal_ioring_t *ior, size_t items) {
 void osal_ioring_destroy(osal_ioring_t *ior) {
   if (ior->allocated)
     ior_cleanup(ior, 0);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   osal_memalign_free(ior->pool);
   osal_free(ior->event_pool);
   CloseHandle(ior->async_done);
@@ -1061,19 +1061,19 @@ void osal_ioring_destroy(osal_ioring_t *ior) {
 /*----------------------------------------------------------------------------*/
 
 int osal_removefile(const pathchar_t *pathname) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   return DeleteFileW(pathname) ? MDBX_SUCCESS : (int)GetLastError();
 #else
   return unlink(pathname) ? errno : MDBX_SUCCESS;
 #endif
 }
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 static bool is_valid_fd(int fd) { return !(isatty(fd) < 0 && errno == EBADF); }
 #endif /*! Windows */
 
 int osal_removedirectory(const pathchar_t *pathname) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   return RemoveDirectoryW(pathname) ? MDBX_SUCCESS : (int)GetLastError();
 #else
   return rmdir(pathname) ? errno : MDBX_SUCCESS;
@@ -1081,7 +1081,7 @@ int osal_removedirectory(const pathchar_t *pathname) {
 }
 
 int osal_fileexists(const pathchar_t *pathname) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (GetFileAttributesW(pathname) != INVALID_FILE_ATTRIBUTES)
     return MDBX_RESULT_TRUE;
   int err = GetLastError();
@@ -1105,7 +1105,7 @@ pathchar_t *osal_fileext(const pathchar_t *pathname, size_t len) {
 }
 
 bool osal_pathequal(const pathchar_t *l, const pathchar_t *r, size_t len) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   for (size_t i = 0; i < len; ++i) {
     pathchar_t a = l[i];
     pathchar_t b = r[i];
@@ -1120,7 +1120,7 @@ bool osal_pathequal(const pathchar_t *l, const pathchar_t *r, size_t len) {
 #endif
 }
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 static const char dev_null[] = "/dev/null";
 #endif /* !Windows */
 
@@ -1128,7 +1128,7 @@ int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env,
                   mdbx_filehandle_t *fd, mdbx_mode_t unix_mode_bits) {
   *fd = INVALID_HANDLE_VALUE;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   DWORD CreationDisposition = unix_mode_bits ? OPEN_ALWAYS : OPEN_EXISTING;
   DWORD FlagsAndAttributes = FILE_FLAG_POSIX_SEMANTICS | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
   DWORD DesiredAccess = FILE_READ_ATTRIBUTES;
@@ -1336,7 +1336,7 @@ int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env,
 }
 
 int osal_closefile(mdbx_filehandle_t fd) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   return CloseHandle(fd) ? MDBX_SUCCESS : (int)GetLastError();
 #else
   ASSERT(fd > STDERR_FILENO);
@@ -1347,7 +1347,7 @@ int osal_closefile(mdbx_filehandle_t fd) {
 int osal_pread(mdbx_filehandle_t fd, void *buf, size_t bytes, uint64_t offset) {
   if (bytes > MAX_IO_BYTES)
     return MDBX_EINVAL;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   OVERLAPPED ov;
   ov.hEvent = 0;
   ov.Offset = (DWORD)offset;
@@ -1377,7 +1377,7 @@ int osal_pread(mdbx_filehandle_t fd, void *buf, size_t bytes, uint64_t offset) {
 
 int osal_pwrite(mdbx_filehandle_t fd, const void *buf, size_t bytes, uint64_t offset) {
   while (true) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     OVERLAPPED ov;
     ov.hEvent = 0;
     ov.Offset = (DWORD)offset;
@@ -1408,7 +1408,7 @@ int osal_pwrite(mdbx_filehandle_t fd, const void *buf, size_t bytes, uint64_t of
 
 int osal_write(mdbx_filehandle_t fd, const void *buf, size_t bytes) {
   while (true) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     DWORD written;
     if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_IO_BYTES) ? (DWORD)bytes : MAX_IO_BYTES, &written, nullptr)))
       return (int)GetLastError();
@@ -1460,7 +1460,7 @@ int osal_pwritev(mdbx_filehandle_t fd, struct iovec *iov, size_t sgvcnt, uint64_
 }
 
 int osal_fsync(mdbx_filehandle_t fd, enum osal_syncmode_bits mode_bits) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if ((mode_bits & (MDBX_SYNC_DATA | MDBX_SYNC_IODQ)) && !FlushFileBuffers(fd))
     return (int)GetLastError();
   return MDBX_SUCCESS;
@@ -1505,7 +1505,7 @@ int osal_fsync(mdbx_filehandle_t fd, enum osal_syncmode_bits mode_bits) {
 }
 
 int osal_filesize(mdbx_filehandle_t fd, uint64_t *length) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   BY_HANDLE_FILE_INFORMATION info;
   if (!GetFileInformationByHandle(fd, &info))
     return (int)GetLastError();
@@ -1523,7 +1523,7 @@ int osal_filesize(mdbx_filehandle_t fd, uint64_t *length) {
 }
 
 int osal_is_pipe(mdbx_filehandle_t fd) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   switch (GetFileType(fd)) {
   case FILE_TYPE_DISK:
     return MDBX_RESULT_FALSE;
@@ -1554,7 +1554,7 @@ int osal_is_pipe(mdbx_filehandle_t fd) {
 }
 
 int osal_fsetsize(mdbx_filehandle_t fd, const uint64_t length) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (imports.SetFileInformationByHandle) {
     FILE_END_OF_FILE_INFO EndOfFileInfo;
     EndOfFileInfo.EndOfFile.QuadPart = length;
@@ -1623,7 +1623,7 @@ int osal_fsetsize(mdbx_filehandle_t fd, const uint64_t length) {
 }
 
 int osal_fseek(mdbx_filehandle_t fd, uint64_t pos) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   LARGE_INTEGER li;
   li.QuadPart = pos;
   return SetFilePointerEx(fd, li, nullptr, FILE_BEGIN) ? MDBX_SUCCESS : (int)GetLastError();
@@ -1636,7 +1636,7 @@ int osal_fseek(mdbx_filehandle_t fd, uint64_t pos) {
 /*----------------------------------------------------------------------------*/
 
 int osal_thread_create(osal_thread_t *thread, THREAD_RESULT(THREAD_CALL *start_routine)(void *), void *arg) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   *thread = CreateThread(nullptr, 0, start_routine, arg, 0, nullptr);
   return *thread ? MDBX_SUCCESS : (int)GetLastError();
 #else
@@ -1645,7 +1645,7 @@ int osal_thread_create(osal_thread_t *thread, THREAD_RESULT(THREAD_CALL *start_r
 }
 
 int osal_thread_join(osal_thread_t thread) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   DWORD code = WaitForSingleObject(thread, INFINITE);
   return osal_waitstatus2errcode(code);
 #else
@@ -1660,7 +1660,7 @@ int osal_msync(const osal_mmap_t *map, size_t length, enum osal_syncmode_bits mo
   if (!MDBX_MMAP_NEEDS_JOLT && mode_bits == MDBX_SYNC_NONE)
     return MDBX_SUCCESS;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (!FlushViewOfFile(map->base, length))
     return (int)GetLastError();
   if ((mode_bits & (MDBX_SYNC_DATA | MDBX_SYNC_IODQ)) && !FlushFileBuffers(map->fd))
@@ -1687,7 +1687,7 @@ int osal_msync(const osal_mmap_t *map, size_t length, enum osal_syncmode_bits mo
 }
 
 int osal_check_fs_rdonly(mdbx_filehandle_t handle, const pathchar_t *pathname, int err) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   (void)pathname;
   (void)err;
   if (!imports.GetVolumeInformationByHandleW)
@@ -1714,7 +1714,7 @@ int osal_check_fs_rdonly(mdbx_filehandle_t handle, const pathchar_t *pathname, i
 }
 
 int osal_check_fs_incore(mdbx_filehandle_t handle) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   (void)handle;
 #else
   struct statfs statfs_info;
@@ -1755,7 +1755,7 @@ int osal_check_fs_incore(mdbx_filehandle_t handle) {
 }
 
 int osal_check_fs_local(mdbx_filehandle_t handle, int flags) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (globals.running_under_Wine && !(flags & MDBX_EXCLUSIVE))
     return ERROR_NOT_CAPABLE /* workaround for Wine */;
 
@@ -2039,13 +2039,13 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
   map->current = 0;
   map->base = nullptr;
   map->filesize = 0;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   map->section = nullptr;
 #endif /* Windows */
 
   int err = osal_check_fs_local(map->fd, flags);
   if (unlikely(err != MDBX_SUCCESS)) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if (globals.running_under_Wine)
       NOTICE("%s", "Please use native Linux application or WSL at least, instead of trouble-full Wine!");
 #endif /* Windows */
@@ -2076,7 +2076,7 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
     if (err != MDBX_SUCCESS)
       return err;
     map->filesize = size;
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
     map->current = size;
 #endif /* !Windows */
   } else {
@@ -2084,7 +2084,7 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
     VERBOSE("filesize %" PRIu64 ", err %d", map->filesize, err);
     if (err != MDBX_SUCCESS)
       return err;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if (map->filesize < size) {
       WARNING("file size (%zu) less than requested for mapping (%zu)", (size_t)map->filesize, size);
       size = (size_t)map->filesize;
@@ -2094,7 +2094,7 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
 #endif /* !Windows */
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   LARGE_INTEGER SectionSize;
   SectionSize.QuadPart = size;
   err = NtCreateSection(&map->section,
@@ -2192,7 +2192,7 @@ void osal_munmap(osal_mmap_t *map) {
    * See https://libmdbx.dqdkfa.ru/dead-github/pull/93#issuecomment-613687203 */
   MDBX_ASAN_UNPOISON_MEMORY_REGION(map->base,
                                    (map->filesize && map->filesize < map->limit) ? map->filesize : map->limit);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (map->section) {
     NtClose(map->section);
     map->section = 0;
@@ -2219,7 +2219,7 @@ int osal_mresize(const int flags, osal_mmap_t *map, size_t size, size_t limit) {
     return rc;
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   ASSERT(size != map->current || limit != map->limit || size < map->filesize);
 
   NTSTATUS status;
@@ -2595,7 +2595,7 @@ __cold void osal_jitter(bool tiny) {
     unsigned salt = 5296013u * (unsigned)__rdtsc();
     salt ^= salt >> 11;
     salt *= 25810541u;
-#elif (defined(_WIN32) || defined(_WIN64)) && MDBX_WITHOUT_MSVC_CRT
+#elif IS_WINDOWS && MDBX_WITHOUT_MSVC_CRT
     static ULONG state;
     const unsigned salt = (unsigned)RtlRandomEx(&state);
 #else
@@ -2605,7 +2605,7 @@ __cold void osal_jitter(bool tiny) {
     const int coin = salt % (tiny ? 29u : 43u);
     if (coin < 43 / 3)
       break;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if (coin < 43 * 2 / 3)
       osal_yield();
     else {
@@ -2631,7 +2631,7 @@ __cold void osal_jitter(bool tiny) {
 
 /*----------------------------------------------------------------------------*/
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 static LARGE_INTEGER performance_frequency;
 #elif defined(__APPLE__) || defined(__MACH__)
 #include <mach/mach_time.h>
@@ -2659,7 +2659,7 @@ __cold static clockid_t choice_monoclock(void) {
 #endif
 
 uint64_t osal_16dot16_to_monotime(uint32_t seconds_16dot16) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   const uint64_t ratio = performance_frequency.QuadPart;
 #elif defined(__APPLE__) || defined(__MACH__)
   const uint64_t ratio = ratio_16dot16_to_monotine;
@@ -2676,7 +2676,7 @@ uint32_t osal_monotime_to_16dot16(uint64_t monotime) {
     return UINT32_MAX;
 
   const uint32_t ret =
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       (uint32_t)((monotime << 16) / performance_frequency.QuadPart);
 #elif defined(__APPLE__) || defined(__MACH__)
       (uint32_t)((monotime << 16) / ratio_16dot16_to_monotine);
@@ -2687,7 +2687,7 @@ uint32_t osal_monotime_to_16dot16(uint64_t monotime) {
 }
 
 uint64_t osal_monotime(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   LARGE_INTEGER counter;
   if (QueryPerformanceCounter(&counter))
     return counter.QuadPart;
@@ -2702,7 +2702,7 @@ uint64_t osal_monotime(void) {
 }
 
 uint64_t osal_cputime(size_t *optional_page_faults) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (optional_page_faults) {
     PROCESS_MEMORY_COUNTERS pmc;
     *optional_page_faults = GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)) ? pmc.PageFaultCount : 0;
@@ -2808,7 +2808,7 @@ static bool check_uuid(bin128_t uuid) {
   return (hw >> 6) == 1;
 }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 __cold static uint64_t windows_systemtime_ms() {
   FILETIME ft;
@@ -2976,7 +2976,7 @@ __cold static bin128_t osal_bootid(void) {
   }
 #endif /* Apple/Darwin */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   {
     union buf {
       DWORD BootId;
@@ -3114,7 +3114,7 @@ __cold static bin128_t osal_bootid(void) {
   }
 #endif /* __NetBSD__ */
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
   if (!got_machineid) {
     int fd = open("/etc/machine-id", O_RDONLY);
     if (fd == -1)
@@ -3217,7 +3217,7 @@ __cold static bin128_t osal_bootid(void) {
     if (!got_boottime || !MDBX_TRUST_RTC)
       goto lack;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     FILETIME now;
     GetSystemTimeAsFileTime(&now);
     if (0x1CCCCCC > now.dwHighDateTime)
@@ -3253,7 +3253,7 @@ __cold int mdbx_get_sysraminfo(intptr_t *page_size, intptr_t *total_pages, intpt
   ASSERT(pagesize == (INT64_C(1) << log2page));
   (void)log2page;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   MEMORYSTATUSEX info;
   memset(&info, 0, sizeof(info));
   info.dwLength = sizeof(info);
@@ -3262,7 +3262,7 @@ __cold int mdbx_get_sysraminfo(intptr_t *page_size, intptr_t *total_pages, intpt
 #endif
 
   if (total_pages) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     const intptr_t total_ram_pages = (intptr_t)(info.ullTotalPhys >> log2page);
 #elif defined(_SC_PHYS_PAGES)
     const intptr_t total_ram_pages = sysconf(_SC_PHYS_PAGES);
@@ -3305,7 +3305,7 @@ __cold int mdbx_get_sysraminfo(intptr_t *page_size, intptr_t *total_pages, intpt
   }
 
   if (avail_pages) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     const intptr_t avail_ram_pages = (intptr_t)(info.ullAvailPhys >> log2page);
 #elif defined(_SC_AVPHYS_PAGES)
     const intptr_t avail_ram_pages = sysconf(_SC_AVPHYS_PAGES);
@@ -3364,7 +3364,7 @@ __cold int mdbx_get_sysraminfo(intptr_t *page_size, intptr_t *total_pages, intpt
 #include <sys/random.h>
 #endif /* sys/random.h */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #include <wincrypt.h>
 #endif /* Windows */
 
@@ -3390,7 +3390,7 @@ bin128_t osal_guid(const MDBX_env *env) {
     return uuid;
 #endif /* FreeBSD */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (imports.CoCreateGuid && imports.CoCreateGuid(&uuid) == 0 && check_uuid(uuid))
     return uuid;
 
@@ -3445,7 +3445,7 @@ bin128_t osal_guid(const MDBX_env *env) {
 
 const char *osal_getenv(const char *name, bool secure) {
   (void)secure;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   static char buf[42];
   SetLastError(ERROR_OUT_OF_PAPER);
   const size_t len = GetEnvironmentVariableA(name, buf, sizeof(buf));
@@ -3475,7 +3475,7 @@ const char *osal_getenv(const char *name, bool secure) {
 bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
   bool done = false;
   *dest = 0;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   __try {
     if (IsBadReadPtr(ptr, 4) == 0) {
       memcpy(dest, ptr, 4);
@@ -3519,7 +3519,7 @@ void osal_ctor(void) {
     osal_iov_max = 64;
 #endif /* MDBX_HAVE_PWRITEV */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SYSTEM_INFO si;
   GetSystemInfo(&si);
   globals.sys_pagesize = si.dwPageSize;
@@ -3552,7 +3552,7 @@ void osal_ctor(void) {
   posix_clockid = choice_monoclock();
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   QueryPerformanceFrequency(&performance_frequency);
 #elif defined(__APPLE__) || defined(__MACH__)
   mach_timebase_info_data_t ti;

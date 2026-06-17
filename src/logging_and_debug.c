@@ -17,7 +17,7 @@ __cold void debug_log_va(int level, const char *function, int line, const char *
         globals.logger.nofmt(level, function, line, globals.logger_buffer, len);
     }
   } else {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if (IsDebuggerPresent()) {
       int prefix_len = 0;
       char *prefix = nullptr;

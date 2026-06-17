@@ -45,7 +45,7 @@ __cold int dxb_read_header(MDBX_env *env, meta_t *dest, const int lck_exclusive,
         NOTICE("read meta: empty file (%d, %s)", err, mdbx_strerror(err));
         return err;
       }
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       if (err == ERROR_LOCK_VIOLATION) {
         SleepEx(0, true);
         err = osal_pread(env->lazy_fd, buffer, MDBX_MIN_PAGESIZE, offset);
@@ -62,7 +62,7 @@ __cold int dxb_read_header(MDBX_env *env, meta_t *dest, const int lck_exclusive,
 
       char again[MDBX_MIN_PAGESIZE];
       err = osal_pread(env->lazy_fd, again, MDBX_MIN_PAGESIZE, offset);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       if (err == ERROR_LOCK_VIOLATION) {
         SleepEx(0, true);
         err = osal_pread(env->lazy_fd, again, MDBX_MIN_PAGESIZE, offset);
@@ -129,7 +129,7 @@ __cold int dxb_resize(MDBX_env *const env, const pgno_t allocated_pgno, const pg
                       const enum resize_mode mode) {
   /* Acquire guard to avoid collision between read and write txns
    * around geo_in_bytes and dxb_mmap */
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   imports.srwl_AcquireExclusive(&env->remap_lock);
   int rc = MDBX_SUCCESS;
   mdbx_handle_array_t *suspended = nullptr;
@@ -174,7 +174,7 @@ __cold int dxb_resize(MDBX_env *const env, const pgno_t allocated_pgno, const pg
    * потоки и у нас нет информации о том, какие именно. Поэтому нет возможности
    * выполнить remap-действия требующие приостановки работающих с БД потоков. */
   if ((env->flags & MDBX_NOSTICKYTHREADS) == 0) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     if ((size_bytes < env->dxb_mmap.current && mode > implicit_grow) || limit_bytes != env->dxb_mmap.limit) {
       /* 1) Windows allows only extending a read-write section, but not a
        *    corresponding mapped view. Therefore in other cases we must suspend
@@ -293,7 +293,7 @@ __cold int dxb_resize(MDBX_env *const env, const pgno_t allocated_pgno, const pg
     const bool readahead =
         !(env->flags & MDBX_NORDAHEAD) && mdbx_is_readahead_reasonable(size_bytes, -(intptr_t)prev_size);
     const bool force = limit_bytes != prev_limit || env->dxb_mmap.base != prev_map
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                        || prev_size > size_bytes
 #endif /* Windows */
         ;
@@ -342,7 +342,7 @@ bailout:
     }
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   int err = MDBX_SUCCESS;
   imports.srwl_ReleaseExclusive(&env->remap_lock);
   if (suspended) {
@@ -448,7 +448,7 @@ __cold int dxb_set_readahead(const MDBX_env *env, const pgno_t edge, const bool 
     err = ignore_enosys(posix_fadvise(env->lazy_fd, offset, length, POSIX_FADV_NORMAL));
     if (unlikely(MDBX_IS_ERROR(err)))
       return err;
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
     /* no madvise on Windows */
 #else
 #warning "FIXME"
@@ -472,7 +472,7 @@ __cold int dxb_set_readahead(const MDBX_env *env, const pgno_t edge, const bool 
       err = ignore_enosys(posix_madvise(ptr, length, POSIX_MADV_WILLNEED));
       if (unlikely(MDBX_IS_ERROR(err)))
         return err;
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
       if (imports.PrefetchVirtualMemory) {
         WIN32_MEMORY_RANGE_ENTRY hint;
         hint.VirtualAddress = ptr;
@@ -501,7 +501,7 @@ __cold int dxb_set_readahead(const MDBX_env *env, const pgno_t edge, const bool 
     err = ignore_enosys(posix_fadvise(env->lazy_fd, offset, length, POSIX_FADV_RANDOM));
     if (unlikely(MDBX_IS_ERROR(err)))
       return err;
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
     /* no madvise on Windows */
 #else
 #warning "FIXME"

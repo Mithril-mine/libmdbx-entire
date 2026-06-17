@@ -70,7 +70,7 @@ MDBX_INTERNAL int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi);
 MDBX_INTERNAL MDBX_txn *txn_alloc(const unsigned flags, MDBX_env *env);
 MDBX_INTERNAL int txn_abort(MDBX_txn *txn, MDBX_commit_latency *latency);
 MDBX_INTERNAL int txn_commit(MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timestamp *ts);
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 MDBX_INTERNAL void txn_abort_after_resurrect(MDBX_txn *txn);
 #endif /* Windows */
 MDBX_INTERNAL int txn_setup_primal(MDBX_txn *txn);

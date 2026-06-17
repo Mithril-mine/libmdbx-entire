@@ -324,7 +324,7 @@ __cold void munlock_after(const MDBX_env *env, const pgno_t aligned_pgno, const 
     const size_t munlock_size = end_bytes - munlock_begin;
     eASSERT0(env, end_bytes % globals.sys_pagesize == 0 && munlock_begin % globals.sys_pagesize == 0 &&
                       munlock_size % globals.sys_pagesize == 0);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     err = VirtualUnlock(ptr_disp(env->dxb_mmap.base, munlock_begin), munlock_size) ? MDBX_SUCCESS : (int)GetLastError();
     if (err == ERROR_NOT_LOCKED)
       err = MDBX_SUCCESS;
@@ -334,7 +334,7 @@ __cold void munlock_after(const MDBX_env *env, const pgno_t aligned_pgno, const 
     if (likely(err == MDBX_SUCCESS))
       update_mlcnt(env, aligned_pgno, false);
     else {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       WARNING("VirtualUnlock(%zu, %zu) error %d", munlock_begin, munlock_size, err);
 #else
       WARNING("munlock(%zu, %zu) error %d", munlock_begin, munlock_size, err);

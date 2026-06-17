@@ -96,7 +96,7 @@ __cold int rthc_uniq_check(const osal_mmap_t *pending, MDBX_env **found) {
 
 //------------------------------------------------------------------------------
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 static CRITICAL_SECTION rthc_critical_section;
 #else
 
@@ -205,7 +205,7 @@ __cold void workaround_glibc_bug21031(void) {
 #endif /* !Windows */
 
 void rthc_lock(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   EnterCriticalSection(&rthc_critical_section);
 #else
   ENSURE(osal_pthread_mutex_lock(&rthc_mutex) == 0);
@@ -213,7 +213,7 @@ void rthc_lock(void) {
 }
 
 void rthc_unlock(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   LeaveCriticalSection(&rthc_critical_section);
 #else
   ENSURE(pthread_mutex_unlock(&rthc_mutex) == 0);
@@ -222,7 +222,7 @@ void rthc_unlock(void) {
 
 static inline int thread_key_create(osal_thread_key_t *key) {
   int rc;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   *key = TlsAlloc();
   rc = (*key != TLS_OUT_OF_INDEXES) ? MDBX_SUCCESS : GetLastError();
 #else
@@ -233,7 +233,7 @@ static inline int thread_key_create(osal_thread_key_t *key) {
 }
 
 void thread_rthc_set(osal_thread_key_t key, const void *value) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   ENSURE(TlsSetValue(key, (void *)value));
 #else
   const uint64_t sign_registered = MDBX_THREAD_RTHC_REGISTERED(&rthc_thread_state);
@@ -258,7 +258,7 @@ void thread_rthc_set(osal_thread_key_t key, const void *value) {
 __cold void rthc_thread_dtor(void *rthc) {
   rthc_lock();
   const mdbx_pid_t current_pid = osal_getpid();
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   TRACE(">> pid %zd, thread 0x%" PRIxPTR ", module %p", (size_t)current_pid, osal_thread_self(), rthc);
 #else
   TRACE(">> pid %zd, thread 0x%" PRIxPTR ", rthc %p", (size_t)current_pid, osal_thread_self(), rthc);
@@ -294,7 +294,7 @@ __cold void rthc_thread_dtor(void *rthc) {
     }
   }
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   TRACE("<< thread 0x%" PRIxPTR ", module %p", osal_thread_self(), rthc);
   rthc_unlock();
 #else
@@ -457,7 +457,7 @@ __cold void rthc_afterfork(void) {
 #endif /* ! Windows */
 
 __cold void rthc_ctor(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   InitializeCriticalSection(&rthc_critical_section);
 #else
   ENSURE(pthread_atfork(nullptr, nullptr, rthc_afterfork) == 0);
@@ -545,7 +545,7 @@ __cold void rthc_dtor(const mdbx_pid_t current_pid) {
   rthc_table = nullptr;
   rthc_unlock();
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   DeleteCriticalSection(&rthc_critical_section);
 #else
   /* LY: yielding a few timeslices to give a more chance

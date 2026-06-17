@@ -32,7 +32,12 @@
 #endif /* MinGW */
 
 #if defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS)
+#define IS_WINDOWS 1
+#else
+#define IS_WINDOWS 0
+#endif
 
+#if IS_WINDOWS
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0A00 /* Windows 10 */
 #endif                      /* _WIN32_WINNT */

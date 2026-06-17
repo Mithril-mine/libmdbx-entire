@@ -594,7 +594,7 @@ __cold int meta_validate(MDBX_env *env, meta_t *const meta, const page_t *const 
     const int level = (meta->geometry.now < geo_now && meta->geometry.now >= meta->geometry.first_unallocated)
                           ?
     /* to avoid confusing  extra logging on Windows, where DXB-file can not be shrinked timely due system limitation. */
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
                           MDBX_LOG_VERBOSE
 #else
                           MDBX_LOG_NOTICE

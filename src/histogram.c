@@ -172,7 +172,7 @@ __cold MDBX_chk_line_t *histogram_dist(MDBX_chk_line_t *line, const struct MDBX_
     defined(__APPLE__) || defined(__MACH__) || defined(_DARWIN_C_SOURCE)
 #define UNICODE_MULSIGN_STR "×"
 #define UNICODE_MULSIGN_FMT "s"
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
 #define UNICODE_MULSIGN_STR L"\u00d7"
 #define UNICODE_MULSIGN_FMT "ls"
 #else

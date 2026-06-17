@@ -54,7 +54,7 @@ __cold static int env_handle_pathname(MDBX_env *env, const pathchar_t *pathname,
     return MDBX_EINVAL;
 
   int rc;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   const DWORD dwAttrib = GetFileAttributesW(pathname);
   if (dwAttrib == INVALID_FILE_ATTRIBUTES) {
     rc = GetLastError();
@@ -109,7 +109,7 @@ __cold static int env_handle_pathname(MDBX_env *env, const pathchar_t *pathname,
   static const pathchar_t lck_name[] = MDBX_LOCKNAME;
   static const pathchar_t lock_suffix[] = MDBX_LOCK_SUFFIX;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   ASSERT(dxb_name[0] == '\\' && lck_name[0] == '\\');
   const size_t pathname_len = wcslen(pathname);
 #else
@@ -243,7 +243,7 @@ __cold int mdbx_env_create(MDBX_env **penv) {
   if (unlikely(rc != MDBX_SUCCESS))
     goto bailout;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   imports.srwl_Init(&env->remap_lock);
   InitializeCriticalSection(&env->lck_event_cs);
   InitializeCriticalSection(&env->dxb_event_cs);
@@ -313,7 +313,7 @@ __cold int mdbx_env_turn_for_recovery(MDBX_env *env, unsigned target) {
 }
 
 __cold int mdbx_env_open_for_recovery(MDBX_env *env, const char *pathname, unsigned target_meta, bool writeable) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   wchar_t *pathnameW = nullptr;
   int rc = osal_mb2w(pathname, &pathnameW);
   if (likely(rc == MDBX_SUCCESS)) {
@@ -336,7 +336,7 @@ __cold int mdbx_env_open_for_recoveryW(MDBX_env *env, const wchar_t *pathname, u
 
   env->stuck_meta = (int8_t)target_meta;
   return
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       mdbx_env_openW
 #else
       mdbx_env_open
@@ -345,7 +345,7 @@ __cold int mdbx_env_open_for_recoveryW(MDBX_env *env, const wchar_t *pathname, u
 }
 
 __cold int mdbx_env_delete(const char *pathname, MDBX_env_delete_mode_t mode) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   wchar_t *pathnameW = nullptr;
   int rc = osal_mb2w(pathname, &pathnameW);
   if (likely(rc == MDBX_SUCCESS)) {
@@ -431,7 +431,7 @@ __cold int mdbx_env_deleteW(const wchar_t *pathname, MDBX_env_delete_mode_t mode
 }
 
 __cold int mdbx_env_open(MDBX_env *env, const char *pathname, MDBX_env_flags_t flags, mdbx_mode_t mode) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   wchar_t *pathnameW = nullptr;
   int rc = osal_mb2w(pathname, &pathnameW);
   if (likely(rc == MDBX_SUCCESS)) {
@@ -544,7 +544,7 @@ __cold int mdbx_env_openW(MDBX_env *env, const wchar_t *pathname, MDBX_env_flags
 
 /*----------------------------------------------------------------------------*/
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 __cold int mdbx_env_resurrect_after_fork(MDBX_env *env) {
   if (unlikely(!env))
     return LOG_IFERR(MDBX_EINVAL);
@@ -591,7 +591,7 @@ __cold int mdbx_env_close_ex(MDBX_env *env, bool dont_sync) {
   if (unlikely(env->signature.weak != env_signature))
     return LOG_IFERR(MDBX_EBADSIGN);
 
-#if MDBX_ENV_CHECKPID || !(defined(_WIN32) || defined(_WIN64))
+#if MDBX_ENV_CHECKPID || !IS_WINDOWS
   /* Check the PID even if MDBX_ENV_CHECKPID=0 on non-Windows
    * platforms (i.e. where fork() is available).
    * This is required to legitimize a call after fork()
@@ -610,7 +610,7 @@ __cold int mdbx_env_close_ex(MDBX_env *env, bool dont_sync) {
     return LOG_IFERR(MDBX_EBADSIGN);
 
   if (!dont_sync) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     /* On windows, without blocking is impossible to determine whether another
      * process is running a writing transaction or not.
      * Because in the "owner died" condition kernel don't release
@@ -637,7 +637,7 @@ __cold int mdbx_env_close_ex(MDBX_env *env, bool dont_sync) {
   eASSERT0(env, env->signature.weak == 0);
   rc = env_close(env, false) ? MDBX_PANIC : rc;
   ENSURE_OBJ(env, osal_fastmutex_destroy(&env->dbi_lock) == MDBX_SUCCESS);
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   /* remap_lock don't have destructor (Slim Reader/Writer Lock) */
   DeleteCriticalSection(&env->lck_event_cs);
   DeleteCriticalSection(&env->dxb_event_cs);
@@ -672,7 +672,7 @@ __must_check_result static int env_info_sys(const MDBX_env *env, MDBX_envinfo *o
   out->mi_sys_pagesize = globals.sys_pagesize;
 #ifdef __OpenBSD__
   out->mi_sys_upcblk = 0;
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
   out->mi_sys_upcblk = globals.sys_allocation_granularity;
 #elif defined(AT_UCACHEBSIZE)
   out->mi_sys_upcblk = globals.sys_unified_cache_block;
@@ -684,7 +684,7 @@ __must_check_result static int env_info_sys(const MDBX_env *env, MDBX_envinfo *o
   out->mi_dxb_fallocated = 0;
   out->mi_sys_ioblk = 0;
   if (env->dxb_mmap.fd != INVALID_HANDLE_VALUE) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     union {
       BY_HANDLE_FILE_INFORMATION bh;
       FILE_STANDARD_INFO std;
@@ -885,7 +885,7 @@ __cold int mdbx_env_info_ex(const MDBX_env *env, const MDBX_txn *txn, MDBX_envin
 }
 
 __cold int mdbx_preopen_snapinfo(const char *pathname, MDBX_envinfo *out, size_t bytes) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   wchar_t *pathnameW = nullptr;
   int rc = osal_mb2w(pathname, &pathnameW);
   if (likely(rc == MDBX_SUCCESS)) {
@@ -918,7 +918,7 @@ __cold int mdbx_preopen_snapinfoW(const wchar_t *pathname, MDBX_envinfo *out, si
   env.lazy_fd = INVALID_HANDLE_VALUE;
   env.dsync_fd = INVALID_HANDLE_VALUE;
   env.fd4meta = INVALID_HANDLE_VALUE;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   env.dxb_lock_event = INVALID_HANDLE_VALUE;
   env.lck_lock_event = INVALID_HANDLE_VALUE;
   env.ioring.overlapped_fd = INVALID_HANDLE_VALUE;
@@ -1269,7 +1269,7 @@ __cold int mdbx_env_set_geometry(MDBX_env *env, intptr_t size_lower, intptr_t si
     ENSURE_OBJ(env, new_geo.now >= new_geo.lower);
 
     if (memcmp(current_geo, &new_geo, sizeof(geo_t)) != 0) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       /* Was DB shrinking disabled before and now it will be enabled? */
       if (new_geo.lower < new_geo.upper && new_geo.shrink_pv &&
           !(current_geo->lower < current_geo->upper && current_geo->shrink_pv)) {

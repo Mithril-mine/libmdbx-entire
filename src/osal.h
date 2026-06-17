@@ -47,7 +47,7 @@ MDBX_MAYBE_UNUSED static inline void osal_memory_barrier(void) {
 #endif
 #elif defined(__clang__) || defined(__GNUC__)
   __sync_synchronize();
-#elif defined(_WIN32) || defined(_WIN64)
+#elif IS_WINDOWS
   MemoryBarrier();
 #elif defined(__INTEL_COMPILER) /* LY: Intel Compiler may mimic GCC and MSC */
 #if defined(__ia32__)
@@ -69,7 +69,7 @@ MDBX_MAYBE_UNUSED static inline void osal_memory_barrier(void) {
 /*----------------------------------------------------------------------------*/
 /* system-depended definitions */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #define HAVE_SYS_STAT_H
 #define HAVE_SYS_TYPES_H
 typedef HANDLE osal_thread_t;
@@ -175,7 +175,7 @@ LIBMDBX_API char *osal_strdup(const char *str);
 /*----------------------------------------------------------------------------*/
 /* OS abstraction layer stuff */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 typedef wchar_t pathchar_t;
 #define MDBX_PRIsPATH "ls"
 #else

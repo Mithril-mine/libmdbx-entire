@@ -481,7 +481,7 @@ void testcase::txn_inject_writefault(MDBX_txn *txn) {
         (MDBX_txn_flags_t(mdbx_txn_flags(txn)) & MDBX_TXN_RDONLY) == 0) {
       log_verbose("== txn_inject_writefault(): got %u nops or more, inject FAULT", config.params.inject_writefaultn);
       log_flush();
-#if defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS)
+#if IS_WINDOWS
       TerminateProcess(GetCurrentProcess(), 42);
 #else
       raise(SIGKILL);

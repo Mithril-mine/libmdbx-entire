@@ -9,7 +9,7 @@
 #define xMDBX_TOOLS /* Avoid using internal ASSERT(), etc */
 #include "essentials.h"
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 /* Bit of madness for Windows console */
 #define mdbx_strerror mdbx_strerror_ANSI2OEM
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
   if (argc < 2 || argc > 3)
     usage(progname);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   SetConsoleCtrlHandler(ConsoleBreakHandlerRoutine, true);
 #else
 #ifdef SIGPIPE
@@ -150,7 +150,7 @@ int main(int argc, char *argv[]) {
     act = "copying";
     if (argc == 2) {
       mdbx_filehandle_t fd;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
       fd = GetStdHandle(STD_OUTPUT_HANDLE);
 #else
       fd = fileno(stdout);

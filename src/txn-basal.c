@@ -112,7 +112,7 @@ static int basal_start_locked(MDBX_txn *txn, unsigned flags) {
   if (unlikely(env->flags & ENV_FATAL_ERROR))
     return MDBX_PANIC;
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   if (unlikely(!env->dxb_mmap.base))
     return MDBX_EPERM;
 #endif /* Windows */
@@ -329,7 +329,7 @@ int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
      * которая была "лениво" отправлена на запись в предыдущей транзакции,
      * но не сброшена на диск из-за активного режима MDBX_NOMETASYNC. */
     if (
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
         !env->ioring.overlapped_fd &&
 #endif
         meta_sync_txnid == (uint32_t)head.txnid - txnid_dist)
@@ -407,7 +407,7 @@ int txn_basal_commit(MDBX_txn *txn, struct commit_timestamp *ts) {
     cASSERT0(txn, txn->wr.loose_count == 0);
 
     mdbx_filehandle_t fd =
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
         env->ioring.overlapped_fd ? env->ioring.overlapped_fd : env->lazy_fd;
     (void)need_flush_for_nometasync;
 #else

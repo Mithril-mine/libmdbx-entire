@@ -80,7 +80,7 @@ static inline void memory_barrier(void) {
 static inline void cpu_relax() {
 #if defined(__ia32__)
   _mm_pause();
-#elif defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS) || defined(YieldProcessor)
+#elif IS_WINDOWS || defined(YieldProcessor)
   YieldProcessor();
 #else
 /* nope */
@@ -123,7 +123,7 @@ struct simple_checksum {
     push(val.iov_base, val.iov_len);
   }
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_WINDOWS)
+#if IS_WINDOWS
   void push(const HANDLE &handle) { push(&handle, sizeof(handle)); }
 #endif /* _WINDOWS */
 };

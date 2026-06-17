@@ -21,7 +21,7 @@
 
 #include "test.h++"
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 #include <sys/resource.h>
 #include <sys/time.h>
 #endif /* !Windows */
@@ -138,7 +138,7 @@ void actor_params::set_defaults(const std::string &tmpdir) {
       logging::verbose;
 #elif MDBX_DEBUG > 1
       logging::trace;
-#elif defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#elif IS_WINDOWS || defined(__APPLE__)
       logging::verbose;
 #else
       logging::debug;
@@ -706,7 +706,7 @@ int main(int argc, char *const argv[]) {
       cleanup();
   }
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
   struct rusage spent;
   if (!getrusage(global::singlemode ? RUSAGE_SELF : RUSAGE_CHILDREN, &spent)) {
     log_notice("%6s: user %f, system %f", "CPU", spent.ru_utime.tv_sec + spent.ru_utime.tv_usec * 1e-6,

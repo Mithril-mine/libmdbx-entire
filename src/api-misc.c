@@ -210,7 +210,7 @@ __cold const char *mdbx_liberr2str(int errnum) {
 __cold const char *mdbx_strerror_r(int errnum, char *buf, size_t buflen) {
   const char *msg = mdbx_liberr2str(errnum);
   if (!msg && buflen > 0 && buflen < INT_MAX) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     DWORD size = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errnum,
                                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, (DWORD)buflen, nullptr);
     while (size && buf[size - 1] <= ' ')
@@ -244,7 +244,7 @@ __cold const char *mdbx_strerror_r(int errnum, char *buf, size_t buflen) {
 }
 
 __cold const char *mdbx_strerror(int errnum) {
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   static char buf[1024];
   return mdbx_strerror_r(errnum, buf, sizeof(buf));
 #else
@@ -262,7 +262,7 @@ __cold const char *mdbx_strerror(int errnum) {
 #endif
 }
 
-#if defined(_WIN32) || defined(_WIN64) /* Bit of madness for Windows */
+#if IS_WINDOWS /* Bit of madness for Windows */
 const char *mdbx_strerror_r_ANSI2OEM(int errnum, char *buf, size_t buflen) {
   const char *msg = mdbx_liberr2str(errnum);
   if (!msg && buflen > 0 && buflen < INT_MAX) {

@@ -70,7 +70,7 @@ typedef union bin128 {
 #include "layout-lck.h"
 
 #define MIN_MAPSIZE (MDBX_MIN_PAGESIZE * MIN_PAGENO)
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 #define MAX_MAPSIZE32 UINT32_C(0x38000000)
 #else
 #define MAX_MAPSIZE32 UINT32_C(0x7f000000)
@@ -105,7 +105,7 @@ struct libmdbx_globals {
   uint8_t sys_pagesize_ln2;
   uint8_t runtime_flags;
   uint8_t loglevel;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
   bool running_under_Wine;
 #elif defined(__linux__) || defined(__gnu_linux__)
   bool running_on_WSL1 /* Windows Subsystem 1 for Linux */;
@@ -123,7 +123,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 extern struct libmdbx_globals globals;
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 extern struct libmdbx_imports imports;
 #endif /* Windows */
 

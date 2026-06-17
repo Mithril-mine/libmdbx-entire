@@ -141,7 +141,7 @@ int txn_commit(MDBX_txn *txn, MDBX_commit_latency *latency, struct commit_timest
   return rc;
 }
 
-#if !(defined(_WIN32) || defined(_WIN64))
+#if !IS_WINDOWS
 void txn_abort_after_resurrect(MDBX_txn *txn) {
   if (likely(txn->signature == txn_signature)) {
     if (txn->nested) {
@@ -330,7 +330,7 @@ int txn_setup_primal(MDBX_txn *txn) {
      *  В этой тактике есть недостаток: если пишущите транзакции не регулярны,
      *  и при завершении такой транзакции файл БД остаётся не-уменьшеным из-за
      *  читающих транзакций использующих предыдущие снимки. */
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     imports.srwl_AcquireShared(&env->remap_lock);
 #else
     err = osal_fastmutex_acquire(&env->remap_lock);
@@ -347,7 +347,7 @@ int txn_setup_primal(MDBX_txn *txn) {
         env->dxb_mmap.current =
             (env->dxb_mmap.limit < env->dxb_mmap.filesize) ? env->dxb_mmap.limit : (size_t)env->dxb_mmap.filesize;
     }
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     imports.srwl_ReleaseShared(&env->remap_lock);
 #else
     ENSURE_OBJ(env, osal_fastmutex_release(&env->remap_lock) == MDBX_SUCCESS);

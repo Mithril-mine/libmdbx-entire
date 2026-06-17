@@ -9,7 +9,7 @@ static void mdbx_fini(void);
 /*----------------------------------------------------------------------------*/
 /* mdbx constructor/destructor */
 
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
 
 #if MDBX_BUILD_SHARED_LIBRARY
 #if MDBX_WITHOUT_MSVC_CRT && !defined(_DEBUG)
@@ -399,7 +399,7 @@ __dll_export
 #ifdef __APPLE__
     " MDBX_APPLE_SPEED_INSTEADOF_DURABILITY=" MDBX_STRINGIFY(MDBX_APPLE_SPEED_INSTEADOF_DURABILITY)
 #endif /* MacOS */
-#if defined(_WIN32) || defined(_WIN64)
+#if IS_WINDOWS
     " WITHOUT_MSVC_CRT=" MDBX_STRINGIFY(MDBX_WITHOUT_MSVC_CRT)
     " BUILD_SHARED_LIBRARY=" MDBX_STRINGIFY(MDBX_BUILD_SHARED_LIBRARY)
 #if !MDBX_BUILD_SHARED_LIBRARY
