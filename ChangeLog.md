@@ -35,6 +35,8 @@ The supporting release of a stable branch with bug fixes.
 
  - Fixed the [issue](https://github.com/Mithril-mine/libmdbx/issues/361) of loosing a table content after abortion the nested transaction where such table was dropped.
 
+ - Fixed `ERROR_LOCK_VIOLATION` during defrag on Windows in operation modes using overlapped I/O.
+
 
 --------------------------------------------------------------------------------
 
