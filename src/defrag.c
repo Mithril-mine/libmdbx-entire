@@ -450,30 +450,27 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
    * как в обоих случаях равно количеству дочерних страниц. Кроме этого, последовательная обработка dfc->track приведет
    * к более упоряченному чтению и записи страниц. */
 
-  const size_t npages = arc->npages;
   const size_t di = ((txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC) ? txn_dpl_exist(txn, arc->key_or_pgno) : 0;
   if (di) {
     page_t *dst = txn->wr.dirtylist->items[di].ptr;
     if (MDBX_AVOID_MSYNC && (txn->flags & MDBX_WRITEMAP)) {
       const page_t *const src = dst;
       dst = pgno2page(txn->env, arc->mapped);
-      page_copy(dst, src, pgno2bytes(txn->env, npages));
+      page_copy(dst, src, pgno2bytes(txn->env, arc->npages));
     }
 
     /* Seems this is too rare case to make an optimizing dpl_move(txn, from_di, to_pgno) function. */
-    txn_dpl_remove_ex(txn, di, npages);
-    err = txn_dpl_append(txn, arc->mapped, dst, npages);
+    txn_dpl_remove_ex(txn, di, arc->npages);
+    err = txn_dpl_append(txn, arc->mapped, dst, arc->npages);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
 
-    dfc->cycle_pages_moved += npages;
+    dfc->cycle_pages_moved += arc->npages;
     return defrag_fixup_page(dfc, dst, arc->mapped);
   }
+  tASSERT0(txn, !txn->wr.dirtylist || arc->npages < 2 || !txn_dpl_intersect(txn, arc->key_or_pgno, arc->npages));
 
-  page_t *const dst =
-      ((txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC && env_is_page_incore(dfc->txn->env, arc->mapped))
-          ? pgno2page(txn->env, arc->mapped)
-          : txn->env->page_auxbuf;
+  page_t *dst = (txn->flags & MDBX_WRITEMAP) ? pgno2page(txn->env, arc->mapped) : txn->env->page_auxbuf;
 
   if (env_is_page_incore(dfc->txn->env, arc->key_or_pgno)) {
     const pgr_t pgr = defrag_get_page(dfc, arc->key_or_pgno);
@@ -484,7 +481,7 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
 #if MDBX_CHECKING > 1
     ASSERT(!pnl_contains(dfc->repnl_clone, arc->key_or_pgno));
 #endif /* MDBX_CHECKING > 1 */
-    err = osal_pread(txn->env->dxb_mmap.fd, dst, txn->env->ps, pgno2bytes(txn->env, arc->key_or_pgno));
+    err = dxb_pread(txn->env, dst, pgno2bytes(txn->env, arc->key_or_pgno));
     if (unlikely(err != MDBX_SUCCESS))
       return err;
   }
@@ -493,33 +490,46 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 
-  if (dst == txn->env->page_auxbuf) {
+  if (MDBX_AVOID_MSYNC || dst == txn->env->page_auxbuf) {
 #if MDBX_CHECKING > 1
     ASSERT(pnl_contains(dfc->repnl_clone, arc->mapped));
 #endif /* MDBX_CHECKING > 1 */
-    err = osal_pwrite(txn->env->dxb_mmap.fd, dst, txn->env->ps, pgno2bytes(txn->env, arc->mapped));
+    err = dxb_pwrite(txn->env, dst, pgno2bytes(txn->env, arc->mapped));
     if (unlikely(err != MDBX_SUCCESS))
       return err;
-  }
+  } else
+    txn->env->lck->unsynced_pages.weak += 1;
 
   DEBUG("moved %u pages %u -> %u", arc->npages, arc->key_or_pgno, arc->mapped);
-  dfc->cycle_pages_moved += npages;
-  if (unlikely(npages > 1)) {
+  txn->env->lck->unsynced_pages.weak += arc->npages;
+  dfc->cycle_pages_moved += arc->npages;
+  if (unlikely(arc->npages > 1)) {
     MDBX_env *env = txn->env;
-    for (pgno_t i = 1; i < npages; ++i) {
+    for (pgno_t i = 1; i < arc->npages; ++i) {
       const size_t off_src = pgno2bytes(env, arc->key_or_pgno + i);
       const size_t off_dst = pgno2bytes(env, arc->mapped + i);
-      if ((txn->flags & MDBX_WRITEMAP) && !MDBX_AVOID_MSYNC && env_is_page_incore(env, arc->mapped + i)) {
+#if MDBX_CHECKING > 1
+      ASSERT(!pnl_contains(dfc->repnl_clone, bytes2pgno(env, off_src)));
+      ASSERT(pnl_contains(dfc->repnl_clone, bytes2pgno(env, off_dst)));
+#endif /* MDBX_CHECKING > 1 */
+      if (txn->flags & MDBX_WRITEMAP) {
+        dst = ptr_disp(env->dxb_mmap.base, off_dst);
         if (env_is_page_incore(env, arc->key_or_pgno + i))
-          memcpy(ptr_disp(env->dxb_mmap.base, off_dst), ptr_disp(env->dxb_mmap.base, off_src), env->ps);
+          memcpy(dst, ptr_disp(env->dxb_mmap.base, off_src), env->ps);
         else {
-          err = osal_pread(env->dxb_mmap.fd, ptr_disp(env->dxb_mmap.base, off_dst), env->ps, off_src);
+          err = dxb_pread(env, dst, off_src);
           if (unlikely(err != MDBX_SUCCESS))
             return err;
         }
+        if (MDBX_AVOID_MSYNC) {
+          err = dxb_pwrite(env, dst, off_dst);
+          if (unlikely(err != MDBX_SUCCESS))
+            return err;
+        } else
+          txn->env->lck->unsynced_pages.weak += 1;
       } else {
 #if MDBX_USE_COPYFILERANGE
-        const ssize_t remainted = pgno2bytes(env, npages - i);
+        const ssize_t remainted = pgno2bytes(env, arc->npages - i);
         off_t off_dst_proxy = off_dst;
         off_t off_src_proxy = off_src;
         const ssize_t copied =
@@ -529,16 +539,10 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
           err = (copied < 0) ? errno : MDBX_EIO;
         break;
 #else
-#if MDBX_CHECKING > 1
-        ASSERT(!pnl_contains(dfc->repnl_clone, bytes2pgno(env, off_src)));
-#endif /* MDBX_CHECKING > 1 */
-        err = osal_pread(env->dxb_mmap.fd, txn->env->page_auxbuf, env->ps, off_src);
+        err = dxb_pread(env, env->page_auxbuf, off_src);
         if (unlikely(err != MDBX_SUCCESS))
           return err;
-#if MDBX_CHECKING > 1
-        ASSERT(pnl_contains(dfc->repnl_clone, bytes2pgno(env, off_dst)));
-#endif /* MDBX_CHECKING > 1 */
-        err = osal_pwrite(txn->env->dxb_mmap.fd, txn->env->page_auxbuf, env->ps, off_dst);
+        err = dxb_pwrite(env, env->page_auxbuf, off_dst);
         if (unlikely(err != MDBX_SUCCESS))
           return err;
 #endif /* MDBX_USE_COPYFILERANGE */

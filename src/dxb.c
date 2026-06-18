@@ -15,6 +15,22 @@ int dxb_fsync(const MDBX_env *env, enum osal_syncmode_bits mode_bits) {
   return osal_fsync(env->lazy_fd, mode_bits);
 }
 
+__cold int dxb_pwrite(MDBX_env *env, const void *buf, uint64_t offset) {
+#if defined(_WIN32) || defined(_WIN64)
+  if (env->ioring.overlapped_fd)
+    return osal_pwrite_ev(env->ioring.overlapped_fd, env->ioring.async_done, buf, env->ps, offset);
+#endif
+  return osal_pwrite(env->dxb_mmap.fd, buf, env->ps, offset);
+}
+
+__cold int dxb_pread(MDBX_env *env, void *buf, uint64_t offset) {
+#if defined(_WIN32) || defined(_WIN64)
+  if (env->ioring.overlapped_fd)
+    return osal_pread_ev(env->ioring.overlapped_fd, env->ioring.async_done, buf, env->ps, offset);
+#endif
+  return osal_pread(env->dxb_mmap.fd, buf, env->ps, offset);
+}
+
 __cold int dxb_read_header(MDBX_env *env, meta_t *dest, const int lck_exclusive, const mdbx_mode_t mode_bits) {
   memset(dest, 0, sizeof(meta_t));
   int rc = osal_filesize(env->lazy_fd, &env->dxb_mmap.filesize);

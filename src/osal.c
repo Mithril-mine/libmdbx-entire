@@ -492,14 +492,14 @@ bailout:
 #define ior_WriteFile_flag 1
 #define OSAL_IOV_MAX (4096 / sizeof(ior_sgv_element))
 
-static void ior_put_event(osal_ioring_t *ior, HANDLE event) {
+void ior_put_event(osal_ioring_t *ior, HANDLE event) {
   ASSERT(event && event != INVALID_HANDLE_VALUE && event != ior);
   ASSERT(ior->event_stack < ior->allocated);
   ior->event_pool[ior->event_stack] = event;
   ior->event_stack += 1;
 }
 
-static HANDLE ior_get_event(osal_ioring_t *ior) {
+HANDLE ior_get_event(osal_ioring_t *ior) {
   ASSERT(ior->event_stack <= ior->allocated);
   if (ior->event_stack > 0) {
     ior->event_stack -= 1;
@@ -1345,15 +1345,21 @@ int osal_closefile(mdbx_filehandle_t fd) {
 }
 
 int osal_pread(mdbx_filehandle_t fd, void *buf, size_t bytes, uint64_t offset) {
+#if IS_WINDOWS
+  return osal_pread_ev(fd, 0, buf, bytes, offset);
+}
+
+int osal_pread_ev(mdbx_filehandle_t fd, HANDLE ev, void *buf, size_t bytes, uint64_t offset) {
   if (bytes > MAX_IO_BYTES)
     return MDBX_EINVAL;
-#if IS_WINDOWS
   OVERLAPPED ov;
-  ov.hEvent = 0;
+  ov.Internal = 0;
+  ov.InternalHigh = 0;
   ov.Offset = (DWORD)offset;
   ov.OffsetHigh = HIGH_DWORD(offset);
+  ov.hEvent = ev;
 
-  DWORD read = 0;
+  DWORD read;
   if (unlikely(!ReadFile(fd, buf, (DWORD)bytes, &read, &ov))) {
     int err = (int)GetLastError();
     if (err != ERROR_IO_PENDING)
@@ -1365,6 +1371,8 @@ int osal_pread(mdbx_filehandle_t fd, void *buf, size_t bytes, uint64_t offset) {
     }
   }
 #else
+  if (bytes > MAX_IO_BYTES)
+    return MDBX_EINVAL;
   STATIC_ASSERT_MSG(sizeof(off_t) >= sizeof(size_t), "libmdbx requires 64-bit file I/O on 64-bit systems");
   intptr_t read = pread(fd, buf, bytes, offset);
   if (read < 0) {
@@ -1376,19 +1384,34 @@ int osal_pread(mdbx_filehandle_t fd, void *buf, size_t bytes, uint64_t offset) {
 }
 
 int osal_pwrite(mdbx_filehandle_t fd, const void *buf, size_t bytes, uint64_t offset) {
-  while (true) {
 #if IS_WINDOWS
+  return osal_pwrite_ev(fd, 0, buf, bytes, offset);
+}
+
+int osal_pwrite_ev(mdbx_filehandle_t fd, HANDLE ev, const void *buf, size_t bytes, uint64_t offset) {
+  while (true) {
     OVERLAPPED ov;
-    ov.hEvent = 0;
+    ov.Internal = 0;
+    ov.InternalHigh = 0;
     ov.Offset = (DWORD)offset;
     ov.OffsetHigh = HIGH_DWORD(offset);
+    ov.hEvent = ev;
 
     DWORD written;
-    if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_IO_BYTES) ? (DWORD)bytes : MAX_IO_BYTES, &written, &ov)))
-      return (int)GetLastError();
+    if (unlikely(!WriteFile(fd, buf, likely(bytes <= MAX_IO_BYTES) ? (DWORD)bytes : MAX_IO_BYTES, &written, &ov))) {
+      int err = (int)GetLastError();
+      if (err != ERROR_IO_PENDING)
+        return (err == MDBX_SUCCESS) ? /* paranoia */ ERROR_WRITE_FAULT : err;
+      if (!GetOverlappedResult(fd, &ov, &written, true)) {
+        err = (int)GetLastError();
+        CancelIo(fd);
+        return (err == MDBX_SUCCESS) ? /* paranoia */ ERROR_WRITE_FAULT : err;
+      }
+    }
     if (likely(bytes == written))
       return MDBX_SUCCESS;
 #else
+  while (true) {
     STATIC_ASSERT_MSG(sizeof(off_t) >= sizeof(size_t), "libmdbx requires 64-bit file I/O on 64-bit systems");
     const intptr_t written = pwrite(fd, buf, likely(bytes <= MAX_IO_BYTES) ? bytes : MAX_IO_BYTES, offset);
     if (likely(bytes == (size_t)written))
