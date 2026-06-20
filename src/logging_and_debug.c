@@ -100,11 +100,11 @@ __cold const char *mdbx_dump_val(const MDBX_val *val, char *const buf, const siz
     ASSERT(len > 0 && (size_t)len < bufsize);
     (void)len;
   } else {
+    static const char hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
     char *const detent = buf + bufsize - 2;
     char *ptr = buf;
     *ptr++ = '<';
     for (size_t i = 0; i < val->iov_len && ptr < detent; i++) {
-      const char hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
       *ptr++ = hex[data[i] >> 4];
       *ptr++ = hex[data[i] & 15];
     }
