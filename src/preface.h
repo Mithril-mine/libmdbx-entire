@@ -406,7 +406,7 @@ __extern_C key_t ftok(const char *, int);
 #undef CONSTEXPR_ENUM_FLAGS_OPERATIONS
 #endif /* __CODEGEARC__ */
 
-/* После подгрузки windows.h, чтобы избежать проблем со сборкой MINGW и т.п. */
+/* After including windows.h, to avoid issues with MinGW builds and similar toolchains. */
 #include <excpt.h>
 #include <io.h>
 #include <tlhelp32.h>
