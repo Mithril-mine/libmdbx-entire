@@ -100,11 +100,11 @@ __cold const char *mdbx_dump_val(const MDBX_val *val, char *const buf, const siz
     ASSERT(len > 0 && (size_t)len < bufsize);
     (void)len;
   } else {
+    static const char hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
     char *const detent = buf + bufsize - 2;
     char *ptr = buf;
     *ptr++ = '<';
     for (size_t i = 0; i < val->iov_len && ptr < detent; i++) {
-      const char hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
       *ptr++ = hex[data[i] >> 4];
       *ptr++ = hex[data[i] & 15];
     }
@@ -288,7 +288,7 @@ __cold const char *object2class(const void *ptr) {
   return "unknown";
 }
 
-MDBX_NORETURN static void fuckup(const char *msg, const char *func, unsigned line, const void *obj) {
+MDBX_NORETURN static void panic_internal(const char *msg, const char *func, unsigned line, const void *obj) {
   const char *obj_class = object2class(obj);
   MDBX_DTRACE5(panic, func, line, msg, obj_class, obj);
   const MDBX_panic_func panic_func = globals.panic_func;
@@ -300,7 +300,7 @@ MDBX_NORETURN static void fuckup(const char *msg, const char *func, unsigned lin
 }
 
 __cold __noinline void panic_at_obj(const struct MDBX_panic_point *const at, const void *obj) {
-  fuckup(at->msg, at->function, at->line, obj);
+  panic_internal(at->msg, at->function, at->line, obj);
 }
 
 __cold __noinline void panic_at(const struct MDBX_panic_point *const at) { panic_at_obj(at, nullptr); }
@@ -310,10 +310,12 @@ __cold __noinline void panic_at_fmt(const struct MDBX_panic_point *const at, con
   va_start(ap, obj);
   char *message = nullptr;
   const int num = osal_vasprintf(&message, at->msg, ap);
+  va_end(ap);
   const char *const const_message = unlikely(num < 1 || !message) ? "<vasprintf() failed>" : message;
-  fuckup(const_message, at->function, at->line, obj);
+  panic_internal(const_message, at->function, at->line, obj);
+  __unreachable();
 }
 
-__cold void mdbx_assert_fail(const char *msg, const char *func, unsigned line) { fuckup(msg, func, line, nullptr); }
+__cold void mdbx_assert_fail(const char *msg, const char *func, unsigned line) { panic_internal(msg, func, line, nullptr); }
 
 #endif /* MDBX_CHECKING >= 0 */

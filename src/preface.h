@@ -39,7 +39,7 @@
 
 #if IS_WINDOWS
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00 /* Windows 10 */
+#define _WIN32_WINNT 0x0A00 /* Default Windows target: Windows 10. Keep single definition in this file. */
 #endif                      /* _WIN32_WINNT */
 
 #if !defined(_CRT_SECURE_NO_WARNINGS)
@@ -280,7 +280,7 @@
 #endif
 
 #ifdef __SANITIZE_THREAD__
-#warning "libmdbx don't compatible with ThreadSanitizer, you will get a lot of false-positive issues."
+#warning "libmdbx is not compatible with ThreadSanitizer; you will get a lot of false-positive issues."
 #endif /* __SANITIZE_THREAD__ */
 
 /*----------------------------------------------------------------------------*/
@@ -406,7 +406,7 @@ __extern_C key_t ftok(const char *, int);
 #undef CONSTEXPR_ENUM_FLAGS_OPERATIONS
 #endif /* __CODEGEARC__ */
 
-/* После подгрузки windows.h, чтобы избежать проблем со сборкой MINGW и т.п. */
+/* After including windows.h, to avoid issues with MinGW builds and similar toolchains. */
 #include <excpt.h>
 #include <io.h>
 #include <tlhelp32.h>
