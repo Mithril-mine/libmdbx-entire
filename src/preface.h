@@ -39,7 +39,7 @@
 
 #if IS_WINDOWS
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00 /* Windows 10 */
+#define _WIN32_WINNT 0x0A00 /* Default Windows target: Windows 10. Keep single definition in this file. */
 #endif                      /* _WIN32_WINNT */
 
 #if !defined(_CRT_SECURE_NO_WARNINGS)
