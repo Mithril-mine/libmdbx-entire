@@ -160,7 +160,9 @@ __cold int mdbx_setup_debug_nofmt(MDBX_log_level_t level, MDBX_debug_flags_t fla
                                   char *buffer, size_t buffer_size) {
   union logger_union thunk;
   thunk.nofmt = logger ? logger : MDBX_LOGGER_NOFMT_DONTCHANGE;
-  if (unlikely((thunk.nofmt != MDBX_LOGGER_NOFMT_DONTCHANGE) != (buffer && buffer_size != 0)))
+  const bool logger_changed = (thunk.nofmt != MDBX_LOGGER_NOFMT_DONTCHANGE);
+  const bool buffer_configured = (buffer != nullptr && buffer_size != 0);
+  if (unlikely(logger_changed != buffer_configured))
     return -1;
   return setup_debug(level, flags, thunk, buffer, buffer_size);
 }
