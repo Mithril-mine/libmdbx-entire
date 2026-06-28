@@ -104,7 +104,7 @@ __cold const char *mdbx_dump_val(const MDBX_val *val, char *const buf, const siz
     else
       ASSERT(len > 0);
   } else {
-    static const char hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+    const char *const hex = "0123456789abcdef";
     char *const detent = buf + bufsize - 2;
     char *ptr = buf;
     *ptr++ = '<';
