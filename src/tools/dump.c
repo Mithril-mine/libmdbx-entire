@@ -55,7 +55,7 @@ static const flagbit dbflags[] = {{MDBX_REVERSEKEY, "reversekey"},
                                   {0, nullptr}};
 
 static void dumpval(const MDBX_val *v) {
-  static const char digits[] = "0123456789abcdef";
+  const char alpha_offset = 'a' - '9' - 1;
   putchar(' ');
   for (const unsigned char *c = v->iov_base, *end = c + v->iov_len; c < end; ++c) {
     if (mode & PRINT) {
@@ -65,8 +65,10 @@ static void dumpval(const MDBX_val *v) {
       } else
         putchar('\\');
     }
-    putchar(digits[*c >> 4]);
-    putchar(digits[*c & 15]);
+    const int8_t hi = *c >> 4;
+    const int8_t lo = *c & 15;
+    putchar('0' + hi + (((9 - hi) >> 7) & alpha_offset));
+    putchar('0' + lo + (((9 - lo) >> 7) & alpha_offset));
   }
   putchar('\n');
 }

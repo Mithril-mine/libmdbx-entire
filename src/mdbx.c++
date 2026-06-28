@@ -646,7 +646,7 @@ char *to_hex::write_bytes(char *__restrict const dest, size_t dest_size) const {
 
   auto ptr = dest;
   auto src = source.byte_ptr();
-  const char alpha_shift = (uppercase ? 'A' : 'a') - '9' - 1;
+  const char alpha_offset = (uppercase ? 'A' : 'a') - '9' - 1;
   auto line = ptr;
   for (const auto end = source.end_byte_ptr(); src != end; ++src) {
     if (wrap_width && size_t(ptr - line) >= wrap_width) {
@@ -655,8 +655,8 @@ char *to_hex::write_bytes(char *__restrict const dest, size_t dest_size) const {
     }
     const int8_t hi = *src >> 4;
     const int8_t lo = *src & 15;
-    ptr[0] = char('0' + hi + (((9 - hi) >> 7) & alpha_shift));
-    ptr[1] = char('0' + lo + (((9 - lo) >> 7) & alpha_shift));
+    ptr[0] = char('0' + hi + (((9 - hi) >> 7) & alpha_offset));
+    ptr[1] = char('0' + lo + (((9 - lo) >> 7) & alpha_offset));
     ptr += 2;
     ASSERT(ptr <= dest + dest_size);
   }
@@ -668,7 +668,7 @@ char *to_hex::write_bytes(char *__restrict const dest, size_t dest_size) const {
     MDBX_CXX20_LIKELY {
       ::std::ostream::sentry sentry(out);
       auto src = source.byte_ptr();
-      const char alpha_shift = (uppercase ? 'A' : 'a') - '9' - 1;
+      const char alpha_offset = (uppercase ? 'A' : 'a') - '9' - 1;
       unsigned width = 0;
       for (const auto end = source.end_byte_ptr(); src != end; ++src) {
         if (wrap_width && width >= wrap_width) {
@@ -677,8 +677,8 @@ char *to_hex::write_bytes(char *__restrict const dest, size_t dest_size) const {
         }
         const int8_t hi = *src >> 4;
         const int8_t lo = *src & 15;
-        out.put(char('0' + hi + (((9 - hi) >> 7) & alpha_shift)));
-        out.put(char('0' + lo + (((9 - lo) >> 7) & alpha_shift)));
+        out.put(char('0' + hi + (((9 - hi) >> 7) & alpha_offset)));
+        out.put(char('0' + lo + (((9 - lo) >> 7) & alpha_offset)));
         width += 2;
       }
     }
