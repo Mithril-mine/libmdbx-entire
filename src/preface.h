@@ -39,8 +39,10 @@
 
 #if IS_WINDOWS
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00 /* Default Windows target: Windows 10. Keep single definition in this file. */
-#endif                      /* _WIN32_WINNT */
+#define _WIN32_WINNT 0x0A00 /* Windows 10 */
+#elif _WIN32_WINNT < 0x0500
+#error At least 'Windows 2000' API is required for libmdbx.
+#endif /* _WIN32_WINNT */
 
 #if !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
@@ -247,7 +249,7 @@
 /*----------------------------------------------------------------------------*/
 /* pre-requirements */
 
-#if (-6 & 5) || CHAR_BIT != 8 || UINT_MAX < 0xffffffff || ULONG_MAX % 0xFFFF
+#if ((-6) & 5) != 0 || CHAR_BIT != 8 || UINT_MAX < 0xffffffff || ULONG_MAX % 0xFFFF
 #error "Sanity checking failed: Two's complement, reasonably sized integer types"
 #endif
 
@@ -312,7 +314,7 @@
 #endif
 #endif /* __extern_C */
 
-#if !defined(nullptr) && !defined(__cplusplus) || (__cplusplus < 201103L && !defined(_MSC_VER))
+#if !defined(nullptr) && (!defined(__cplusplus) || (__cplusplus < 201103L && !defined(_MSC_VER)))
 #define nullptr NULL
 #endif
 
@@ -342,7 +344,7 @@
 #endif
 #else
 #include <malloc.h>
-#if !(defined(__sun) || defined(__SVR4) || defined(__svr4__) || defined(_WIN32) || defined(_WIN64))
+#if !(defined(__sun) || defined(__SVR4) || defined(__svr4__) || IS_WINDOWS)
 #include <mntent.h>
 #endif /* !Solaris */
 #endif /* !xBSD */
@@ -386,13 +388,8 @@
 __extern_C key_t ftok(const char *, int);
 #endif /* SunOS/Solaris */
 
-#if defined(_WIN32) || defined(_WIN64) /*-------------------------------------*/
+#if IS_WINDOWS /*-------------------------------------*/
 
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00 /* Windows 10 */
-#elif _WIN32_WINNT < 0x0500
-#error At least 'Windows 2000' API is required for libmdbx.
-#endif /* _WIN32_WINNT */
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif /* WIN32_LEAN_AND_MEAN */
@@ -411,7 +408,7 @@ __extern_C key_t ftok(const char *, int);
 #include <io.h>
 #include <tlhelp32.h>
 
-#if defined(__CODEGEARC__) && defined(_WIN32) && !defined(YieldProcessor)
+#if defined(__CODEGEARC__) && IS_WINDOWS && !defined(YieldProcessor)
 /* Embarcadero intrin.h does not define YieldProcessor; provide it via inline asm */
 #define YieldProcessor() __asm__ __volatile__("pause")
 #endif /* __CODEGEARC__ */
@@ -514,7 +511,7 @@ __extern_C key_t ftok(const char *, int);
     defined(_M_ARM) || defined(_M_ARM64) || defined(__e2k__) || defined(__elbrus_4c__) || defined(__elbrus_8c__) ||    \
     defined(__bfin__) || defined(__BFIN__) || defined(__ia64__) || defined(_IA64) || defined(__IA64__) ||              \
     defined(__ia64) || defined(_M_IA64) || defined(__itanium__) || defined(__ia32__) || defined(__CYGWIN__) ||         \
-    defined(_WIN64) || defined(_WIN32) || defined(__TOS_WIN__) || defined(__WINDOWS__)
+    IS_WINDOWS || defined(__TOS_WIN__) || defined(__WINDOWS__)
 #define __BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__
 
 #elif defined(__BIG_ENDIAN__) || (defined(_BIG_ENDIAN) && !defined(_LITTLE_ENDIAN)) || defined(__ARMEB__) ||           \
@@ -946,6 +943,9 @@ template <typename T, size_t N> char (&__ArraySizeHelper(T (&array)[N]))[N];
 
 #define MDBX_TETRAD(a, b, c, d) ((uint32_t)(a) << 24 | (uint32_t)(b) << 16 | (uint32_t)(c) << 8 | (d))
 
+#ifndef MDBX_STRINGIFY
+#error "MDBX_STRINGIFY expected to be provided/defined here."
+#endif
 #define FIXME "FIXME: " __FILE__ ", " MDBX_STRINGIFY(__LINE__)
 
 #ifndef STATIC_ASSERT_MSG

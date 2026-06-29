@@ -280,8 +280,8 @@ int mdbx_cursor_compare(const MDBX_cursor *l, const MDBX_cursor *r, bool ignore_
 
   if (unlikely(cursor_check_pure(l) != MDBX_SUCCESS))
     return (cursor_check_pure(r) == MDBX_SUCCESS) ? -incomparable * 8 : 0;
-  if (unlikely(cursor_check_pure(r) != MDBX_SUCCESS))
-    return (cursor_check_pure(l) == MDBX_SUCCESS) ? incomparable * 8 : 0;
+  else if (unlikely(cursor_check_pure(r) != MDBX_SUCCESS))
+    return incomparable * 8;
 
   if (unlikely(l->clc != r->clc)) {
     if (l->txn->env != r->txn->env)
@@ -1072,7 +1072,7 @@ int mdbx_cursor_distance(const MDBX_cursor *begin, const MDBX_cursor *end, intpt
       *distance = (cmp > 0) ? 1 : -1;
       return MDBX_SUCCESS;
     }
-    if (cmp == 0 && inner_pointed(end)) {
+    if (inner_pointed(end)) {
       ASSERT(inner_pointed(begin));
       cmp = cursor_cmp(&begin->subcur->cursor, &end->subcur->cursor);
       if (cmp == 0) {
