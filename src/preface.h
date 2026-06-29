@@ -170,6 +170,7 @@
 
 #include <inttypes.h>
 #include <stddef.h>
+/* _WIN32_WINNT is defined once above (line 42) as the canonical Windows target. */
 #include <stdint.h>
 #include <stdlib.h>
 
