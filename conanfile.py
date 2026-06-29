@@ -245,7 +245,7 @@ class libmdbx(ConanFile):
 
     def handle_option(self, tc, name, define=False):
         opt = self.options.get_safe(name)
-        if not opt is None:
+        if opt is not None:
             value = str(opt).lower()
             if value != 'auto' and value != 'default':
                 name = name.upper().replace('.', '_')
@@ -299,7 +299,7 @@ class libmdbx(ConanFile):
         self.handle_option(tc, 'mdbx.use_sendfile', True)
         self.handle_option(tc, 'mdbx.without_msvc_crt')
         opt = self.options.get_safe('mdbx.locking', 'auto')
-        if not opt is None:
+        if opt is not None:
             value = str(opt).lower()
             if value != 'auto' and value != 'default':
                 map = {'windowsfilelocking': -1, 'systemv': 5, 'posix1988': 1988,
