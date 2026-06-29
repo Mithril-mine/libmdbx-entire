@@ -148,7 +148,7 @@ __hot __noinline int tree_deepen_edge(MDBX_cursor *mc, int flags) {
 /* ---------------------------------------------------------------------------------------------------- */
 
 #if defined(__GNUC__) && !(defined(__e2k__) || defined(__elbrus__))
-#define CLEAR_VALUE_PROPAGATION(VAR) __asm__ __volatile__("" : "+r"(cmp))
+#define CLEAR_VALUE_PROPAGATION(VAR) __asm__ __volatile__("" : "+r"(VAR))
 #else
 #define CLEAR_VALUE_PROPAGATION(VAR)                                                                                   \
   do {                                                                                                                 \
