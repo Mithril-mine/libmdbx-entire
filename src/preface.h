@@ -312,7 +312,7 @@
 #endif
 #endif /* __extern_C */
 
-#if !defined(nullptr) && !defined(__cplusplus) || (__cplusplus < 201103L && !defined(_MSC_VER))
+#if !defined(nullptr) && (!defined(__cplusplus) || (__cplusplus < 201103L && !defined(_MSC_VER)))
 #define nullptr NULL
 #endif
 
