@@ -1016,7 +1016,7 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
   eASSERT0(env, (env->flags & (MDBX_RDONLY | ENV_FATAL_ERROR)) == 0);
   eASSERT0(env, pending->geometry.first_unallocated <= pending->geometry.now);
 
-  if (flags & MDBX_SAFE_NOSYNC) {
+  if (flags & ENV_UNSYNC) {
     /* Check auto-sync conditions */
     const pgno_t autosync_threshold = atomic_load32(&env->lck->autosync_threshold, mo_Relaxed);
     const uint64_t autosync_period = atomic_load64(&env->lck->autosync_period, mo_Relaxed);
@@ -1056,8 +1056,7 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
       if (prev_discarded_pgno >= discard_edge_pgno + env->madv_threshold) {
         const size_t prev_discarded_bytes = pgno_ceil2os_bytes(env, prev_discarded_pgno);
         const size_t discard_edge_bytes = pgno2bytes(env, discard_edge_pgno);
-        /* из-за выравнивания prev_discarded_bytes и discard_edge_bytes
-         * могут быть равны */
+        /* из-за выравнивания prev_discarded_bytes и discard_edge_bytes могут быть равны */
         if (prev_discarded_bytes > discard_edge_bytes) {
           NOTICE("shrink-MADV_%s %zu..%zu", "DONTNEED", discard_edge_pgno, prev_discarded_pgno);
           munlock_after(env, discard_edge_pgno, bytes_ceil2os_bytes(env, env->dxb_mmap.current));
@@ -1142,7 +1141,7 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
 
     eASSERT0(env, ((flags ^ env->flags) & MDBX_WRITEMAP) == 0);
     enum osal_syncmode_bits mode_bits = MDBX_SYNC_NONE;
-    if ((flags & MDBX_SAFE_NOSYNC) == 0) {
+    if ((flags & ENV_UNSYNC) == 0) {
       mode_bits = MDBX_SYNC_DATA;
       if (pending->geometry.first_unallocated > meta_prefer_steady(env, troika).ptr_c->geometry.now)
         mode_bits |= MDBX_SYNC_SIZE;
@@ -1157,8 +1156,8 @@ int dxb_sync_locked(MDBX_env *env, unsigned flags, meta_t *const pending, troika
       rc = dxb_fsync(env, mode_bits);
     if (unlikely(rc != MDBX_SUCCESS))
       goto fail;
-    rc = (flags & MDBX_SAFE_NOSYNC) ? MDBX_RESULT_TRUE /* carry non-steady */
-                                    : MDBX_RESULT_FALSE /* carry steady */;
+    rc = (flags & ENV_UNSYNC) ? MDBX_RESULT_TRUE /* carry non-steady */
+                              : MDBX_RESULT_FALSE /* carry steady */;
   }
   eASSERT1(env, coherency_check_meta(env, pending, true));
 

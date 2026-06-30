@@ -115,7 +115,7 @@ retry:;
 
       int err;
       /* pre-sync to avoid latency for writer */
-      if (unsynced_pages > /* FIXME: define threshold */ 42 && (flags & MDBX_SAFE_NOSYNC) == 0) {
+      if (unsynced_pages > /* FIXME: define threshold */ 42 && (flags & ENV_UNSYNC) == 0) {
         eASSERT0(env, ((flags ^ env->flags) & MDBX_WRITEMAP) == 0);
         if (flags & MDBX_WRITEMAP) {
           /* Acquire guard to avoid collision with remap */
@@ -171,17 +171,21 @@ retry:;
     rc = MDBX_RESULT_TRUE;
     goto bailout;
   }
-  if (!head.is_steady || ((flags & MDBX_SAFE_NOSYNC) == 0 && unsynced_pages)) {
+  if (!head.is_steady || ((flags & ENV_UNSYNC) == 0 && unsynced_pages)) {
     DEBUG("meta-head %" PRIaPGNO ", %s, sync_pending %" PRIu64, payload2page(head.ptr_c)->pgno,
           durable_caption(head.ptr_c), unsynced_pages);
     meta_t meta = *head.ptr_c;
-    rc = dxb_sync_locked(env, flags, &meta, &env->basal_txn->wr.troika);
+    osal_memory_barrier();
+    if (unlikely(memcmp(&meta, head.ptr_c, sizeof(meta)))) {
+      ERROR("The metapage #%u is volatile and changes unexpectedly", troika.recent);
+      rc = MDBX_PROBLEM;
+    } else
+      rc = dxb_sync_locked(env, flags, &meta, &env->basal_txn->wr.troika);
     if (unlikely(rc != MDBX_SUCCESS))
       goto bailout;
   }
 
-  /* LY: sync meta-pages if MDBX_NOMETASYNC enabled
-   *     and someone was not synced above. */
+  /* LY: sync meta-pages if MDBX_NOMETASYNC enabled and someone was not synced above. */
   if (atomic_load32(&env->lck->meta_sync_txnid, mo_Relaxed) != (uint32_t)head.txnid)
     rc = meta_sync(env, head);
 

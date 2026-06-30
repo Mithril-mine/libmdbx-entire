@@ -190,7 +190,7 @@ struct MDBX_txn {
   int32_t signature;
   uint32_t flags; /* Transaction Flags */
   size_t n_dbi;
-  size_t owner; /* thread ID that owns this transaction */
+  uintptr_t owner; /* thread ID that owns this transaction */
 
   MDBX_txn *parent; /* parent of a nested txn */
   MDBX_txn *nested; /* nested txn under this txn,
@@ -381,7 +381,10 @@ enum env_flags {
                          DEPRECATED_COALESCE | MDBX_PAGEPERTURB | MDBX_ACCEDE | MDBX_VALIDATION,
   ENV_CHANGELESS_FLAGS = MDBX_NOSUBDIR | MDBX_RDONLY | MDBX_WRITEMAP | MDBX_NOSTICKYTHREADS | MDBX_NORDAHEAD |
                          MDBX_LIFORECLAIM | MDBX_EXCLUSIVE,
-  ENV_USABLE_FLAGS = ENV_CHANGEABLE_FLAGS | ENV_CHANGELESS_FLAGS
+  ENV_USABLE_FLAGS = ENV_CHANGEABLE_FLAGS | ENV_CHANGELESS_FLAGS,
+  /* A flag for checking any non-synchronous mode. The MDBX_SAFE_NOSYNC bit is sufficient here,
+   * since it is included in MDBX_UTTERLY_NOSYNC. */
+  ENV_UNSYNC = MDBX_SAFE_NOSYNC
 };
 
 /* The database environment. */
