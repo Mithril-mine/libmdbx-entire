@@ -348,6 +348,18 @@ static inline size_t dbi_namelen(const MDBX_val name) {
   return (name.iov_len > sizeof(defer_free_item_t)) ? name.iov_len : sizeof(defer_free_item_t);
 }
 
+static inline int dbi_open_locked_fetch_main(MDBX_txn *txn, cursor_couple_t *maindb_cx, size_t slot,
+                                             const MDBX_val *name, unsigned user_flags) {
+#if defined(ENABLE_MEMCHECK) || defined(__SANITIZE_ADDRESS__)
+  void *preserve_userctx = maindb_cx->userctx;
+#endif /* MEMCHECK || ASAN */
+  int err = tbl_fetch(txn, &maindb_cx->outer, slot, name, user_flags);
+#if defined(ENABLE_MEMCHECK) || defined(__SANITIZE_ADDRESS__)
+  maindb_cx->userctx = preserve_userctx;
+#endif /* MEMCHECK || ASAN */
+  return err;
+}
+
 static int dbi_open_locked(MDBX_txn *txn, cursor_couple_t *maindb_cx, unsigned user_flags, MDBX_cmp_func keycmp,
                            MDBX_cmp_func datacmp, MDBX_val name, const size_t fastpath_slot,
                            defer_free_item_t **defer_chain) {
@@ -452,7 +464,7 @@ static int dbi_open_locked(MDBX_txn *txn, cursor_couple_t *maindb_cx, unsigned u
           ASSERT(rc == MDBX_SUCCESS);
         }
       } else {
-        rc = tbl_fetch(txn, &maindb_cx->outer, slot, &name, user_flags);
+        rc = dbi_open_locked_fetch_main(txn, maindb_cx, slot, &name, user_flags);
       }
 
       if (likely(rc == MDBX_SUCCESS))
@@ -491,13 +503,7 @@ static int dbi_open_locked(MDBX_txn *txn, cursor_couple_t *maindb_cx, unsigned u
   }
 
   /* Find the DB info */
-#if defined(ENABLE_MEMCHECK) || defined(__SANITIZE_ADDRESS__)
-  void *preserve_userctx = maindb_cx->userctx;
-#endif /* MEMCHECK || ASAN */
-  rc = tbl_fetch(txn, &maindb_cx->outer, slot, &name, user_flags);
-#if defined(ENABLE_MEMCHECK) || defined(__SANITIZE_ADDRESS__)
-  maindb_cx->userctx = preserve_userctx;
-#endif /* MEMCHECK || ASAN */
+  rc = dbi_open_locked_fetch_main(txn, maindb_cx, slot, &name, user_flags);
   if (unlikely(rc != MDBX_SUCCESS)) {
     if (rc != MDBX_NOTFOUND || !(user_flags & MDBX_CREATE))
       goto bailout;
