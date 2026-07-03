@@ -110,7 +110,14 @@ static uint8_t default_dp_loose_limit(const MDBX_env *env) {
   return 64;
 }
 
-void lck_options_init_defaults(MDBX_env *env, lck_t *lck) { /* TODO */}
+static size_t default_presync_threshold_bytes(const MDBX_env *env) {
+  (void)env;
+  return 256 * 1024;
+}
+
+void lck_options_init_defaults(MDBX_env *env, lck_t *lck) {
+  lck->presync_threshold.weak = bytes_ceil2os_pgno(env, default_presync_threshold_bytes(env));
+}
 
 void env_options_init(MDBX_env *env) {
   env->options.rp_augment_limit = default_rp_augment_limit(env);
@@ -477,6 +484,17 @@ __cold int mdbx_env_set_option(MDBX_env *env, const MDBX_option_t option, uint64
       env->options.split_reserve_dot16 = (uint16_t)value;
     break;
 
+  case MDBX_opt_presync_threshold:
+    if (!env->lck)
+      err = MDBX_EPERM;
+    else if (value == /* default */ UINT64_MAX)
+      env->lck->presync_threshold.weak = bytes_ceil2os_pgno(env, default_presync_threshold_bytes(env));
+    else if (value > INT_MAX)
+      err = MDBX_EINVAL;
+    else
+      env->lck->presync_threshold.weak = min_unsigned(bytes_ceil2os_pgno(env, (size_t)value), 1);
+    break;
+
   default:
     return LOG_IFERR(MDBX_EINVAL);
   }
@@ -585,6 +603,10 @@ __cold int mdbx_env_get_option(const MDBX_env *env, const MDBX_option_t option, 
 
   case MDBX_opt_split_reserve:
     *pvalue = env->options.split_reserve_dot16;
+    break;
+
+  case MDBX_opt_presync_threshold:
+    *pvalue = env->lck ? pgno2bytes(env, env->lck->presync_threshold.weak) : 0;
     break;
 
   default:

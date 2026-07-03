@@ -224,6 +224,10 @@ typedef struct shared_lck {
    * lock at least one page, so therefore madvise() could return EINVAL. */
   mdbx_atomic_uint32_t mlcnt[2];
 
+  /* Threshold in un-synced-with-disk pages for preparatory call msync() and/or fdatasync() without holding a txn-lock
+   * to avoid latency spikes during mdbx_env_sync_ex() in an asynchronous out-of-transaction execution case. */
+  atomic_pgno_t presync_threshold;
+
   MDBX_ALIGNAS(MDBX_CACHELINE_SIZE) /* cacheline ----------------------------*/
 
   /* Statistics of costly ops of all (running, completed and aborted)

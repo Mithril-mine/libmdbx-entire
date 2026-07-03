@@ -2449,7 +2449,25 @@ typedef enum MDBX_option {
    *
    * The option value is specified in units of 1/65536 of the page size: minimal 0, maximal 50% (32768),
    * default is 0. */
-  MDBX_opt_split_reserve
+  MDBX_opt_split_reserve,
+  /** \brief Sets threshold in bytes for preliminary flush/sync operation without holding a transaction lock.
+   *
+   * A preparatory data flush/sync operation could be performed if \ref mdbx_env_sync_poll() or \ref mdbx_env_sync_ex()
+   * from a thread that does not own the write transaction. Such a preliminary operation will push the bulk of the data
+   * to disk, which will significantly reduce the time to complete the final stage of flush/sync and update metadata
+   * that requires holding the lock.
+   *
+   * This option sets the volume threshold in bytes of non-synced-to disk data, when exceeded, a pre-sync/flush
+   * operation is performed. A too large threshold will increase the latency spikes, but a too small will increase
+   * number of flush/sync operations and corresponding overheads.
+   *
+   * \see mdbx_env_sync_poll()
+   * \see mdbx_env_sync_ex()
+   * \see MDBX_opt_sync_bytes
+   * \see MDBX_opt_sync_period
+   *
+   * The option value is specified in bytes: minimal 1, maximal 2147483648 (2 GiB), default is 256 KiB. */
+  MDBX_opt_presync_threshold
 } MDBX_option_t;
 
 /** \brief Sets the value of a extra runtime options for an environment.
