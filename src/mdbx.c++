@@ -1361,6 +1361,7 @@ env_managed &env_managed::operator=(env_managed &&other) noexcept {
     if (MDBX_UNLIKELY(handle_))
       MDBX_CXX20_UNLIKELY {
         assert(handle_ != other.handle_);
+        /* coverity[UNCAUGHT_EXCEPT] */
         close();
       }
     inherited::operator=(std::move(other));
@@ -1479,6 +1480,7 @@ cursor_managed &cursor_managed::operator=(cursor_managed &&other) noexcept {
     if (MDBX_UNLIKELY(handle_))
       MDBX_CXX20_UNLIKELY {
         assert(handle_ != other.handle_);
+        /* coverity[UNCAUGHT_EXCEPT] */
         close();
       }
     inherited::operator=(std::move(other));
@@ -1510,6 +1512,7 @@ txn_managed &txn_managed::operator=(txn_managed &&other) noexcept {
     if (MDBX_UNLIKELY(handle_))
       MDBX_CXX20_UNLIKELY {
         assert(handle_ != other.handle_);
+        /* coverity[UNCAUGHT_EXCEPT] */
         abort();
       }
     inherited::operator=(std::move(other));
