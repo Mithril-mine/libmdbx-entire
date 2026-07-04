@@ -270,7 +270,7 @@ typedef struct shared_lck {
   MDBX_ALIGNAS(MDBX_CACHELINE_SIZE) /* cacheline ----------------------------*/
 
 #if MDBX_LOCKING > 0
-  /* Readeaders table lock. */
+  /* Readers table lock. */
   osal_ipclock_t rdt_lock;
 #endif /* MDBX_LOCKING > 0 */
 
