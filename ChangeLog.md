@@ -36,6 +36,10 @@ The supporting release of a stable branch with bug fixes.
 
  - Added the missing recipe for Conan to an amalgamated source code.
 
+ - Added check-and-retry of presync-to-disk condition to avoid latency spikes in commit path during asynchronous calls of `mdbx_env_sync()`, `mdbx_env_sync_ex()`, `mdbx_env_sync_poll()`.
+
+ - Added the `MDBX_opt_presync_threshold` option.
+
 ### Fixes:
 
  - Fixed assertions triggering in a specific scenarios of creating and renaming tables within nested transactions.
@@ -43,6 +47,42 @@ The supporting release of a stable branch with bug fixes.
  - Fixed the [issue](https://github.com/Mithril-mine/libmdbx/issues/361) of loosing a table content after abortion the nested transaction where such table was dropped.
 
  - Fixed `ERROR_LOCK_VIOLATION` during defrag on Windows in operation modes using overlapped I/O.
+
+ - Fixed a lot of typos and other minors by AI suggestions.
+
+ - Fixed off-by-one bugs in the `mdbx::from_base64` and `mdbx::slice::is_printable()`.
+
+ - Fixed major typo in condition inside `latch_maindb_locked()`.
+   However, despite the severity of the error, the scenario of its manifestation could not be found due to a combination of other checks in the code.
+
+ - Fixed possibility of infinite loop inside `mdbx_txn_abort()` because of `memcmp()`/`memcpy()` typo.
+
+ - Fixed `env_owned_wrtxn()` to avoid by-pass locking in the `MDBX_NOSTICKYTHREADS` mode.
+
+ - Fixed missing `return` statement in an one of error paths inside `mdbx_cursor_bind()`.
+
+### Backward compatibility breaks:
+
+ - Now API functions that do not receive a transaction in arguments, but require a write lock, always checks that the current thread owns (launched) the writing transaction.
+   If the current thread does NOT own the writing transaction (did not start it), then the write-transaction lock will be acquired.
+   This can lead to deadlock in `MDBX_NOSTICKYTHREADS` mode!
+
+   These functions include:
+    - mdbx_env_set_flags(), mdbx_env_set_option();
+    - mdbx_env_set_geometry();
+    - mdbx_env_sync_ex(), mdbx_env_sync(), mdbx_env_sync_poll();
+    - mdbx_env_stat(), mdbx_env_stat_ex(txn=nullptr);
+    - mdbx_env_defrag(), mdbx_env_close_ex(), mdbx_env_close();
+
+   Deadlock in `MDBX_NOSTICKYTHREADS` mode can only occur when a writing transaction is started in one thread, and a synchronous call to one of the listed above functions is performed in the other, in a context that prevents the completion of a running writing transaction:
+    - a writing transaction has been started, and an application logic of its completion is waiting for some work to be done by other threads;
+    - one of these threads, which must be done before completing the writing transaction, calls one of the specified functions;
+    - deadlock: such a thread will wait for the completion of the transaction, and the thread will wait on the lock, which will be released upon completion of the transaction.
+
+ - Some deprecated enums and defines were removed from API.
+
+ - On Windows platform the Windows-10 API is now used by default.
+   Previous versions are still supported, but now they should be explicitly requested during library build by defining `_WIN32_WINNT`
 
 
 --------------------------------------------------------------------------------
