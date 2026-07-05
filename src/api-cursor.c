@@ -59,12 +59,11 @@ int mdbx_cursor_bind(MDBX_txn *txn, MDBX_cursor *mc, MDBX_dbi dbi) {
   if (unlikely(rc != MDBX_SUCCESS))
     return LOG_IFERR(rc);
 
-  if (unlikely(mc->backup)) /* Cursor from parent transaction */
-    LOG_IFERR(MDBX_EINVAL);
-
   if (mc->signature == cur_signature_live) {
     if (mc->txn == txn && cursor_dbi(mc) == dbi)
       return MDBX_SUCCESS;
+    if (unlikely(mc->backup)) /* Cursor from parent transaction */
+      return LOG_IFERR(MDBX_EINVAL);
     rc = mdbx_cursor_unbind(mc);
     if (unlikely(rc != MDBX_SUCCESS))
       return (rc == MDBX_BAD_TXN) ? MDBX_EINVAL : rc;
