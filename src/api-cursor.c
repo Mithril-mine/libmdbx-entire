@@ -883,6 +883,7 @@ int mdbx_cursor_bunch_delete(MDBX_cursor *mc, MDBX_bunch_action_t action, uint64
 
 #if MDBX_ENABLE_BUNCHES_REMOVAL
   if (axe)
+    /* No another cursors could be inserted after the axe, so we can just update the head. */
     axe->txn->cursors[cursor_dbi(axe)] = axe->next;
 #endif /* MDBX_ENABLE_BUNCHES_REMOVAL */
   if (number_of_affected)
@@ -941,6 +942,8 @@ int mdbx_cursor_delete_range(MDBX_cursor *begin, MDBX_cursor *end, bool end_incl
   if (number_of_affected)
     *number_of_affected = save_items - begin->tree->items;
 
+  /* No other cursors could have been inserted after couple.outer, so we can just check the head to determine if
+   * couple.outer has been added, and then just update it. */
   if (begin->txn->cursors[cursor_dbi(begin)] == &couple.outer)
     /* coverity[UNINIT] */
     couple.outer.txn->cursors[cursor_dbi(begin)] = couple.outer.next;
