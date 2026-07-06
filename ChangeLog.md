@@ -61,6 +61,8 @@ The supporting release of a stable branch with bug fixes.
 
  - Fixed missing `return` statement in an one of error paths inside `mdbx_cursor_bind()`.
 
+ - Fixed potential buffer overread by `fgets()` in `mdbx_load` utility.
+
 ### Backward compatibility breaks:
 
  - Now API functions that do not receive a transaction in arguments, but require a write lock, always checks that the current thread owns (launched) the writing transaction.
