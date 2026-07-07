@@ -1998,7 +1998,7 @@ typedef enum MDBX_error {
   MDBX_BACKLOG_DEPLETED = -30414,
 
   /** Alternative/Duplicate LCK-file is exists and should be removed manually */
-  MDBX_DUPLICATED_CLK = -30413,
+  MDBX_DUPLICATED_LCK = -30413,
 
   /** Some cursors and/or other resources should be closed before table or
    *  corresponding DBI-handle could be (re)used and/or closed. */
