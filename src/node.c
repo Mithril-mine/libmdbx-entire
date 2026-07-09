@@ -253,7 +253,7 @@ node_t *node_shrink(page_t *mp, size_t indx, node_t *node) {
 
   /* Prepare to shift upward, set len = length(subpage part to shift) */
   size_t nsize = node_ds(node) - delta, len = nsize;
-  ASSERT(nsize % 1 == 0);
+  ASSERT(nsize % 2 == 0);
   if (!is_dupfix_leaf(sp)) {
     len = PAGEHDRSZ;
     page_t *xp = ptr_disp(sp, delta); /* destination subpage */

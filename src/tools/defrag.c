@@ -393,7 +393,6 @@ int main(int argc, char *argv[]) {
     defrag_notify(nullptr, &result);
 
     if (!MDBX_IS_ERROR(rc)) {
-      rc = MDBX_SUCCESS;
       if (!quiet) {
         printf("Defragmentation%s: shrinked %zi pages, %u passes, moved %zu pages",
                (rc == MDBX_SUCCESS) ? " done" : " incomplete", result.pages_shrinked, result.cycles,
@@ -405,6 +404,7 @@ int main(int argc, char *argv[]) {
                stop_reason(&result));
       }
     }
+    rc = MDBX_SUCCESS;
   }
 
   if (txn) {

@@ -3537,7 +3537,7 @@ bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
 void osal_ctor(void) {
 #if MDBX_HAVE_PWRITEV && (defined(_SC_IOV_MAX) || defined(ENABLE_MEMCHECK))
 #if defined(_SC_IOV_MAX)
-  osal_iov_max = (_SC_IOV_MAX);
+  osal_iov_max = sysconf(_SC_IOV_MAX);
 #else
   osal_iov_max = IOV_MAX;
 #endif /* _SC_IOV_MAX */

@@ -96,10 +96,10 @@ MDBX_MAYBE_UNUSED static void dbg_dump_ids(gcu_t *ctx) {
       DEBUG_EXTRA_PRINT("%s\n", " empty");
 
     DEBUG_EXTRA("%s", "ready4reuse:");
-    if (rkl_empty(&txn->wr.gc.ready4reuse))
+    if (rkl_empty(&ctx->cursor.txn->wr.gc.ready4reuse))
       DEBUG_EXTRA_PRINT("%s\n", " empty");
     else {
-      rkl_iter_t i = rkl_iterator(&txn->wr.gc.ready4reuse, false);
+      rkl_iter_t i = rkl_iterator(&ctx->cursor.txn->wr.gc.ready4reuse, false);
       txnid_t id = rkl_turn(&i, false);
       while (id) {
         dbg_id(ctx, id);
