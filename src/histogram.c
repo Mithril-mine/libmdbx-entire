@@ -83,12 +83,54 @@ static __hot void histogram_put(const size_t v, struct MDBX_chk_histogram *p,
 
 //------------------------------------------------------------------------------
 
-__hot static intptr_t histogram_minimize_error(struct MDBX_chk_histogram *p, size_t v) {
 #if MDBX_HISTOGRAM_USING_128BIT
-  bin128_t best_reduce = {.l = UINT64_MAX, .h = UINT64_MAX}, best_enhance = best_reduce;
+typedef bin128_t hstval_t;
 #else
-  uint64_t best_reduce = UINT64_MAX, best_enhance = best_reduce;
+typedef uint64_t hstval_t;
 #endif /* MDBX_HISTOGRAM_USING_128BIT */
+
+static inline hstval_t hstval(uint64_t u64) {
+#if MDBX_HISTOGRAM_USING_128BIT
+  return u128(u64);
+#else
+  return u64;
+#endif
+}
+
+static inline hstval_t hstval_max(void) {
+#if MDBX_HISTOGRAM_USING_128BIT
+  return u128_max();
+#else
+  return UINT64_MAX;
+#endif
+}
+
+static inline hstval_t hstval_add(hstval_t a, hstval_t b) {
+#if MDBX_HISTOGRAM_USING_128BIT
+  return u128_add(a, b);
+#else
+  return a + b;
+#endif
+}
+
+static inline hstval_t hstval_mul(uint64_t a, uint64_t b) {
+#if MDBX_HISTOGRAM_USING_128BIT
+  return mul64x64_128(a, b);
+#else
+  return a * b;
+#endif
+}
+
+static inline bool hstval_gt(hstval_t a, hstval_t b) {
+#if MDBX_HISTOGRAM_USING_128BIT
+  return u128_gt(a, b);
+#else
+  return a > b;
+#endif
+}
+
+__hot static intptr_t histogram_minimize_error(struct MDBX_chk_histogram *p, size_t v) {
+  hstval_t best_reduce = hstval_max(), best_enhance = best_reduce;
 
   // ищем пару для слияния с минимальной ошибкой
   intptr_t reduce = 0;
@@ -99,20 +141,14 @@ __hot static intptr_t histogram_minimize_error(struct MDBX_chk_histogram *p, siz
     ASSERT(n1 > 0 && b1 > 0 && b1 < e1);
     ASSERT(n2 > 0 && b2 > 0 && b2 < e2);
     ASSERT(e1 <= b2);
-    // за ошибку принимаем площадь изменений на гистограмме при слиянии слотов
+    // за ошибку принимаем суммарную площадь изменений на гистограмме при слиянии слотов
     // s1 = (l1 = e1 - b1) * n1; s2 = (l2 = e2 - b2) * n2
     // sx = (lx = e2 - b1) * (nx = n1 + n2) == e2*n1 + e2*n2 - b1*n1 - b1*n2
     // err = s1 + s2 - sx == e1*n1 - b1*n1 + e2*n2 - b2*n2 - e2*n1 - e2*n2 + b1*n1 + b1*n
     // err = n1 * (e2 - e1) + n2 * (b2 - b1)
-#if MDBX_HISTOGRAM_USING_128BIT
-    const bin128_t err = u128_add(mul64x64_128(e2 - e1, n1), mul64x64_128(b2 - b1, n2));
-    if (u128_gt(err, best_reduce))
+    const hstval_t err = hstval_add(hstval_mul(e2 - e1, n1), hstval_mul(b2 - b1, n2));
+    if (hstval_gt(err, best_reduce))
       continue;
-#else
-    const uint64_t err = (e2 - e1) * n1 + (b2 - b1) * n2;
-    if (err > best_reduce)
-      continue;
-#endif /* MDBX_HISTOGRAM_USING_128BIT */
 
     reduce = i;
     best_reduce = err;
@@ -132,29 +168,19 @@ __hot static intptr_t histogram_minimize_error(struct MDBX_chk_histogram *p, siz
       // пропускаем если расширение этого слота приведёт к пересечению со следующим
       continue;
 
-    // за ошибку принимаем площадь изменений на гистограмме при расширении слота
-#if MDBX_HISTOGRAM_USING_128BIT
-    const bin128_t err =
-        u128_add((v < b) ? mul64x64_128(b - v, n) : u128(v - b), (ve < e) ? u128(e - ve) : mul64x64_128(ve - e, n));
-    if (u128_gt(err, best_enhance))
+    // за ошибку принимаем площадь изменений на гистограмме при изменении границ слота для покрытия/включения нового
+    // значения.
+    const hstval_t err =
+        hstval_add((v < b) ? hstval_mul(b - v, n) : hstval(v - b), (ve < e) ? hstval(e - ve) : hstval_mul(ve - e, n));
+    if (hstval_gt(err, best_enhance))
       continue;
-#else
-    const uint64_t err = ((v < b) ? (b - v) * n : v - b) + ((ve < e) ? e - ve : (ve - e) * n);
-    if (err > best_enhance)
-      continue;
-#endif /* MDBX_HISTOGRAM_USING_128BIT */
 
     enhance = i;
     best_enhance = err;
   }
 
-#if MDBX_HISTOGRAM_USING_128BIT
-  if (u128_gt(best_enhance, best_reduce))
+  if (hstval_gt(best_enhance, best_reduce))
     return reduce;
-#else
-  if (best_enhance > best_reduce)
-    return reduce;
-#endif
 
   return -(enhance + 1);
 }

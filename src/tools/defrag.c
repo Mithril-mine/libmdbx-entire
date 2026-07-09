@@ -408,7 +408,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (txn) {
-    if (MDBX_IS_ERROR(rc))
+    if (rc != MDBX_SUCCESS)
       mdbx_txn_abort(txn);
     else {
       act = "final commit";
@@ -417,12 +417,12 @@ int main(int argc, char *argv[]) {
     txn = nullptr;
   }
 
-  if (!quiet && MDBX_IS_ERROR(rc)) {
+  if (!quiet && rc != MDBX_SUCCESS) {
     fflush(nullptr);
     fprintf(stderr, "%s: %s failed, error %d (%s)\n", progname, act, rc, mdbx_strerror(rc));
   }
 
   mdbx_env_close(env);
   fflush(nullptr);
-  return MDBX_IS_ERROR(rc) ? EXIT_FAILURE : EXIT_SUCCESS;
+  return (rc != MDBX_SUCCESS) ? EXIT_FAILURE : EXIT_SUCCESS;
 }

@@ -695,19 +695,15 @@ __hot pgno_t gc_repnl_get_single(MDBX_txn *txn) {
   return pnl_size(txn->wr.repnl) ? repnl_get_single(txn) : 0;
 }
 
-__hot pgno_t gc_repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flags) {
+static pgno_t gc_repnl_scan_sequence_reserve(const MDBX_txn *txn, const size_t num, uint8_t flags) {
   const size_t len = pnl_size(txn->wr.repnl);
   pgno_t *edge = MDBX_PNL_EDGE(txn->wr.repnl);
   ASSERT(len >= num && num > 1);
+  ASSERT((flags & ALLOC_RESERVE) != 0);
   const size_t seq = num - 1;
 #if !MDBX_PNL_ASCENDING
   if (edge[-(ptrdiff_t)seq] - *edge == seq &&
       (likely((flags & ALLOC_EXACTLY) == 0) || len == num || edge[-(ptrdiff_t)num] - *edge != num)) {
-    if (likely((flags & ALLOC_RESERVE) == 0)) {
-      ASSERT(edge == scan4range_checker(txn->wr.repnl, seq));
-      /* перемещать хвост не нужно, просто усекам список */
-      pnl_setsize(txn->wr.repnl, len - num);
-    }
     return *edge;
   }
 #endif /* !MDBX_PNL_ASCENDING */
@@ -730,28 +726,70 @@ __hot pgno_t gc_repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flag
         target = scan4seq_impl(target, left, seq);
         continue;
       }
-      /* найденая последовательность ровно необхожимой длины */
+      /* найденная последовательность ровно необходимой длины */
     }
     const pgno_t pgno = *target;
-    if (likely((flags & ALLOC_RESERVE) == 0)) {
-      /* вырезаем найденную последовательность с перемещением хвоста */
-      pnl_setsize(txn->wr.repnl, len - num);
-#if MDBX_PNL_ASCENDING
-      for (const pgno_t *const end = txn->wr.repnl + len - num; target <= end; ++target)
-        *target = target[num];
-#else
-      for (const pgno_t *const end = txn->wr.repnl + len; ++target <= end;)
-        target[-(ptrdiff_t)num] = *target;
-#endif /* MDBX_PNL_ASCENDING */
+    return pgno;
+  }
+  return 0;
+}
+
+__hot pgno_t gc_repnl_get_sequence(MDBX_txn *txn, const size_t num, uint8_t flags) {
+  if (unlikely(flags & ALLOC_RESERVE))
+    return gc_repnl_scan_sequence_reserve(txn, num, flags);
+
+  const size_t len = pnl_size(txn->wr.repnl);
+  pgno_t *edge = MDBX_PNL_EDGE(txn->wr.repnl);
+  ASSERT(len >= num && num > 1);
+  ASSERT((flags & ALLOC_RESERVE) == 0);
+  const size_t seq = num - 1;
+#if !MDBX_PNL_ASCENDING
+  if (edge[-(ptrdiff_t)seq] - *edge == seq &&
+      (likely((flags & ALLOC_EXACTLY) == 0) || len == num || edge[-(ptrdiff_t)num] - *edge != num)) {
+    ASSERT(edge == scan4range_checker(txn->wr.repnl, seq));
+    /* перемещать хвост не нужно, просто усекаем список */
+    pnl_setsize(txn->wr.repnl, len - num);
+    return *edge;
+  }
+#endif /* !MDBX_PNL_ASCENDING */
+  pgno_t *target = scan4seq_impl(edge, len, seq);
+  ASSERT(target == scan4range_checker(txn->wr.repnl, seq));
+  while (target) {
+    if (unlikely(flags & ALLOC_EXACTLY) && len > num) {
+      const ptrdiff_t step = MDBX_PNL_ASCENDING ? -1 : 1;
+      if (target[step] - target[0] == 1) {
+        /* последовательность продолжается, пропускаем её */
+        size_t left =
+            MDBX_PNL_ASCENDING ? target - &MDBX_PNL_FIRST(txn->wr.repnl) : &MDBX_PNL_LAST(txn->wr.repnl) - target;
+        do {
+          target += step;
+          if (--left < num)
+            /* осталось меньше чем нужно, последовательности целевой длины быть не может */
+            return 0;
+        } while (target[step] - target[0] == 1);
+        /* продолжаем поиск дальше */
+        target = scan4seq_impl(target, left, seq);
+        continue;
+      }
+      /* найденная последовательность ровно необходимой длины */
     }
+    const pgno_t pgno = *target;
+    /* вырезаем найденную последовательность с перемещением хвоста */
+    pnl_setsize(txn->wr.repnl, len - num);
+#if MDBX_PNL_ASCENDING
+    for (const pgno_t *const end = txn->wr.repnl + len - num; target <= end; ++target)
+      *target = target[num];
+#else
+    for (const pgno_t *const end = txn->wr.repnl + len; ++target <= end;)
+      target[-(ptrdiff_t)num] = *target;
+#endif /* MDBX_PNL_ASCENDING */
     return pgno;
   }
   return 0;
 }
 
 bool gc_repnl_has_span(const MDBX_txn *txn, const size_t num) {
-  return (num > 1) ? gc_repnl_get_sequence((MDBX_txn *)txn, num, ALLOC_RESERVE) != 0
-                   : !MDBX_PNL_IS_EMPTY(txn->wr.repnl);
+  return (num > 1) ? gc_repnl_scan_sequence_reserve(txn, num, ALLOC_RESERVE) != 0 : !MDBX_PNL_IS_EMPTY(txn->wr.repnl);
 }
 
 static inline pgr_t page_alloc_finalize(MDBX_env *const env, MDBX_txn *const txn, const MDBX_cursor *const mc,

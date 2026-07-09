@@ -713,7 +713,7 @@ int mdbx_txn_rollback(MDBX_txn *txn) {
   if (txn->flags & txn_may_have_cursors)
     txn_done_cursors(txn);
 
-  if (likely(txn->flags & txn_ro_flat) == 0) {
+  if (likely((txn->flags & txn_ro_flat) == 0)) {
     if (!txn->parent)
       return LOG_IFERR(txn_basal_rollback(txn));
     else

@@ -2503,6 +2503,7 @@ static cdr_t cursor_distance_at(MDBX_cursor *iter, const MDBX_cursor *end, int l
   if (level < iter->top)
     iter->top = level;
   ASSERT(end->top >= iter->top);
+  ASSERT(end->tree == iter->tree || memcmp(end->tree, iter->tree, sizeof(tree_t)) == 0);
   const int iter_ki = iter->ki[iter->top] + ((iter->flags & z_eof_hard) != 0 && level + 1 == iter->tree->height);
   const int end_ki = end->ki[iter->top] + ((end->flags & z_eof_hard) != 0 && level + 1 == iter->tree->height);
   if (iter->pg[iter->top] == end->pg[iter->top])
@@ -2511,13 +2512,13 @@ static cdr_t cursor_distance_at(MDBX_cursor *iter, const MDBX_cursor *end, int l
     tdr.distance = page_numkeys(iter->pg[iter->top]) - iter_ki;
     while (true) {
       tdr.err = cursor_sibling_right(iter);
-      if (likely(tdr.err != MDBX_SUCCESS))
+      if (unlikely(tdr.err != MDBX_SUCCESS))
         return tdr;
       if (iter->pg[iter->top] == end->pg[iter->top])
         break;
       tdr.distance += page_numkeys(iter->pg[iter->top]);
     }
-    tdr.distance += end_ki + ((end->flags & z_eof_hard) != 0 && level + 1 == end->tree->height);
+    tdr.distance += end_ki;
   }
   return tdr;
 }

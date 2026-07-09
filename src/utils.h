@@ -205,12 +205,15 @@ MDBX_MAYBE_UNUSED static inline bool u128_lt(bin128_t x, bin128_t y) {
 }
 
 MDBX_MAYBE_UNUSED static inline bin128_t u128(uint64_t v) {
-  bin128_t r;
-  r.l = v;
-  r.h = 0;
+  bin128_t r = {.l = v, .h = 0};
 #if defined(__SIZEOF_INT128__)
   ASSERT(r.u128 == v);
 #endif
+  return r;
+}
+
+MDBX_MAYBE_UNUSED static inline bin128_t u128_max(void) {
+  bin128_t r = {.l = UINT64_MAX, .h = UINT64_MAX};
   return r;
 }
 

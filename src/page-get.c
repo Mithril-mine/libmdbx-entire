@@ -468,7 +468,7 @@ static __always_inline pgr_t page_get_inline(const uint16_t ILL, const MDBX_curs
 
   pgr_t r = page_get_unchecked(mc->txn, pgno, front);
   if (likely(r.err == MDBX_SUCCESS)) {
-    if (likely(mc->checking & z_pagecheck) == 0) {
+    if (likely((mc->checking & z_pagecheck) == 0)) {
 #if MDBX_DISABLE_VALIDATION
       return r;
 #else

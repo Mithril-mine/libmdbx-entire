@@ -497,12 +497,9 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
     err = dxb_pwrite(txn->env, dst, pgno2bytes(txn->env, arc->mapped));
     if (unlikely(err != MDBX_SUCCESS))
       return err;
-  } else
-    txn->env->lck->unsynced_pages.weak += 1;
+  }
 
-  DEBUG("moved %u pages %u -> %u", arc->npages, arc->key_or_pgno, arc->mapped);
-  txn->env->lck->unsynced_pages.weak += arc->npages;
-  dfc->cycle_pages_moved += arc->npages;
+  DEBUG("move %u pages %u -> %u", arc->npages, arc->key_or_pgno, arc->mapped);
   if (unlikely(arc->npages > 1)) {
     MDBX_env *env = txn->env;
     for (pgno_t i = 1; i < arc->npages; ++i) {
@@ -525,8 +522,7 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
           err = dxb_pwrite(env, dst, off_dst);
           if (unlikely(err != MDBX_SUCCESS))
             return err;
-        } else
-          txn->env->lck->unsynced_pages.weak += 1;
+        }
       } else {
 #if MDBX_USE_COPYFILERANGE
         const ssize_t remaining = pgno2bytes(env, arc->npages - i);
@@ -537,7 +533,7 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
         err = MDBX_SUCCESS;
         if (unlikely(copied != remaining))
           err = (copied < 0) ? errno : MDBX_EIO;
-        break;
+        /* We have done processing all the remaining pages of a chunk/arc */ break;
 #else
         err = dxb_pread(env, env->page_auxbuf, off_src);
         if (unlikely(err != MDBX_SUCCESS))
@@ -550,7 +546,13 @@ static int defrag_move(dfc_t *dfc, da_t *arc) {
     }
   }
 
-  return MDBX_SUCCESS;
+  /* The dfc->cycle_pages_moved and lck->unsynced_pages counters are not used in any logic sensitive to their excessive
+   * increase in case of any errors. Therefore, we just always increment them regardless any errors. */
+  dfc->cycle_pages_moved += arc->npages;
+  if (txn->env->flags & (ENV_UNSYNC | MDBX_WRITEMAP))
+    txn->env->lck->unsynced_pages.weak += arc->npages;
+
+  return err;
 }
 
 static pgno_t defrag_repnl_get(dfc_t *dfc, size_t npages) {
@@ -581,7 +583,7 @@ static int defrag_schedule(dfc_t *dfc, da_t *arc, pgno_t assigned) {
     if (!chain->mapped)
       goto bailout;
 
-    ASSERT((size_t)arc->mapped + 1 <= dfc->defrag_enough);
+    ASSERT((size_t)chain->mapped + 1 <= dfc->defrag_enough);
     stack_of_parents[depth++] = chain;
   }
 

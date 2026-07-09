@@ -1965,13 +1965,12 @@ int osal_check_fs_local(mdbx_filehandle_t handle, int flags) {
     {
       struct stat mnt;
       if (!stat(ent->mnt_dir, &mnt) && mnt.st_dev == st.st_dev) {
+        name = ent->mnt_fsname;
         if (should_copy) {
-          name = strncpy(pathbuf, ent->mnt_fsname, name_len = sizeof(pathbuf) - 1);
-          pathbuf[name_len] = 0;
-        } else {
-          name = ent->mnt_fsname;
-          name_len = strlen(name);
+          name = strncpy(pathbuf, ent->mnt_fsname, sizeof(pathbuf) - 1);
+          pathbuf[sizeof(pathbuf) - 1] = 0;
         }
+        name_len = strlen(name);
         break;
       }
     }
@@ -3509,15 +3508,21 @@ bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
 #else
   static int nullfd = -1;
   if (nullfd < 0) {
-    nullfd = open(dev_null, O_WRONLY
+    static pthread_mutex_t nullfd_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&nullfd_mutex);
+    if (nullfd < 0) {
+      nullfd = open(dev_null, O_WRONLY
 #ifdef O_CLOEXEC
-                                | O_CLOEXEC
+                                  | O_CLOEXEC
 #endif /* O_CLOEXEC */
-    );
-    if (unlikely(nullfd < 0)) {
-      ERROR("unable open(%s), err %d", dev_null, errno);
-      return false;
+      );
+      if (unlikely(nullfd < 0)) {
+        pthread_mutex_unlock(&nullfd_mutex);
+        ERROR("unable open(%s), err %d", dev_null, errno);
+        return false;
+      }
     }
+    pthread_mutex_unlock(&nullfd_mutex);
   }
   if (write(nullfd, ptr, 4) == 4) {
     memcpy(dest, ptr, 4);

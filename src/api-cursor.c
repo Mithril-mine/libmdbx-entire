@@ -990,15 +990,21 @@ int mdbx_cursor_distribute(const MDBX_cursor *begin, const MDBX_cursor *end, MDB
   const MDBX_cursor *ref = begin ? begin : end;
   MDBX_cursor *iter = nullptr;
   for (intptr_t i = 0; i < array_size; ++i) {
-    if (array[i] != begin && array[i] != end) {
-      rc = cursor_check_pure(iter = array[i]);
+    MDBX_cursor *const item = array[i];
+    if (unlikely(item == nullptr))
+      return MDBX_EINVAL;
+    if (item != begin && item != end) {
+      rc = cursor_check_pure(item);
       if (unlikely(rc != MDBX_SUCCESS))
         return LOG_IFERR(rc);
-      if (unlikely(!cursor_check_samedbi(iter, ref)))
+      if (unlikely(!cursor_check_samedbi(item, ref)))
         return LOG_IFERR(MDBX_EINVAL);
+      /* using the last cursor from array, excluding begin and end */
+      iter = item;
     }
   }
   if (unlikely(!iter))
+    /* the cursors array is empty or contains no cursors other than begin and end */
     return LOG_IFERR(MDBX_EINVAL);
 
   cursor_couple_t couple;

@@ -439,7 +439,9 @@ static int gc_store_retired(MDBX_txn *txn, gcu_t *ctx) {
   key.iov_len = sizeof(txnid_t);
   key.iov_base = &txn->txnid;
   do {
-    gc_prepare_stockpile4retired(txn, ctx);
+    err = gc_prepare_stockpile4retired(txn, ctx);
+    if (unlikely(err != MDBX_SUCCESS))
+      return err;
     data.iov_len = MDBX_PNL_SIZEOF(txn->wr.retired_pages);
     err = cursor_put(&ctx->cursor, &key, &data, MDBX_RESERVE);
     if (unlikely(err != MDBX_SUCCESS))

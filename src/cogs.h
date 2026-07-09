@@ -388,8 +388,8 @@ MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_uint
 }
 #else
 #define cmp_uint_align2 cmp_uint_unaligned
-#define cmp_uint32_align2 cmp_uint_unaligned
-#define cmp_uint64_align2 cmp_uint_unaligned
+#define cmp_uint32_align2 cmp_uint32_unaligned
+#define cmp_uint64_align2 cmp_uint64_unaligned
 #define cmp_uint32_align2_unchecked cmp_uint32_unaligned_unchecked
 #define cmp_uint64_align2_unchecked cmp_uint64_unaligned_unchecked
 #endif /* !MDBX_UNALIGNED_OK || debug */
