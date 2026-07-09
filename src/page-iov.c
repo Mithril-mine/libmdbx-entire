@@ -145,7 +145,7 @@ int iov_page(MDBX_txn *txn, iov_ctx_t *ctx, page_t *dp, size_t npages) {
   MDBX_env *const env = txn->env;
   tASSERT(txn, ctx->err == MDBX_SUCCESS);
   tASSERT(txn, dp->pgno >= MIN_PAGENO && dp->pgno < txn->geo.first_unallocated);
-  tASSERT(txn, is_modifable(txn, dp));
+  tASSERT(txn, is_modifiable(txn, dp));
   tASSERT(txn, !(dp->flags & ~(P_BRANCH | P_LEAF | P_DUPFIX | P_LARGE)));
 
   if (is_shadowed(txn, dp)) {

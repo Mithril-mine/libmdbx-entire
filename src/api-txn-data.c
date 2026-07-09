@@ -191,7 +191,7 @@ int mdbx_is_dirty(const MDBX_txn *txn, const void *ptr) {
          * not to the beginning of a data. */
         return LOG_IFERR(MDBX_EINVAL);
       }
-      return ((txn->flags & MDBX_TXN_RDONLY) || !is_modifable(txn, page)) ? MDBX_RESULT_FALSE : MDBX_RESULT_TRUE;
+      return ((txn->flags & MDBX_TXN_RDONLY) || !is_modifiable(txn, page)) ? MDBX_RESULT_FALSE : MDBX_RESULT_TRUE;
     }
     if ((size_t)offset < env->dxb_mmap.limit) {
       /* Указатель адресует что-то в пределах mmap, но за границей
@@ -410,7 +410,7 @@ int mdbx_replace_ex(MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *key, MDBX_val *
         }
       }
 
-      if (is_modifable(txn, page)) {
+      if (is_modifiable(txn, page)) {
         if (new_data && cmp_lenfast(&present_data, new_data) == 0) {
           /* если данные совпадают, то ничего делать не надо */
           *old_data = *new_data;

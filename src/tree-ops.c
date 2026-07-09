@@ -1,6 +1,5 @@
 /// \copyright SPDX-License-Identifier: Apache-2.0
-/// \note Please refer to the COPYRIGHT file for explanations license change,
-/// credits and acknowledgments.
+/// \note Please refer to the COPYRIGHT file for explanation of license change, credits and acknowledgments.
 /// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 
 #include "internals.h"
@@ -306,7 +305,7 @@ static int node_move(MDBX_cursor *csrc, MDBX_cursor *cdst, bool fromleft) {
     const size_t dbi = cursor_dbi(csrc);
     cASSERT(csrc, csrc->top == cdst->top);
     if (fromleft) {
-      /* Перемещаем с левой страницы нв правую, нужно сдвинуть ki на +1 */
+      /* Перемещаем с левой страницы на правую, нужно сдвинуть ki на +1 */
       for (m2 = csrc->txn->cursors[dbi]; m2; m2 = m2->next) {
         m3 = (csrc->flags & z_inner) ? &m2->subcur->cursor : m2;
         if (!is_related(csrc, m3))
@@ -692,7 +691,7 @@ int tree_rebalance(MDBX_cursor *mc) {
   DEBUG("rebalancing %s page %" PRIaPGNO " (has %zu keys, fill %u.%u%%, used %zu, room %zu bytes)",
         is_leaf(tp) ? "leaf" : "branch", tp->pgno, numkeys, page_fill_percentum_x10(mc->txn->env, tp) / 10,
         page_fill_percentum_x10(mc->txn->env, tp) % 10, page_used(mc->txn->env, tp), room);
-  cASSERT(mc, is_modifable(mc->txn, tp));
+  cASSERT(mc, is_modifiable(mc->txn, tp));
 
   if (unlikely(numkeys < minkeys)) {
     DEBUG("page %" PRIaPGNO " must be merged due keys < %zu threshold", tp->pgno, minkeys);
@@ -809,7 +808,7 @@ int tree_rebalance(MDBX_cursor *mc) {
   bool involve = !(left && right);
 retry:
   cASSERT(mc, mc->top > 0);
-  if (left_room > room_threshold && left_room >= right_room && (is_modifable(mc->txn, left) || involve)) {
+  if (left_room > room_threshold && left_room >= right_room && (is_modifiable(mc->txn, left) || involve)) {
     /* try merge with left */
     cASSERT(mc, left_nkeys >= minkeys);
     mn->pg[mn->top] = left;
@@ -829,7 +828,7 @@ retry:
       return rc;
     }
   }
-  if (right_room > room_threshold && (is_modifable(mc->txn, right) || involve)) {
+  if (right_room > room_threshold && (is_modifiable(mc->txn, right) || involve)) {
     /* try merge with right */
     cASSERT(mc, right_nkeys >= minkeys);
     mn->pg[mn->top] = right;
@@ -848,7 +847,7 @@ retry:
   }
 
   if (left_nkeys > minkeys && (right_nkeys <= left_nkeys || right_room >= left_room) &&
-      (is_modifable(mc->txn, left) || involve)) {
+      (is_modifiable(mc->txn, left) || involve)) {
     /* try move from left */
     mn->pg[mn->top] = left;
     mn->ki[mn->top - 1] = (indx_t)(ki_pre_top - 1);
@@ -864,7 +863,7 @@ retry:
       return rc;
     }
   }
-  if (right_nkeys > minkeys && (is_modifable(mc->txn, right) || involve)) {
+  if (right_nkeys > minkeys && (is_modifiable(mc->txn, right) || involve)) {
     /* try move from right */
     mn->pg[mn->top] = right;
     mn->ki[mn->top - 1] = (indx_t)(ki_pre_top + 1);

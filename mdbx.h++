@@ -1194,7 +1194,6 @@ struct default_capacity_policy {
 
   static MDBX_CXX11_CONSTEXPR size_t round(const size_t value) {
     static_assert((pettiness_threshold & (pettiness_threshold - 1)) == 0, "pettiness_threshold must be a power of 2");
-    static_assert(pettiness_threshold % 2 == 0, "pettiness_threshold must be even");
     static_assert(pettiness_threshold >= sizeof(uint64_t), "pettiness_threshold must be > 7");
     constexpr const auto pettiness_mask = ~size_t(pettiness_threshold - 1);
     return (value + pettiness_threshold - 1) & pettiness_mask;
@@ -2935,11 +2934,11 @@ template <typename ALLOCATOR, typename CAPACITY_POLICY> struct buffer_pair_spec 
   buffer_pair_spec(const pair &pair, bool make_reference, const allocator_type &allocator = allocator_type())
       : buffer_pair_spec(pair.key, pair.value, make_reference, allocator) {}
 
-  buffer_pair_spec(const txn &txn, const slice &key, const slice &value,
+  buffer_pair_spec(const txn &transaction, const slice &key, const slice &value,
                    const allocator_type &allocator = allocator_type())
-      : key(txn, key, allocator), value(txn, value, allocator) {}
-  buffer_pair_spec(const txn &txn, const pair &pair, const allocator_type &allocator = allocator_type())
-      : buffer_pair_spec(txn, pair.key, pair.value, allocator) {}
+      : key(transaction, key, allocator), value(transaction, value, allocator) {}
+  buffer_pair_spec(const txn &transaction, const pair &pair, const allocator_type &allocator = allocator_type())
+      : buffer_pair_spec(transaction, pair.key, pair.value, allocator) {}
 
   buffer_pair_spec(buffer_type &&key, buffer_type &&value) noexcept(buffer_type::move_assign_alloc::is_nothrow())
       : key(::std::move(key)), value(::std::move(value)) {}
@@ -4755,10 +4754,11 @@ MDBX_CXX11_CONSTEXPR const build_info &get_build() noexcept { return ::mdbx_buil
 static MDBX_CXX17_CONSTEXPR size_t strlen(const char *c_str) noexcept {
 #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
   if (::std::is_constant_evaluated()) {
-    for (size_t i = 0; c_str; ++i)
-      if (!c_str[i])
-        return i;
-    return 0;
+    size_t i = 0;
+    if (c_str)
+      while (c_str[i])
+        ++i;
+    return i;
   }
 #endif /* __cpp_lib_is_constant_evaluated >= 201811 */
 #if defined(__cpp_lib_string_view) && __cpp_lib_string_view >= 201606L
@@ -5116,7 +5116,7 @@ MDBX_CXX14_CONSTEXPR slice slice::safe_tail(size_t n) const {
 MDBX_CXX14_CONSTEXPR slice slice::safe_middle(size_t from, size_t n) const {
   if (MDBX_UNLIKELY(n > max_length))
     MDBX_CXX20_UNLIKELY throw_max_length_exceeded();
-  if (MDBX_UNLIKELY(from + n > size()))
+  if (MDBX_UNLIKELY(from + n /* no overflow possible here, since size() < max_length */ > size()))
     MDBX_CXX20_UNLIKELY throw_out_range();
   return middle(from, n);
 }

@@ -143,8 +143,8 @@ __cold pgr_t __must_check_result page_unspill(MDBX_txn *const txn, const page_t 
   return ret;
 }
 
-__hot int page_touch_modifable(MDBX_txn *txn, const page_t *const mp) {
-  tASSERT(txn, is_modifable(txn, mp) && txn->tw.dirtylist);
+__hot int page_touch_modifiable(MDBX_txn *txn, const page_t *const mp) {
+  tASSERT(txn, is_modifiable(txn, mp) && txn->tw.dirtylist);
   tASSERT(txn, !is_largepage(mp) && !is_subpage(mp));
   tASSERT(txn, (txn->flags & MDBX_WRITEMAP) == 0 || MDBX_AVOID_MSYNC);
 
@@ -168,8 +168,8 @@ __hot int page_touch_modifable(MDBX_txn *txn, const page_t *const mp) {
   return MDBX_SUCCESS;
 }
 
-__hot int page_touch_unmodifable(MDBX_txn *txn, MDBX_cursor *mc, const page_t *const mp) {
-  tASSERT(txn, !is_modifable(txn, mp) && !is_largepage(mp));
+__hot int page_touch_unmodifiable(MDBX_txn *txn, MDBX_cursor *mc, const page_t *const mp) {
+  tASSERT(txn, !is_modifiable(txn, mp) && !is_largepage(mp));
   if (is_subpage(mp)) {
     ((page_t *)mp)->txnid = txn->front_txnid;
     return MDBX_SUCCESS;
@@ -195,6 +195,7 @@ __hot int page_touch_unmodifable(MDBX_txn *txn, MDBX_cursor *mc, const page_t *c
     /* Update the parent page, if any, to point to the new page */
     if (likely(mc->top)) {
       page_t *parent = mc->pg[mc->top - 1];
+      cASSERT(mc, is_modifiable(mc->txn, parent));
       node_t *node = page_node(parent, mc->ki[mc->top - 1]);
       node_set_pgno(node, pgno);
     } else {
@@ -348,17 +349,21 @@ __cold static void page_kill(MDBX_txn *txn, page_t *mp, pgno_t pgno, size_t npag
       osal_pwrite(env->lazy_fd, mp, bytes, pgno2bytes(env, pgno));
   } else {
     struct iovec iov[MDBX_AUXILARY_IOV_MAX];
+    /* Using the same pattern/buffer to write each page of npages. */
     iov[0].iov_len = env->ps;
     iov[0].iov_base = ptr_disp(env->page_auxbuf, env->ps);
     size_t iov_off = pgno2bytes(env, pgno), n = 1;
     while (--npages) {
+      /* clone first iov item and overwrite itself on a next batch-cycle */
       iov[n] = iov[0];
       if (++n == MDBX_AUXILARY_IOV_MAX) {
         osal_pwritev(env->lazy_fd, iov, MDBX_AUXILARY_IOV_MAX, iov_off);
+        /* advance offset to next batch-cycle and reset the n as counter of iov-items */
         iov_off += pgno2bytes(env, MDBX_AUXILARY_IOV_MAX);
         n = 0;
       }
     }
+    /* osal_pwritev() accepts n = 0 */
     osal_pwritev(env->lazy_fd, iov, n, iov_off);
   }
 }
@@ -402,7 +407,7 @@ int page_retire_ex(MDBX_cursor *mc, const pgno_t pgno, page_t *mp /* maybe null 
    *  So for flexibility and avoid extra internal dependencies we just
    *  fallback to reading if dirty list was not allocated yet. */
   size_t di = 0, si = 0, npages = 1;
-  enum page_status { unknown, frozen, spilled, shadowed, modifable } status = unknown;
+  enum page_status { unknown, frozen, spilled, shadowed, modifiable } status = unknown;
 
   if (unlikely(!mp)) {
     if (ASSERT_ENABLED() && pageflags) {
@@ -425,8 +430,8 @@ int page_retire_ex(MDBX_cursor *mc, const pgno_t pgno, page_t *mp /* maybe null 
     } else if (pageflags && txn->tw.dirtylist) {
       if ((di = dpl_exist(txn, pgno)) != 0) {
         mp = txn->tw.dirtylist->items[di].ptr;
-        tASSERT(txn, is_modifable(txn, mp));
-        status = modifable;
+        tASSERT(txn, is_modifiable(txn, mp));
+        status = modifiable;
         goto status_done;
       }
       if ((si = spill_search(txn, pgno)) != 0) {
@@ -457,13 +462,13 @@ int page_retire_ex(MDBX_cursor *mc, const pgno_t pgno, page_t *mp /* maybe null 
 
   if (is_frozen(txn, mp)) {
     status = frozen;
-    tASSERT(txn, !is_modifable(txn, mp));
+    tASSERT(txn, !is_modifiable(txn, mp));
     tASSERT(txn, !is_spilled(txn, mp));
     tASSERT(txn, !is_shadowed(txn, mp));
     tASSERT(txn, !debug_dpl_find(txn, pgno));
     tASSERT(txn, !txn->tw.spilled.list || !spill_search(txn, pgno));
-  } else if (is_modifable(txn, mp)) {
-    status = modifable;
+  } else if (is_modifiable(txn, mp)) {
+    status = modifiable;
     if (txn->tw.dirtylist)
       di = dpl_exist(txn, pgno);
     tASSERT(txn, (txn->flags & MDBX_WRITEMAP) || !is_spilled(txn, mp));
@@ -514,7 +519,7 @@ status_done:
    * нераспределенного "хвоста" БД сдвигается только при их коммите. */
   if (MDBX_ENABLE_REFUND && unlikely(pgno + npages == txn->geo.first_unallocated)) {
     const char *kind = nullptr;
-    if (status == modifable) {
+    if (status == modifiable) {
       /* Страница испачкана в этой транзакции, но до этого могла быть
        * аллоцирована, испачкана и пролита в одной из родительских транзакций.
        * Её МОЖНО вытолкнуть в нераспределенный хвост. */
@@ -557,7 +562,7 @@ status_done:
     return MDBX_SUCCESS;
   }
 
-  if (status == modifable) {
+  if (status == modifiable) {
     /* Dirty page from this transaction */
     /* If suitable we can reuse it through loose list */
     if (likely(npages == 1 && suitable4loose(txn, pgno)) && (di || !txn->tw.dirtylist)) {
@@ -615,7 +620,7 @@ status_done:
   }
 
   if (si) {
-    /* Page ws spilled in this txn */
+    /* Page was spilled in this txn */
     spill_remove(txn, si, npages);
     /* Страница могла быть выделена и затем пролита в этой транзакции,
      * тогда её необходимо поместить в reclaimed-список.

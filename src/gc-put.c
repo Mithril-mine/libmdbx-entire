@@ -90,7 +90,7 @@ static int prepare_backlog(MDBX_txn *txn, gcu_t *ctx) {
   const size_t enough_after_touch = for_all_after_touch + ctx->backlog_adj;
 
   if (likely(for_repnl < 2 && backlog_size(txn) > enough_before_touch) &&
-      (ctx->cursor.top < 0 || is_modifable(txn, ctx->cursor.pg[ctx->cursor.top])))
+      (ctx->cursor.top < 0 || is_modifiable(txn, ctx->cursor.pg[ctx->cursor.top])))
     return MDBX_SUCCESS;
 
   TRACE(">> retired-stored %zu, left %zi, backlog %zu, adj %zu, need %zu (4list %zu, "
@@ -189,7 +189,7 @@ static int gcu_loose(MDBX_txn *txn, gcu_t *ctx) {
     size_t w = 0, sorted_out = 0;
     for (size_t r = w; ++r <= dl->length;) {
       page_t *dp = dl->items[r].ptr;
-      tASSERT(txn, dp->flags == P_LOOSE || is_modifable(txn, dp));
+      tASSERT(txn, dp->flags == P_LOOSE || is_modifiable(txn, dp));
       tASSERT(txn, dpl_endpgno(dl, r) <= txn->geo.first_unallocated);
       if ((dp->flags & P_LOOSE) == 0) {
         if (++w != r)
@@ -544,7 +544,7 @@ retry:
   tASSERT(txn, pnl_check_allocated(txn->tw.repnl, txn->geo.first_unallocated - MDBX_ENABLE_REFUND));
   tASSERT(txn, dpl_check(txn));
   if (unlikely(/* paranoia */ ctx->loop > ((MDBX_DEBUG > 0) ? 12 : 42))) {
-    ERROR("txn #%" PRIaTXN " too more loops %u, bailout", txn->txnid, ctx->loop);
+    ERROR("txn #%" PRIaTXN " too many loops %u, bailout", txn->txnid, ctx->loop);
     rc = MDBX_PROBLEM;
     goto bailout;
   }

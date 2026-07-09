@@ -1,6 +1,5 @@
 /// \copyright SPDX-License-Identifier: Apache-2.0
-/// \note Please refer to the COPYRIGHT file for explanations license change,
-/// credits and acknowledgments.
+/// \note Please refer to the COPYRIGHT file for explanation of license change, credits and acknowledgments.
 /// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 ///
 /// mdbx_dump.c - memory-mapped database dump tool
@@ -283,7 +282,6 @@ int main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     case 'l':
       list = true;
-      /*FALLTHROUGH*/;
       __fallthrough;
     case 'a':
       if (subname)
@@ -493,6 +491,7 @@ int main(int argc, char *argv[]) {
   switch (err) {
   case MDBX_NOTFOUND:
     err = MDBX_SUCCESS;
+    __fallthrough;
   case MDBX_SUCCESS:
     break;
   case MDBX_EINTR:

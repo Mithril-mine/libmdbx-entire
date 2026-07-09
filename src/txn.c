@@ -4,7 +4,7 @@
 #include "internals.h"
 
 __hot txnid_t txn_snapshot_oldest(const MDBX_txn *const txn) {
-  return mvcc_shapshot_oldest(txn->env, txn->tw.troika.txnid[txn->tw.troika.prefer_steady]);
+  return mvcc_snapshot_oldest(txn->env, txn->tw.troika.txnid[txn->tw.troika.prefer_steady]);
 }
 
 void txn_done_cursors(MDBX_txn *txn, const bool merge) {
@@ -959,7 +959,7 @@ int txn_end(MDBX_txn *txn, unsigned mode) {
 
       if (parent->geo.upper != txn->geo.upper || parent->geo.now != txn->geo.now) {
         /* undo resize performed by child txn */
-        rc = dxb_resize(env, parent->geo.first_unallocated, parent->geo.now, parent->geo.upper, impilict_shrink);
+        rc = dxb_resize(env, parent->geo.first_unallocated, parent->geo.now, parent->geo.upper, implicit_shrink);
         if (rc == MDBX_EPERM) {
           /* unable undo resize (it is regular for Windows),
            * therefore promote size changes from child to the parent txn */

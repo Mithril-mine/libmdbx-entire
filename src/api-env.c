@@ -42,7 +42,7 @@ __cold static int check_alternative_lck_absent(const pathchar_t *lck_pathname) {
   int err = osal_fileexists(lck_pathname);
   if (unlikely(err != MDBX_RESULT_FALSE)) {
     if (err == MDBX_RESULT_TRUE)
-      err = MDBX_DUPLICATED_CLK;
+      err = MDBX_DUPLICATED_LCK;
     ERROR("Alternative/Duplicate LCK-file '%" MDBX_PRIsPATH "' error %d", lck_pathname, err);
   }
   return err;
@@ -378,16 +378,16 @@ __cold int mdbx_env_deleteW(const wchar_t *pathname, MDBX_env_delete_mode_t mode
   STATIC_ASSERT(sizeof(dummy_env->flags) == sizeof(MDBX_env_flags_t));
   int rc = MDBX_RESULT_TRUE, err = env_handle_pathname(dummy_env, pathname, 0);
   if (likely(err == MDBX_SUCCESS)) {
-    mdbx_filehandle_t clk_handle = INVALID_HANDLE_VALUE, dxb_handle = INVALID_HANDLE_VALUE;
+    mdbx_filehandle_t lck_handle = INVALID_HANDLE_VALUE, dxb_handle = INVALID_HANDLE_VALUE;
     if (mode > MDBX_ENV_JUST_DELETE) {
       err = osal_openfile(MDBX_OPEN_DELETE, dummy_env, dummy_env->pathname.dxb, &dxb_handle, 0);
       err = (err == MDBX_ENOFILE) ? MDBX_SUCCESS : err;
       if (err == MDBX_SUCCESS) {
-        err = osal_openfile(MDBX_OPEN_DELETE, dummy_env, dummy_env->pathname.lck, &clk_handle, 0);
+        err = osal_openfile(MDBX_OPEN_DELETE, dummy_env, dummy_env->pathname.lck, &lck_handle, 0);
         err = (err == MDBX_ENOFILE) ? MDBX_SUCCESS : err;
       }
-      if (err == MDBX_SUCCESS && clk_handle != INVALID_HANDLE_VALUE)
-        err = osal_lockfile(clk_handle, mode == MDBX_ENV_WAIT_FOR_UNUSED);
+      if (err == MDBX_SUCCESS && lck_handle != INVALID_HANDLE_VALUE)
+        err = osal_lockfile(lck_handle, mode == MDBX_ENV_WAIT_FOR_UNUSED);
       if (err == MDBX_SUCCESS && dxb_handle != INVALID_HANDLE_VALUE)
         err = osal_lockfile(dxb_handle, mode == MDBX_ENV_WAIT_FOR_UNUSED);
     }
@@ -420,8 +420,8 @@ __cold int mdbx_env_deleteW(const wchar_t *pathname, MDBX_env_delete_mode_t mode
 
     if (dxb_handle != INVALID_HANDLE_VALUE)
       osal_closefile(dxb_handle);
-    if (clk_handle != INVALID_HANDLE_VALUE)
-      osal_closefile(clk_handle);
+    if (lck_handle != INVALID_HANDLE_VALUE)
+      osal_closefile(lck_handle);
   } else if (err == MDBX_ENOFILE)
     err = MDBX_SUCCESS;
 

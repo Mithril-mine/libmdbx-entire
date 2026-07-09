@@ -416,7 +416,7 @@ __cold void error::throw_exception() const {
     CASE_EXCEPTION(thread_mismatch, MDBX_THREAD_MISMATCH);
     CASE_EXCEPTION(transaction_full, MDBX_TXN_FULL);
     CASE_EXCEPTION(transaction_overlapping, MDBX_TXN_OVERLAPPING);
-    CASE_EXCEPTION(duplicated_lck_file, MDBX_DUPLICATED_CLK);
+    CASE_EXCEPTION(duplicated_lck_file, MDBX_DUPLICATED_LCK);
     CASE_EXCEPTION(dangling_map_id, MDBX_DANGLING_DBI);
     CASE_EXCEPTION(transaction_ousted, MDBX_OUSTED);
     CASE_EXCEPTION(mvcc_retarded, MDBX_MVCC_RETARDED);
@@ -604,7 +604,7 @@ MDBX_I128_TYPE slice::as_int128_adapt() const {
 int64_t slice::as_int64_adapt() const {
   static_assert(sizeof(int64_t) == 8, "WTF?");
   if (size() == 8) {
-    uint64_t r;
+    int64_t r;
     memcpy(&r, data(), sizeof(r));
     return r;
   } else

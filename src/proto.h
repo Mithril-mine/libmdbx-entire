@@ -16,7 +16,7 @@ MDBX_INTERNAL int audit_ex(MDBX_txn *txn, size_t retired_stored, bool dont_filte
 /* mvcc-readers.c */
 MDBX_INTERNAL bsr_t mvcc_bind_slot(MDBX_env *env);
 MDBX_MAYBE_UNUSED MDBX_INTERNAL pgno_t mvcc_largest_this(MDBX_env *env, pgno_t largest);
-MDBX_INTERNAL txnid_t mvcc_shapshot_oldest(MDBX_env *const env, const txnid_t steady);
+MDBX_INTERNAL txnid_t mvcc_snapshot_oldest(MDBX_env *const env, const txnid_t steady);
 MDBX_INTERNAL pgno_t mvcc_snapshot_largest(const MDBX_env *env, pgno_t last_used_page);
 MDBX_INTERNAL txnid_t mvcc_kick_laggards(MDBX_env *env, const txnid_t straggler);
 MDBX_INTERNAL int mvcc_cleanup_dead(MDBX_env *env, int rlocked, int *dead);
@@ -26,7 +26,7 @@ MDBX_INTERNAL txnid_t mvcc_kick_laggards(MDBX_env *env, const txnid_t laggard);
 MDBX_INTERNAL int dxb_setup(MDBX_env *env, const int lck_rc, const mdbx_mode_t mode_bits);
 MDBX_INTERNAL int __must_check_result dxb_read_header(MDBX_env *env, meta_t *meta, const int lck_exclusive,
                                                       const mdbx_mode_t mode_bits);
-enum resize_mode { implicit_grow, impilict_shrink, explicit_resize };
+enum resize_mode { implicit_grow, implicit_shrink, explicit_resize };
 MDBX_INTERNAL int __must_check_result dxb_resize(MDBX_env *const env, const pgno_t used_pgno, const pgno_t size_pgno,
                                                  pgno_t limit_pgno, const enum resize_mode mode);
 MDBX_INTERNAL int dxb_set_readahead(const MDBX_env *env, const pgno_t edge, const bool enable, const bool force_whole);

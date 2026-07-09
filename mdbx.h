@@ -1703,7 +1703,7 @@ typedef enum MDBX_copy_flags {
   MDBX_CP_DISPOSE_TXN = 16u,
 
   /** Enable renew/restart read transaction in case it use outdated
-   * MVCC shapshot, otherwise the \ref MDBX_MVCC_RETARDED will be returned
+   * MVCC snapshot, otherwise the \ref MDBX_MVCC_RETARDED will be returned
    * \see mdbx_txn_copy2fd() \see mdbx_txn_copy2pathname() */
   MDBX_CP_RENEW_TXN = 32u
 
@@ -1977,7 +1977,7 @@ typedef enum MDBX_error {
   MDBX_BACKLOG_DEPLETED = -30414,
 
   /** Alternative/Duplicate LCK-file is exists and should be removed manually */
-  MDBX_DUPLICATED_CLK = -30413,
+  MDBX_DUPLICATED_LCK = -30413,
 
   /** Some cursors and/or other resources should be closed before table or
    *  corresponding DBI-handle could be (re)used and/or closed. */
@@ -4799,7 +4799,7 @@ LIBMDBX_INLINE_API(int, mdbx_dbi_flags, (const MDBX_txn *txn, MDBX_dbi dbi, unsi
  * any transaction(s) running by other thread(s).
  * So the `mdbx_dbi_close()` MUST NOT be called in-parallel/concurrently
  * with any transactions using the closing dbi-handle, nor during other thread
- * commit/abort a write transacton(s). The "next" version of libmdbx (\ref
+ * commit/abort a write transaction(s). The "next" version of libmdbx (\ref
  * MithrilDB) will solve this issue.
  *
  * Handles should only be closed if no other threads are going to reference

@@ -73,7 +73,7 @@ static size_t spill_cursor_keep(const MDBX_txn *const txn, const MDBX_cursor *mc
     do {
       mp = mc->pg[i];
       tASSERT(txn, !is_subpage(mp));
-      if (is_modifable(txn, mp)) {
+      if (is_modifiable(txn, mp)) {
         size_t const n = dpl_search(txn, mp->pgno);
         if (txn->tw.dirtylist->items[n].pgno == mp->pgno &&
             /* не считаем дважды */ dpl_age(txn, n)) {

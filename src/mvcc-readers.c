@@ -71,7 +71,7 @@ bsr_t mvcc_bind_slot(MDBX_env *env) {
   return result;
 }
 
-__hot txnid_t mvcc_shapshot_oldest(MDBX_env *const env, const txnid_t steady) {
+__hot txnid_t mvcc_snapshot_oldest(MDBX_env *const env, const txnid_t steady) {
   const uint32_t nothing_changed = MDBX_STRING_TETRAD("None");
   eASSERT(env, steady <= env->basal_txn->txnid);
 
@@ -310,7 +310,7 @@ __cold txnid_t mvcc_kick_laggards(MDBX_env *env, const txnid_t straggler) {
   do {
     const txnid_t steady = env->txn->tw.troika.txnid[env->txn->tw.troika.prefer_steady];
     env->lck->rdt_refresh_flag.weak = /* force refresh */ true;
-    oldest = mvcc_shapshot_oldest(env, steady);
+    oldest = mvcc_snapshot_oldest(env, steady);
     eASSERT(env, oldest < env->basal_txn->txnid);
     eASSERT(env, oldest >= straggler);
     eASSERT(env, oldest >= env->lck->cached_oldest.weak);

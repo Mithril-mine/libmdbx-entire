@@ -171,7 +171,7 @@ __extern_C void __assert_rtn(const char *function, const char *file, int line, c
 
 #define __assert_fail(assertion, file, line, function) __assert_rtn(function, file, line, assertion)
 #elif defined(__sun) || defined(__SVR4) || defined(__svr4__)
-MDBX_NORETURN __extern_C void __assert_c99(const char *assection, const char *file, int line, const char *function);
+MDBX_NORETURN __extern_C void __assert_c99(const char *assertion, const char *file, int line, const char *function);
 #define __assert_fail(assertion, file, line, function) __assert_c99(assertion, file, line, function)
 #elif defined(__OpenBSD__)
 __extern_C __dead void __assert2(const char *file, int line, const char *function,
@@ -1988,13 +1988,12 @@ int osal_check_fs_local(mdbx_filehandle_t handle, int flags) {
     {
       struct stat mnt;
       if (!stat(ent->mnt_dir, &mnt) && mnt.st_dev == st.st_dev) {
+        name = ent->mnt_fsname;
         if (should_copy) {
-          name = strncpy(pathbuf, ent->mnt_fsname, name_len = sizeof(pathbuf) - 1);
-          pathbuf[name_len] = 0;
-        } else {
-          name = ent->mnt_fsname;
-          name_len = strlen(name);
+          name = strncpy(pathbuf, ent->mnt_fsname, sizeof(pathbuf) - 1);
+          pathbuf[sizeof(pathbuf) - 1] = 0;
         }
+        name_len = strlen(name);
         break;
       }
     }
@@ -2681,7 +2680,7 @@ __cold void osal_jitter(bool tiny) {
 static LARGE_INTEGER performance_frequency;
 #elif defined(__APPLE__) || defined(__MACH__)
 #include <mach/mach_time.h>
-static uint64_t ratio_16dot16_to_monotine;
+static uint64_t ratio_16dot16_to_monotonic;
 #elif defined(__linux__) || defined(__gnu_linux__)
 static clockid_t posix_clockid;
 __cold static clockid_t choice_monoclock(void) {
@@ -2708,7 +2707,7 @@ uint64_t osal_16dot16_to_monotime(uint32_t seconds_16dot16) {
 #if defined(_WIN32) || defined(_WIN64)
   const uint64_t ratio = performance_frequency.QuadPart;
 #elif defined(__APPLE__) || defined(__MACH__)
-  const uint64_t ratio = ratio_16dot16_to_monotine;
+  const uint64_t ratio = ratio_16dot16_to_monotonic;
 #else
   const uint64_t ratio = UINT64_C(1000000000);
 #endif
@@ -2725,7 +2724,7 @@ uint32_t osal_monotime_to_16dot16(uint64_t monotime) {
 #if defined(_WIN32) || defined(_WIN64)
       (uint32_t)((monotime << 16) / performance_frequency.QuadPart);
 #elif defined(__APPLE__) || defined(__MACH__)
-      (uint32_t)((monotime << 16) / ratio_16dot16_to_monotine);
+      (uint32_t)((monotime << 16) / ratio_16dot16_to_monotonic);
 #else
       (uint32_t)((monotime << 7) / 1953125);
 #endif
@@ -3097,7 +3096,7 @@ __cold static bin128_t osal_bootid(void) {
     }
 
     /* BootTime from SYSTEM_TIMEOFDAY_INFORMATION */
-    NTSTATUS status = NtQuerySystemInformation(0x03 /* SystemTmeOfDayInformation */, &buf.SysTimeOfDayInfo,
+    NTSTATUS status = NtQuerySystemInformation(0x03 /* SystemTimeOfDayInformation */, &buf.SysTimeOfDayInfo,
                                                sizeof(buf.SysTimeOfDayInfo), &len);
     if (NT_SUCCESS(status) &&
         len >= offsetof(union buf, SysTimeOfDayInfoHacked.BootTimeBias) +
@@ -3525,7 +3524,7 @@ void osal_ctor(void) {
 #elif defined(__APPLE__) || defined(__MACH__)
   mach_timebase_info_data_t ti;
   mach_timebase_info(&ti);
-  ratio_16dot16_to_monotine = UINT64_C(1000000000) * ti.denom / ti.numer;
+  ratio_16dot16_to_monotonic = UINT64_C(1000000000) * ti.denom / ti.numer;
 #endif
   monotime_limit = osal_16dot16_to_monotime(UINT32_MAX - 1);
 

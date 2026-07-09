@@ -1,6 +1,5 @@
 /// \copyright SPDX-License-Identifier: Apache-2.0
-/// \note Please refer to the COPYRIGHT file for explanations license change,
-/// credits and acknowledgments.
+/// \note Please refer to the COPYRIGHT file for explanation of license change, credits and acknowledgments.
 /// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 
 #include "internals.h"
@@ -252,7 +251,7 @@ node_t *node_shrink(page_t *mp, size_t indx, node_t *node) {
 
   /* Prepare to shift upward, set len = length(subpage part to shift) */
   size_t nsize = node_ds(node) - delta, len = nsize;
-  assert(nsize % 1 == 0);
+  assert(nsize % 2 == 0);
   if (!is_dupfix_leaf(sp)) {
     len = PAGEHDRSZ;
     page_t *xp = ptr_disp(sp, delta); /* destination subpage */

@@ -1,6 +1,5 @@
 /// \copyright SPDX-License-Identifier: Apache-2.0
-/// \note Please refer to the COPYRIGHT file for explanations license change,
-/// credits and acknowledgments.
+/// \note Please refer to the COPYRIGHT file for explanation of license change, credits and acknowledgments.
 /// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 ///
 /// mdbx_stat.c - memory-mapped database status tool
@@ -292,7 +291,7 @@ int main(int argc, char *argv[]) {
     printf("  Latter reader transaction ID: %" PRIu64 " (%" PRIi64 ")\n", mei.mi_latter_reader_txnid,
            mei.mi_latter_reader_txnid - mei.mi_recent_txnid);
     printf("  Max readers: %u\n", mei.mi_maxreaders);
-    printf("  Number of reader slots uses: %u\n", mei.mi_numreaders);
+    printf("  Number of reader slots in use: %u\n", mei.mi_numreaders);
   }
 
   if (rdrinfo) {

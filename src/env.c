@@ -168,9 +168,8 @@ retry:;
   eASSERT(env, !txn_owned || (flags & txn_shrink_allowed) == 0);
 
   if (!head.is_steady && unlikely(env->stuck_meta >= 0) && troika.recent != (uint8_t)env->stuck_meta) {
-    NOTICE("skip %s since wagering meta-page (%u) is mispatch the recent "
-           "meta-page (%u)",
-           "sync datafile", env->stuck_meta, troika.recent);
+    NOTICE("skip %s since wagering meta-page (%u) is mismatch the recent meta-page (%u)", "sync datafile",
+           env->stuck_meta, troika.recent);
     rc = MDBX_RESULT_TRUE;
     goto bailout;
   }

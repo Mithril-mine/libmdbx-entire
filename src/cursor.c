@@ -1,6 +1,5 @@
 /// \copyright SPDX-License-Identifier: Apache-2.0
-/// \note Please refer to the COPYRIGHT file for explanations license change,
-/// credits and acknowledgments.
+/// \note Please refer to the COPYRIGHT file for explanation of license change, credits and acknowledgments.
 /// \author Леонид Юрьев aka Leonid Yuriev <leo@yuriev.ru> \date 2015-2026
 
 #include "internals.h"
@@ -168,7 +167,7 @@ __hot int cursor_touch(MDBX_cursor *const mc, const MDBX_val *key, const MDBX_va
       return err;
   }
 
-  if (likely(is_pointed(mc)) && ((mc->txn->flags & MDBX_TXN_SPILLS) || !is_modifable(mc->txn, mc->pg[mc->top]))) {
+  if (likely(is_pointed(mc)) && ((mc->txn->flags & MDBX_TXN_SPILLS) || !is_modifiable(mc->txn, mc->pg[mc->top]))) {
     const int8_t top = mc->top;
     mc->top = 0;
     do {
@@ -979,7 +978,7 @@ __hot int cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data, unsig
           (mc->tree == &mc->txn->dbs[FREE_DBI]) ? 1 : /* LY: add configurable threshold to keep reserve space */ 0;
       if (!is_frozen(mc->txn, lp.page) && ovpages >= dpages && ovpages <= dpages + extra_threshold) {
         /* yes, overwrite it. */
-        if (!is_modifable(mc->txn, lp.page)) {
+        if (!is_modifiable(mc->txn, lp.page)) {
           if (is_spilled(mc->txn, lp.page)) {
             lp = /* TODO: avoid search and get txn & spill-index from
                      page_result */
@@ -1052,6 +1051,8 @@ __hot int cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data, unsig
               return MDBX_EKEYMISMATCH;
           } else if (eq_fast(data, &old_data)) {
             cASSERT(mc, mc->clc->v.cmp(data, &old_data) == 0);
+            cASSERT(mc, !"Should not happen since equal data should have been handled by batch dupfix" ||
+                           batch_dupfix_done);
             if (flags & MDBX_NODUPDATA)
               return MDBX_KEYEXIST;
             /* data is match exactly byte-to-byte, nothing to update */
@@ -1148,10 +1149,10 @@ __hot int cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data, unsig
              *    пропорционально меньше branch-страниц. Поэтому будет выше
              *    вероятность оседания/не-вымывания страниц основного дерева из
              *    LRU-кэша, а также попадания в write-back кэш при записи.
-             *  - Наоботот, при склонности к использованию под-страниц, будут
+             *  - Наоборот, при склонности к использованию под-страниц, будут
              *    наблюдаться обратные эффекты. Плюс некоторые накладные расходы
              *    на лишнее копирование данных под-страниц в сценариях
-             *    нескольких обонвлений дубликатов одного куста в одной
+             *    нескольких обновлений дубликатов одного куста в одной
              *    транзакции.
              *
              * Суммарно наиболее рациональным представляется такая тактика:
@@ -1530,7 +1531,7 @@ __hot int cursor_del(MDBX_cursor *mc, unsigned flags) {
     return rc;
 
   page_t *mp = mc->pg[mc->top];
-  cASSERT(mc, is_modifable(mc->txn, mp));
+  cASSERT(mc, is_modifiable(mc->txn, mp));
   if (!MDBX_DISABLE_VALIDATION && unlikely(!check_leaf_type(mc, mp))) {
     ERROR("unexpected leaf-page #%" PRIaPGNO " type 0x%x seen by cursor", mp->pgno, mp->flags);
     return MDBX_CORRUPTED;
@@ -2141,6 +2142,9 @@ __hot int cursor_ops(MDBX_cursor *mc, MDBX_val *key, MDBX_val *data, const MDBX_
   case MDBX_NEXT:
   case MDBX_NEXT_NODUP:
     rc = outer_next(mc, key, data, op);
+    /* The z_eof_hard flag reflects internal intermediate state and must not be exposed to outer code after an next-ops.
+     * Elsewise a tree rebalance after deletion may going wrong. So just clear z_eof_hard flag in both cursors anyway.
+     */
     mc->flags &= ~z_eof_hard;
     ((cursor_couple_t *)mc)->inner.cursor.flags &= ~z_eof_hard;
     return rc;
@@ -2171,7 +2175,7 @@ __hot int cursor_ops(MDBX_cursor *mc, MDBX_val *key, MDBX_val *data, const MDBX_
       else
         return unexpected_dupsort(mc);
     }
-    break;
+    __unreachable();
 
   case MDBX_SET_UPPERBOUND:
   case MDBX_SET_LOWERBOUND:
