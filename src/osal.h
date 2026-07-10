@@ -483,6 +483,7 @@ enum osal_syncmode_bits {
 MDBX_INTERNAL int osal_fsync(mdbx_filehandle_t fd, const enum osal_syncmode_bits mode_bits);
 MDBX_INTERNAL int osal_fsetsize(mdbx_filehandle_t fd, const uint64_t length);
 MDBX_INTERNAL int osal_fseek(mdbx_filehandle_t fd, uint64_t pos);
+MDBX_INTERNAL int osal_fseek_shut(mdbx_filehandle_t fd, uint64_t *safe_parking_lot_offset);
 MDBX_INTERNAL int osal_filesize(mdbx_filehandle_t fd, uint64_t *length);
 
 enum osal_openfile_purpose {

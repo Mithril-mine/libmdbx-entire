@@ -297,8 +297,10 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
 
   /* Set the position in files outside of the data to avoid corruption
    * due to erroneous use of file descriptors in the application code. */
-  const uint64_t safe_parking_lot_offset = UINT64_C(0x7fffFFFF80000000);
-  osal_fseek(env->lazy_fd, safe_parking_lot_offset);
+  uint64_t safe_parking_lot_offset = UINT64_C(0x7fffFFFF80000000);
+  rc = osal_fseek_shut(env->lazy_fd, &safe_parking_lot_offset);
+  if (unlikely(rc != MDBX_SUCCESS))
+    return rc;
 
   env->fd4meta = env->lazy_fd;
 #if IS_WINDOWS
@@ -349,7 +351,9 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
                        &env->ioring.overlapped_fd, 0);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
-    osal_fseek(env->ioring.overlapped_fd, safe_parking_lot_offset);
+    rc = osal_fseek(env->ioring.overlapped_fd, safe_parking_lot_offset);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return rc;
   }
 #else
   if (mode == 0) {
@@ -367,8 +371,11 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
   const int lck_rc = lck_setup(env, mode);
   if (unlikely(MDBX_IS_ERROR(lck_rc)))
     return lck_rc;
-  if (env->lck_mmap.fd != INVALID_HANDLE_VALUE)
-    osal_fseek(env->lck_mmap.fd, safe_parking_lot_offset);
+  if (env->lck_mmap.fd != INVALID_HANDLE_VALUE) {
+    rc = osal_fseek(env->lck_mmap.fd, safe_parking_lot_offset);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return rc;
+  }
 
   eASSERT0(env, env->dsync_fd == INVALID_HANDLE_VALUE);
   if (!(env->flags & (MDBX_RDONLY | MDBX_SAFE_NOSYNC | DEPRECATED_MAPASYNC
@@ -382,7 +389,9 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
     if (env->dsync_fd != INVALID_HANDLE_VALUE) {
       if ((env->flags & MDBX_NOMETASYNC) == 0)
         env->fd4meta = env->dsync_fd;
-      osal_fseek(env->dsync_fd, safe_parking_lot_offset);
+      rc = osal_fseek(env->dsync_fd, safe_parking_lot_offset);
+      if (unlikely(rc != MDBX_SUCCESS))
+        return rc;
     }
   }
 

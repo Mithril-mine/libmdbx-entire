@@ -1656,6 +1656,31 @@ int osal_fseek(mdbx_filehandle_t fd, uint64_t pos) {
 #endif
 }
 
+int osal_fseek_shut(mdbx_filehandle_t fd, uint64_t *safe_parking_lot_offset) {
+  /* Set the position in files outside of the data to avoid corruption
+   * due to erroneous use of file descriptors in the application code. */
+  int rc = osal_fseek(fd, *safe_parking_lot_offset);
+  if (unlikely(rc == MDBX_EINVAL)) {
+    uint64_t offset = *safe_parking_lot_offset;
+    unsigned shift_min = 1, shift_max = 32;
+    while (shift_min <= shift_max) {
+      unsigned shift = (shift_min + shift_max) >> 1;
+      *safe_parking_lot_offset = offset >> shift;
+      int err = osal_fseek(fd, *safe_parking_lot_offset);
+      if (err == MDBX_SUCCESS) {
+        shift_max = shift - 1;
+        rc = err;
+      } else if (err == MDBX_EINVAL)
+        shift_min = shift + 1;
+      else {
+        rc = err;
+        break;
+      }
+    }
+  }
+  return rc;
+}
+
 /*----------------------------------------------------------------------------*/
 
 int osal_thread_create(osal_thread_t *thread, THREAD_RESULT(THREAD_CALL *start_routine)(void *), void *arg) {
