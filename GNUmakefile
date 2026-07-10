@@ -342,6 +342,7 @@ test-assertion: smoke
 test-valgrind: test-memcheck
 test-memcheck: CFLAGS_EXTRA += -Ofast -DENABLE_MEMCHECK
 test-memcheck: CMAKE_OPT += -DENABLE_MEMCHECK=ON
+test-memcheck: CTEST_OPT += -T memcheck
 test-memcheck: build-test build-stochastic
 	@echo '  RUNNING `test/stochastic.sh --with-valgrind --loops 2`...'
 	$(QUIET)test/stochastic.sh --with-valgrind --loops 2 --db-upto-mb 256 --skip-make >$(TEST_LOG) || (cat $(TEST_LOG) && false)
