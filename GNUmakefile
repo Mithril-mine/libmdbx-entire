@@ -200,6 +200,7 @@ help:
 	@echo "  make test-asan           - build with AddressSanitizer and run basic test"
 	@echo "  make test-leak           - build with LeakSanitizer and run basic test"
 	@echo "  make test-ubsan          - build with UndefinedBehaviourSanitizer and run basic test"
+	@echo "  make test-memcheck       - build with Valgrind support and run basic test under memcheck tool"
 #> dist-cutoff-begin
 	@echo ""
 	@echo "  make build-stochastic    - build framework for stochastic test"
@@ -208,7 +209,6 @@ help:
 	@echo "  make smoke-memcheck      - build with Valgrind support and run smoke test under memcheck tool"
 	@echo "  make smoke-fault         - execute transaction owner failure smoke testcase"
 	@echo "  make smoke-singleprocess - execute single-process smoke test"
-	@echo "  make test-memcheck       - build with Valgrind support and run basic test under memcheck tool"
 	@echo "  make test-long           - execute long test which runs for several weeks, or until interruption"
 	@echo "  make test-singleprocess  - execute single-process basic test (also used by make cross-qemu)"
 	@echo "  make cross-gcc           - check cross-compilation without test execution"
@@ -335,25 +335,30 @@ TEST_BUILD_TARGETS += build-stochastic
 test: $(TEST_TARGETS)
 build-test: $(TEST_BUILD_TARGETS)
 
-test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
-test-assertion: CMAKE_OPT += -DMDBX_CHECKING=2
-test-assertion: smoke
-
 test-valgrind: test-memcheck
-test-memcheck: CFLAGS_EXTRA += -Ofast -DENABLE_MEMCHECK
-test-memcheck: CMAKE_OPT += -DENABLE_MEMCHECK=ON
-test-memcheck: CTEST_OPT += -T memcheck
-test-memcheck: build-test build-stochastic
+smoke-valignd: smoke-memcheck
+smoke-memcheck test-memcheck: CFLAGS_EXTRA += -Ofast -DENABLE_MEMCHECK
+smoke-memcheck test-memcheck: CMAKE_OPT += -DENABLE_UBSAN:BOOL=OFF -DENABLE_ASAN:BOOL=OFF -DENABLE_MEMCHECK:BOOL=ON
+smoke-memcheck test-memcheck: CTEST_OPT += -T memcheck
+test-memcheck: build-test build-stochastic ctest
 	@echo '  RUNNING `test/stochastic.sh --with-valgrind --loops 2`...'
 	$(QUIET)test/stochastic.sh --with-valgrind --loops 2 --db-upto-mb 256 --skip-make >$(TEST_LOG) || (cat $(TEST_LOG) && false)
+smoke-memcheck: smoke
 
-test-ubsan:
-	@echo '  RE-TEST with `-fsanitize=undefined` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CMAKE_OPT="-DENABLE_UBSAN=ON" CFLAGS_EXTRA="-DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error" build-test test-stochastic
+smoke-assertion test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
+smoke-assertion test-assertion: CMAKE_OPT += -DMDBX_CHECKING=2
+test-assertion: test
+smoke-assertion: smoke
 
-test-asan:
-	@echo '  RE-TEST with `-fsanitize=address` option...'
-	$(QUIET)$(MAKE) IOARENA=false CXXSTD=$(CXXSTD) CMAKE_OPT="-DENABLE_ASAN=ON" CFLAGS_EXTRA="-Os -fsanitize=address" build-test test-stochastic
+smoke-ubsan test-ubsan: CFLAGS_EXTRA += -DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error
+smoke-ubsan test-ubsan: CMAKE_OPT += -DENABLE_UBSAN:BOOL=ON -DENABLE_ASAN:BOOL=OFF -DENABLE_MEMCHECK:BOOL=OFF
+test-ubsan: test
+smoke-ubsan: smoke
+
+smoke-asan test-asan: CFLAGS_EXTRA += -Os -fsanitize=address
+smoke-asan test-asan: CMAKE_OPT += -DENABLE_UBSAN:BOOL=OFF -DENABLE_ASAN:BOOL=ON -DENABLE_MEMCHECK:BOOL=OFF
+test-asan: test
+smoke-asan: smoke
 
 test-leak:
 	@echo '  RE-TEST with `-fsanitize=leak` option...'
