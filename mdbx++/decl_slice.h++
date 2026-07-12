@@ -235,6 +235,12 @@ struct LIBMDBX_API_TYPE slice : public ::MDBX_val {
   }
 #endif /* __cpp_lib_string_view >= 201606L */
 
+  MDBX_CXX20_CONSTEXPR void swap(slice &other) noexcept {
+    auto temp = other;
+    other = *this;
+    *this = temp;
+  }
+
   /// \brief Returns casted to pointer to byte an address of data.
   MDBX_CXX11_CONSTEXPR const byte *byte_ptr() const noexcept;
   MDBX_CXX11_CONSTEXPR byte *byte_ptr() noexcept;
