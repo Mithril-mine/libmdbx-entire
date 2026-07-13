@@ -6072,7 +6072,8 @@ typedef int (*MDBX_predicate_func)(void *context, MDBX_val *key, MDBX_val *value
  * carefully consider the batch specifics of passing values through the parameters of the predicative function.
  *
  * \see MDBX_predicate_func
- * \see mdbx_cursor_scan_from
+ * \see mdbx_cursor_scan_from()
+ * \see mdbx_cursor_get_batch()
  *
  * \returns The result of the scan operation, or an error code.
  *
@@ -6144,7 +6145,8 @@ LIBMDBX_API int mdbx_cursor_scan(MDBX_cursor *cursor, MDBX_predicate_func predic
  * carefully consider the batch specifics of passing values through the parameters of the predicative function.
  *
  * \see MDBX_predicate_func
- * \see mdbx_cursor_scan
+ * \see mdbx_cursor_scan()
+ * \see mdbx_cursor_get_batch()
  *
  * \returns The result of the scan operation, or an error code.
  *
@@ -6169,6 +6171,8 @@ LIBMDBX_API int mdbx_cursor_scan_from(MDBX_cursor *cursor, MDBX_predicate_func p
  * refers. The addresses and lengths of the keys and values are returned in the
  * array to which `pairs` refers.
  * \see mdbx_cursor_get()
+ * \see mdbx_cursor_scan()
+ * \see mdbx_cursor_scan_from()
  *
  * \note The memory pointed to by the returned values is owned by the
  * database. The caller MUST not dispose of the memory, and MUST not modify it
