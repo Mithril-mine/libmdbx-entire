@@ -227,9 +227,9 @@ __cold static size_t mmap_limit(void) {
   STATIC_ASSERT(MAX_MAPSIZE < INTPTR_MAX);
   size_t limit = MAX_MAPSIZE;
 
-  const uint64_t asan_limit = UINT64_C(16384) * GIGABYTE;
+  const uint64_t asan_limit = UINT64_C(16383) * GIGABYTE;
   if (RUNNING_ON_ASAN && limit > asan_limit)
-    limit = asan_limit;
+    limit = (size_t)asan_limit;
 
   const size_t valgrind_limit = (MDBX_WORDBITS < 64) ? 512 * MEGABYTE : (size_t)(32 * GIGABYTE);
   if (mdbx_running_on_Valgrind() && limit > valgrind_limit)
