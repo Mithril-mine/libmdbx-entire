@@ -127,7 +127,9 @@ typedef struct _FILE_PROVIDER_EXTERNAL_INFO_V1 {
 #define ERROR_NOT_CAPABLE 775L
 #endif
 
-#endif /* _WIN32 || _WIN64 */
+#else  /* Windows */
+static const char dev_null[] = "/dev/null";
+#endif /* !Windows */
 
 /*----------------------------------------------------------------------------*/
 
@@ -430,20 +432,147 @@ int osal_fastmutex_destroy(osal_fastmutex_t *fastmutex) {
 #endif
 }
 
+#if IS_WINDOWS
+
+#if MDBX_NATIVE_SEH
+#define SEH_TRY(catch)                                                                                                 \
+  const size_t _seh_filter = (catch);                                                                                  \
+  __try
+#define SEH_CATCH                                                                                                      \
+  __except ((GetExceptionCode() == _seh_filter ||                                                                      \
+             (_seh_filter == EXCEPTION_ACCESS_VIOLATION && GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR))             \
+                ? EXCEPTION_EXECUTE_HANDLER                                                                            \
+                : EXCEPTION_CONTINUE_SEARCH)
+#else
+typedef struct seh_simple_context {
+  EXCEPTION_REGISTRATION_RECORD Registration;
+  size_t filter;
+  void *recovery; /* address of recovery/handling/finalization code */
+} seh_ctx_t;
+
+EXCEPTION_DISPOSITION NTAPI
+#ifdef _Function_class_
+_Function_class_(EXCEPTION_ROUTINE)
+#endif /* _Function_class_ */
+    mdbx_simple_SEH(_Inout_ struct _EXCEPTION_RECORD *pExceptionRecord, _In_ PVOID EstablisherFrame,
+                    _Inout_ struct _CONTEXT *pContextRecord, _In_ PVOID DispatcherContext) {
+  (void)DispatcherContext;
+  (void)EstablisherFrame;
+  if (pExceptionRecord->ExceptionCode) {
+    NT_TIB *const TIB = (NT_TIB *)NtCurrentTeb();
+    seh_ctx_t *seh = (seh_ctx_t *)TIB->ExceptionList;
+    do {
+      if (seh->Registration.Handler == mdbx_simple_SEH &&
+          (seh->filter == pExceptionRecord->ExceptionCode ||
+           (seh->filter == EXCEPTION_ACCESS_VIOLATION && pExceptionRecord->ExceptionCode == EXCEPTION_IN_PAGE_ERROR))) {
+#ifdef _WIN64
+        pContextRecord->Rip = (uintptr_t)seh->recovery;
+#else
+        pContextRecord->Eip = (uintptr_t)seh->recovery;
+#endif
+        seh->recovery = 0;
+        return ExceptionContinueExecution;
+      }
+      seh = (seh_ctx_t *)seh->Registration.Next;
+    } while (seh);
+  }
+  return ExceptionContinueSearch;
+}
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#define _SEH_SETUP_RECOVERY(CTX, LABEL) __asm { mov [CTX.recovery], offset LABEL }
+#else
+#define _SEH_SETUP_RECOVERY(CTX, LABEL) CTX.recovery = &&LABEL;
+#endif
+
+#define SEH_TRY(catch)                                                                                                 \
+  seh_ctx_t _seh_ctx;                                                                                                  \
+  NT_TIB *const _TIB = (NT_TIB *)NtCurrentTeb();                                                                       \
+  _seh_ctx.Registration.Handler = mdbx_simple_SEH;                                                                     \
+  _seh_ctx.filter = (catch);                                                                                           \
+  _SEH_SETUP_RECOVERY(_seh_ctx, _seh_recovery)                                                                         \
+  _seh_ctx.Registration.Next = _TIB->ExceptionList;                                                                    \
+  _TIB->ExceptionList = &_seh_ctx.Registration;
+
+#define SEH_CATCH                                                                                                      \
+  _seh_recovery:                                                                                                       \
+  if (_TIB->ExceptionList == &_seh_ctx.Registration)                                                                   \
+    _TIB->ExceptionList = _seh_ctx.Registration.Next;                                                                  \
+  if (!_seh_ctx.recovery)
+
+#endif /* !MDBX_NATIVE_SEH */
+#endif /* IS_WINDOWS */
+
+#if IS_WINDOWS && !MDBX_NATIVE_SEH
+#ifdef __clang__
+/* FIXME: TODO */
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4740) /* flow in or out of inline asm code suppresses global optimization */
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+#endif /* IS_WINDOWS && !MDBX_NATIVE_SEH */
 int osal_fastmutex_acquire(osal_fastmutex_t *fastmutex) {
 #if IS_WINDOWS
-  __try {
-    EnterCriticalSection(fastmutex);
-  } __except ((GetExceptionCode() == 0xC0000194 /* STATUS_POSSIBLE_DEADLOCK / EXCEPTION_POSSIBLE_DEADLOCK */)
-                  ? EXCEPTION_EXECUTE_HANDLER
-                  : EXCEPTION_CONTINUE_SEARCH) {
-    return MDBX_EDEADLK;
-  }
+  SEH_TRY(0xC0000194 /* STATUS_POSSIBLE_DEADLOCK / EXCEPTION_POSSIBLE_DEADLOCK */) { EnterCriticalSection(fastmutex); }
+  SEH_CATCH { return MDBX_EDEADLK; }
   return MDBX_SUCCESS;
 #else
+  /* !IS_WINDOWS */
   return osal_pthread_mutex_lock(fastmutex);
 #endif
 }
+
+bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
+  bool done = false;
+  *dest = 0;
+
+#if IS_WINDOWS
+  SEH_TRY(EXCEPTION_ACCESS_VIOLATION) {
+    if (IsBadReadPtr(ptr, 4) == 0) {
+      memcpy(dest, ptr, 4);
+      done = true;
+    }
+  }
+  SEH_CATCH { return false; }
+#else
+  static int nullfd = -1;
+  if (nullfd < 0) {
+    static pthread_mutex_t nullfd_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&nullfd_mutex);
+    if (nullfd < 0) {
+      nullfd = open(dev_null, O_WRONLY
+#ifdef O_CLOEXEC
+                                  | O_CLOEXEC
+#endif /* O_CLOEXEC */
+      );
+      if (unlikely(nullfd < 0)) {
+        pthread_mutex_unlock(&nullfd_mutex);
+        ERROR("unable open(%s), err %d", dev_null, errno);
+        return false;
+      }
+    }
+    pthread_mutex_unlock(&nullfd_mutex);
+  }
+  if (write(nullfd, ptr, 4) == 4) {
+    memcpy(dest, ptr, 4);
+    done = true;
+  }
+#endif
+  return done;
+}
+
+#if IS_WINDOWS && !MDBX_NATIVE_SEH
+#ifdef __clang__
+/* FIXME: TODO */
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+#endif /* IS_WINDOWS && !MDBX_NATIVE_SEH */
 
 int osal_fastmutex_release(osal_fastmutex_t *fastmutex) {
 #if IS_WINDOWS
@@ -1119,10 +1248,6 @@ bool osal_pathequal(const pathchar_t *l, const pathchar_t *r, size_t len) {
   return memcmp(l, r, len * sizeof(pathchar_t)) == 0;
 #endif
 }
-
-#if !IS_WINDOWS
-static const char dev_null[] = "/dev/null";
-#endif /* !Windows */
 
 int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env, const pathchar_t *pathname,
                   mdbx_filehandle_t *fd, mdbx_mode_t unix_mode_bits) {
@@ -3510,45 +3635,6 @@ const char *osal_getenv(const char *name, bool secure) {
 #endif /* glibc >= 2.17 */
   return getenv(name);
 #endif
-}
-
-bool osal_safe_peek_uint32(const void *ptr, int32_t *dest) {
-  bool done = false;
-  *dest = 0;
-#if IS_WINDOWS
-  __try {
-    if (IsBadReadPtr(ptr, 4) == 0) {
-      memcpy(dest, ptr, 4);
-      done = true;
-    }
-  } __except (EXCEPTION_EXECUTE_HANDLER) {
-    return false;
-  }
-#else
-  static int nullfd = -1;
-  if (nullfd < 0) {
-    static pthread_mutex_t nullfd_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&nullfd_mutex);
-    if (nullfd < 0) {
-      nullfd = open(dev_null, O_WRONLY
-#ifdef O_CLOEXEC
-                                  | O_CLOEXEC
-#endif /* O_CLOEXEC */
-      );
-      if (unlikely(nullfd < 0)) {
-        pthread_mutex_unlock(&nullfd_mutex);
-        ERROR("unable open(%s), err %d", dev_null, errno);
-        return false;
-      }
-    }
-    pthread_mutex_unlock(&nullfd_mutex);
-  }
-  if (write(nullfd, ptr, 4) == 4) {
-    memcpy(dest, ptr, 4);
-    done = true;
-  }
-#endif
-  return done;
 }
 
 /*--------------------------------------------------------------------------*/

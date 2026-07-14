@@ -90,13 +90,9 @@ int lck_txn_lock(MDBX_env *env, bool dontwait) {
     if (!TryEnterCriticalSection(&env->dxb_event_cs))
       return MDBX_BUSY;
   } else {
-    __try {
-      EnterCriticalSection(&env->dxb_event_cs);
-    } __except ((GetExceptionCode() == 0xC0000194 /* STATUS_POSSIBLE_DEADLOCK / EXCEPTION_POSSIBLE_DEADLOCK */)
-                    ? EXCEPTION_EXECUTE_HANDLER
-                    : EXCEPTION_CONTINUE_SEARCH) {
-      return MDBX_EDEADLK;
-    }
+    int err = osal_fastmutex_acquire(&env->dxb_event_cs);
+    if (unlikely(err != MDBX_SUCCESS))
+      return err;
   }
 
   eASSERT0(env, !env->basal_txn || !env->basal_txn->owner);
@@ -143,17 +139,11 @@ void lck_txn_unlock(MDBX_env *env) {
 #define LCK_UPPER LCK_UP_OFFSET, LCK_UP_LEN
 
 int lck_rdt_lock(MDBX_env *env) {
-  int rc;
   imports.srwl_AcquireShared(&env->remap_lock);
 
-  __try {
-    EnterCriticalSection(&env->lck_event_cs);
-  } __except ((GetExceptionCode() == 0xC0000194 /* STATUS_POSSIBLE_DEADLOCK / EXCEPTION_POSSIBLE_DEADLOCK */)
-                  ? EXCEPTION_EXECUTE_HANDLER
-                  : EXCEPTION_CONTINUE_SEARCH) {
-    rc = MDBX_EDEADLK;
+  int rc = osal_fastmutex_acquire(&env->lck_event_cs);
+  if (unlikely(rc != MDBX_SUCCESS))
     goto bailout;
-  }
 
   if (env->lck_mmap.fd == INVALID_HANDLE_VALUE)
     goto done; /* readonly database in readonly filesystem */

@@ -206,7 +206,7 @@
 #error MDBX_ENABLE_DBI_LOCKFREE must be defined as 0 or 1
 #endif /* MDBX_ENABLE_DBI_LOCKFREE */
 
-/** Avoid dependence from MSVC CRT and use ntdll.dll instead. */
+/** Windows: Avoids dependence from MSVC CRT or other libraries provided by compiler, but use ntdll.dll instead. */
 #ifndef MDBX_WITHOUT_MSVC_CRT
 #if defined(MDBX_BUILD_CXX) && !MDBX_BUILD_CXX && IS_WINDOWS
 #define MDBX_WITHOUT_MSVC_CRT 1
@@ -216,6 +216,22 @@
 #elif !(MDBX_WITHOUT_MSVC_CRT == 0 || MDBX_WITHOUT_MSVC_CRT == 1)
 #error MDBX_WITHOUT_MSVC_CRT must be defined as 0 or 1
 #endif /* MDBX_WITHOUT_MSVC_CRT */
+
+/** Windows: Controls a method for using structural exception handling.
+ * \details
+ * When `MDBX_NATIVE_SEH` is `1/ON` the `__try`/`__except`/`__finally` operators provided by the compiler will be used,
+ * which may lead to a dependency on MSVC CRT. When `MDBX_NATIVE_SEH` is `0/OFF` the simplified internal implementation
+ * will be used. However, this can lead to regression in specific complex scenarios and raise suspicions when using
+ * automated code analysis tools. */
+#if !defined(MDBX_NATIVE_SEH)
+#if !(defined(_MSC_VER) || defined(__try)) || (MDBX_WITHOUT_MSVC_CRT && defined(__ia32__))
+#define MDBX_NATIVE_SEH 0
+#else
+#define MDBX_NATIVE_SEH 1
+#endif
+#elif !(MDBX_NATIVE_SEH == 0 || MDBX_NATIVE_SEH == 1)
+#error MDBX_NATIVE_SEH must be defined as 0 or 1
+#endif /* MDBX_NATIVE_SEH */
 
 /** Size of buffer used during copying a environment/database file. */
 #ifndef MDBX_ENVCOPY_WRITEBUF

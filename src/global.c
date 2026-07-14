@@ -20,6 +20,21 @@ static void mdbx_fini(void);
  * automatically use DllMainCRTStartup() from CRT library, which also
  * automatically call DllMain() from our mdbx.dll */
 #pragma comment(linker, "/ENTRY:DllMain")
+
+#if defined(_M_IX86) || defined(_X86_)
+/*
+ * The following two names are automatically created by the linker for any
+ * image that has the safe exception table present.
+ */
+extern PVOID __safe_se_handler_table[]; /* base of safe handler entry table */
+extern BYTE __safe_se_handler_count;    /* absolute symbol whose address is the count of table entries */
+
+const __declspec(selectany) IMAGE_LOAD_CONFIG_DIRECTORY _load_config_used = {
+    .SEHandlerTable = (SIZE_T)__safe_se_handler_table,
+    .SEHandlerCount = (SIZE_T)&__safe_se_handler_count,
+    .Size = sizeof(_load_config_used)};
+#endif /* x86 */
+
 #endif /* MDBX_WITHOUT_MSVC_CRT */
 
 BOOL APIENTRY DllMain(HANDLE module, DWORD reason, LPVOID reserved)
@@ -466,6 +481,7 @@ __dll_export
 #endif /* MacOS */
 #if IS_WINDOWS
     " WITHOUT_MSVC_CRT=" MDBX_STRINGIFY(MDBX_WITHOUT_MSVC_CRT)
+    " NATIVE_SEH=" MDBX_STRINGIFY(MDBX_NATIVE_SEH)
     " BUILD_SHARED_LIBRARY=" MDBX_STRINGIFY(MDBX_BUILD_SHARED_LIBRARY)
 #if !MDBX_BUILD_SHARED_LIBRARY
     " MANUAL_MODULE_HANDLER=" MDBX_STRINGIFY(MDBX_MANUAL_MODULE_HANDLER)
