@@ -757,7 +757,7 @@ public:
 
   buffer(size_t head_room, size_t tail_room, const allocator_type &alloc = allocator_type())
       : silo_(check_length(head_room, tail_room), alloc) {
-    iov_base = silo_.get();
+    iov_base = silo_.get(head_room);
     MDBX_INLINE_API_ASSERT(iov_len == 0);
   }
 
@@ -769,7 +769,7 @@ public:
   buffer(size_t head_room, const slice &src, size_t tail_room, const allocator_type &alloc = allocator_type())
       : silo_(check_length(head_room, src.length(), tail_room), alloc) {
     iov_len = src.length();
-    iov_base = memcpy(silo_.get(), src.data(), iov_len);
+    iov_base = memcpy(silo_.get(head_room), src.data(), iov_len);
   }
 
   inline buffer(const txn &transaction, const slice &src, const allocator_type &alloc = allocator_type());
