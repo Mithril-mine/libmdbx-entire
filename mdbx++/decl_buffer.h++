@@ -478,9 +478,9 @@ private:
     }
 
     static MDBX_CXX20_CONSTEXPR std::pair<bool, bool>
-    exchange(silo &left, const modality left_modality, silo &right, const modality right_modality) noexcept(
-        allocation_aware_details::swap_alloc<silo, allocator_type>::is_nothrow()) {
-      allocation_aware_details::swap_alloc<silo, allocator_type>::propagate(left, right);
+    exchange(silo &left, const modality left_modality, silo &right,
+             const modality right_modality) noexcept(swap_alloc::is_nothrow()) {
+      swap_alloc::propagate(left, right);
       bool left_need_fixup = false, right_need_fixup = false;
       if (left_modality == modality::reference || right_modality == modality::reference) {
         left_need_fixup = left.move_content(right, right_modality);
@@ -952,11 +952,11 @@ public:
     if (MDBX_LIKELY(this != &src))
       MDBX_CXX20_LIKELY {
         invalidate();
-        if MDBX_IF_CONSTEXPR (!allocation_aware_details::template allocator_is_always_equal<allocator_type>()) {
+        if MDBX_IF_CONSTEXPR (!copy_assign_alloc::is_always_equal()) {
           if (MDBX_UNLIKELY(silo_.get_allocator() != src.silo_.get_allocator()))
             MDBX_CXX20_UNLIKELY {
               silo_.release();
-              allocation_aware_details::copy_assign_alloc<silo, allocator_type>::propagate(&silo_, src.silo_);
+              copy_assign_alloc::propagate(&silo_, src.silo_);
             }
         }
 
@@ -973,11 +973,11 @@ public:
     if (MDBX_LIKELY(this != &src))
       MDBX_CXX20_LIKELY {
         invalidate();
-        if MDBX_IF_CONSTEXPR (!allocation_aware_details::template allocator_is_always_equal<allocator_type>()) {
+        if MDBX_IF_CONSTEXPR (!copy_assign_alloc::is_always_equal()) {
           if (MDBX_UNLIKELY(silo_.get_allocator() != src.silo_.get_allocator()))
             MDBX_CXX20_UNLIKELY {
               silo_.release();
-              allocation_aware_details::copy_assign_alloc<silo, allocator_type>::propagate(&silo_, src.silo_);
+              copy_assign_alloc::propagate(&silo_, src.silo_);
             }
         }
 
