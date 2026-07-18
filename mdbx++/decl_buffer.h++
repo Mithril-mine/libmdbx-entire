@@ -58,8 +58,7 @@ template <typename T, typename A> struct copy_assign_alloc<T, A, true> {
   static MDBX_CXX20_CONSTEXPR void propagate(T *target, const T &source) noexcept(is_nothrow()) {
     if MDBX_IF_CONSTEXPR (!is_always_equal()) {
       if (MDBX_UNLIKELY(target->get_allocator() != source.get_allocator()))
-        MDBX_CXX20_UNLIKELY target->get_allocator() =
-            ::std::allocator_traits<A>::select_on_container_copy_construction(source.get_allocator());
+        MDBX_CXX20_UNLIKELY target->get_allocator() = source.get_allocator();
     } else {
       /* gag for buggy compilers */
       (void)target;
