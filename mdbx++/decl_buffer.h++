@@ -991,9 +991,12 @@ public:
     if (MDBX_LIKELY(this != &src))
       MDBX_CXX20_LIKELY {
         const auto kind = src.content_modality();
+        const auto src_headroom = src.headroom();
+        const auto src_data = src.data();
+        const auto src_length = src.length();
         inherited::assign(std::move(src));
         if (!move_assign_alloc::is_moveable(&silo_, src.silo_) && kind == modality::allocated) {
-          iov_base = silo_.template reshape<true>(src.silo_.capacity(), src.headroom(), src.data(), src.length());
+          iov_base = silo_.template reshape<true>(src.silo_.capacity(), src_headroom, src_data, src_length);
           return *this;
         }
         move_assign_alloc::propagate(&silo_, src.silo_);
