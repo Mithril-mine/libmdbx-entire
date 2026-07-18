@@ -21,6 +21,7 @@ The supporting release of a stable branch with bug fixes.
  - [Cosmin Apreutesei](https://github.com/capr) for bugs reporting.
  - [stslam](https://github.com/stslam) for Embarcadero C++ Builder support.
  - [Yi Chen](https://github.com/94xhn) for bugs fixing.
+ - [cui](https://github.com/cuiweixie) for discovery and fixing bugs.
 
 ### Backward compatibility breaks:
 
@@ -107,6 +108,10 @@ The supporting release of a stable branch with bug fixes.
  - Fixed Windows section handle leak inside `osal_mresize()` in unsuccessful case.
 
  - Fixed `mdbx_defrag` for `-f` option handling.
+
+ - Fixed UTF-8 U+100000..U+10FFFF range checking/decoding inside `mdbx::slice::is_printable()`.
+
+ - Fixed loss of `mincore()` cache due erase/overwrite on insert.
 
 
 --------------------------------------------------------------------------------
