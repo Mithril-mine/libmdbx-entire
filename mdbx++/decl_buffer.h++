@@ -278,27 +278,19 @@ private:
       }
       MDBX_NOTHROW_PURE_FUNCTION constexpr bool is_allocated() const noexcept { return !is_inplace(); }
 
-      template <bool destroy_ptr> MDBX_CXX17_CONSTEXPR byte *make_inplace() noexcept {
-        if (destroy_ptr) {
-          MDBX_CONSTEXPR_ASSERT(is_allocated());
-          /* properly destroy allocator::pointer */
-          allocated_ptr_.~allocator_pointer();
-        }
+      MDBX_CXX17_CONSTEXPR byte *make_inplace() noexcept {
+        MDBX_CONSTEXPR_ASSERT(is_allocated());
+        /* properly destroy allocator::pointer */
+        allocated_ptr_.~allocator_pointer();
         inplace_.lastbyte_ = lastbyte_inplace_signature;
         MDBX_CONSTEXPR_ASSERT(is_inplace() && address() == inplace_.buffer_ && is_suitable_for_inplace(capacity()));
         return address();
       }
 
-      template <bool construct_ptr>
       MDBX_CXX17_CONSTEXPR byte *make_allocated(const ::std::pair<allocator_pointer, size_t> &pair) noexcept {
         MDBX_CONSTEXPR_ASSERT(inplace_signature_limit > pair.second);
-        if (construct_ptr) {
-          MDBX_CONSTEXPR_ASSERT(is_inplace());
-          new (&allocated_ptr_) allocator_pointer(pair.first);
-        } else {
-          MDBX_CONSTEXPR_ASSERT(is_allocated());
-          allocated_ptr_ = pair.first;
-        }
+        MDBX_CONSTEXPR_ASSERT(is_inplace());
+        new (&allocated_ptr_) allocator_pointer(pair.first);
         capacity_.bytes_ = pair.second;
         MDBX_CONSTEXPR_ASSERT(is_allocated() && address() == to_address(pair.first) && capacity() == pair.second);
         return address();
@@ -374,7 +366,7 @@ private:
       if (bin::is_suitable_for_inplace(new_capacity)) {
         MDBX_INLINE_API_ASSERT(bin_.is_allocated());
         const auto old_allocated = bin_.allocated_ptr_;
-        byte *const new_place = bin_.template make_inplace<true>() + wanna_headroom;
+        byte *const new_place = bin_.make_inplace() + wanna_headroom;
         if (MDBX_LIKELY(length))
           MDBX_CXX20_LIKELY memcpy(new_place, content, length);
         deallocate_storage(old_allocated, old_capacity);
@@ -385,9 +377,9 @@ private:
         const auto pair = allocate_storage(new_capacity);
         MDBX_INLINE_API_ASSERT(pair.second >= new_capacity);
         byte *const new_place = static_cast<byte *>(to_address(pair.first)) + wanna_headroom;
+        bin_.make_allocated(pair);
         if (MDBX_LIKELY(length))
           MDBX_CXX20_LIKELY memcpy(new_place, content, length);
-        bin_.template make_allocated<true>(pair);
         return new_place;
       }
 
@@ -419,7 +411,7 @@ private:
     MDBX_CXX20_CONSTEXPR silo(const allocator_type &alloc = allocator_type()) noexcept : allocator_type(alloc) {}
     MDBX_CXX20_CONSTEXPR silo(size_t capacity, const allocator_type &alloc = allocator_type()) : silo(alloc) {
       if (!bin::is_suitable_for_inplace(capacity))
-        bin_.template make_allocated<true>(provide_storage(capacity));
+        bin_.make_allocated(provide_storage(capacity));
     }
 
     silo(silo &&other) = delete;
