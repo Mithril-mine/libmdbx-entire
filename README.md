@@ -1,3 +1,12 @@
+<!-- dist-cutoff-begin -->
+# In development & Not ready for use !
+
+This repo contains the non-amalgamated source code of _libmdbx_, which is permanently in development
+and is not intended for embedding or use in other projects. Please refrain from using this repo unless you intend to contribute to the development of _libmdbx_.
+
+To use _libmdbx_, including embedding it in other projects or building packages, please refer to the amalgamated code at [SourceCraft](https://sourcecraft.dev/dqdkfa/libmdbx) or [GitHib](https://github.com/Mithril-mine/libmdbx), which has been stripped of unnecessary dependencies and specially prepared for easy use, building, and embedding.
+<!-- dist-cutoff-end -->
+
 libmdbx
 =======
 
