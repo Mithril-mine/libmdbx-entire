@@ -955,7 +955,7 @@ elseif(TRUE)
     include_directories("${MDBX_SOURCE_DIR}")
   endif()
   add_custom_target(
-    extra-files
+    non-code
     SOURCES README.md
             TODO.md
             ChangeLog.md
