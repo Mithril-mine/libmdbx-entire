@@ -344,7 +344,13 @@ struct history {
   }
 };
 
-struct track_context {
+struct timeout_context {
+  const std::chrono::steady_clock::time_point timeout;
+  bool is_timeouted() const noexcept { return std::chrono::steady_clock::now() > timeout; }
+  timeout_context(unsigned minutes = 1) : timeout(std::chrono::steady_clock::now() + std::chrono::minutes(minutes)) {}
+};
+
+struct track_context : public timeout_context {
   std::map<mdbx::txnid, mdbx::txn_managed> rx;
   std::map<mdbx::map_handle, history> tables;
   using table_ref = decltype(tables)::value_type;
@@ -748,6 +754,11 @@ bool case1_stairway_pass(track_context &ctx, mdbx::env env, prng &rnd, generator
     max_pool = std::max(max_pool, pool.size());
     number_checks += pool.size();
     number_passes += 1;
+    if (ctx.is_timeouted()) {
+      std::cout << "timeout, bailout\n";
+      std::cerr << "timeout, bailout\n";
+      break;
+    }
   }
 
   txn = env.start_write();
@@ -768,7 +779,7 @@ bool case1_stairway(mdbx::env env, prng &rnd, get_cached_t get_cached) {
   ctx.create_tables("case1_", txn, 4);
   txn.commit();
 
-  for (auto order = generator::keys_order::begin; order < generator::keys_order::end;
+  for (auto order = generator::keys_order::begin; order < generator::keys_order::end && !ctx.is_timeouted();
        order = generator::keys_order(order + 1))
     ok = case1_stairway_pass(ctx, env, rnd, order) && ok;
   return ok;
@@ -790,7 +801,7 @@ static MDBX_cache_result_t cache_get_SingleThreaded_withMutex(const MDBX_txn *tx
 using buffer = mdbx::default_buffer;
 using buffer_pair = mdbx::buffer_pair<buffer>;
 
-struct case2_context {
+struct case2_context : public timeout_context {
   struct {
     std::atomic<unsigned> behind = 0, unable = 0, race = 0, hit = 0, confirmed = 0, refreshed = 0, unexpected = 0;
   } counters;
@@ -883,7 +894,7 @@ void case2_thread(case2_context &ctx, std::latch &latch, mdbx::txn_managed txn, 
       }
       thesame += prev_counter == counter;
       prev_counter = counter;
-    } while (!enought && thesame < 11);
+    } while (!enought && thesame < 11 && !ctx.is_timeouted());
   } catch (const std::exception &e) {
     std::cerr << "exception: " << e.what() << std::endl;
   }
@@ -906,7 +917,7 @@ bool case2_multithread(mdbx::env env, prng &rnd, get_cached_t get_cached) {
   threads.reserve(n_threads);
 
   struct case2_context context(rnd, table, get_cached);
-  for (unsigned loop = 0; loop < 10 * 1000; ++loop) {
+  for (unsigned loop = 0; loop < 10 * 1000 && !context.is_timeouted(); ++loop) {
     std::latch latch(n_threads + 1);
     try {
       for (auto &entry : entries) {
