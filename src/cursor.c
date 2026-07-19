@@ -278,6 +278,9 @@ static __always_inline int couple_init(cursor_couple_t *couple, const MDBX_txn *
                 (int)z_dupfix == P_DUPFIX);
   couple->outer.checking = (CHECKS2_ENABLED() || (txn->env->flags & MDBX_VALIDATION)) ? z_pagecheck | z_leaf : z_leaf;
   couple->outer.subcur = nullptr;
+#if MDBX_DEBUG_SEARCH_DISPATCHING
+  couple->outer.search_step_counter = 42;
+#endif
 
   if (tree->flags & MDBX_DUPSORT) {
     couple->inner.cursor.signature = cur_signature_live;
@@ -292,6 +295,9 @@ static __always_inline int couple_init(cursor_couple_t *couple, const MDBX_txn *
     mx->cursor.top_and_flags = z_fresh_mark | z_inner;
     STATIC_ASSERT(MDBX_DUPFIXED * 2 == P_DUPFIX);
     mx->cursor.checking = couple->outer.checking + ((tree->flags & MDBX_DUPFIXED) << 1);
+#if MDBX_DEBUG_SEARCH_DISPATCHING
+    mx->cursor.search_step_counter = 421;
+#endif
   }
 
   if (unlikely(*dbi_state & DBI_STALE))
@@ -350,12 +356,15 @@ int cursor_dupsort_setup(MDBX_cursor *mc, const node_t *node, const page_t *mp) 
       goto bailout;
     }
     page_t *sp = node_data(node);
+    mx->nested_tree.flags = flags_db2sub(mc->tree->flags);
     mx->nested_tree.height = 1;
+    mx->nested_tree.dupfix_size = mc->tree->dupfix_size;
+    mx->nested_tree.root = 0;
     mx->nested_tree.branch_pages = 0;
     mx->nested_tree.leaf_pages = 1;
     mx->nested_tree.large_pages = 0;
+    mx->nested_tree.sequence = 0;
     mx->nested_tree.items = page_numkeys(sp);
-    mx->nested_tree.root = 0;
     mx->nested_tree.mod_txnid = mp->txnid;
     mx->cursor.top_and_flags = z_inner;
     mx->cursor.pg[0] = sp;
