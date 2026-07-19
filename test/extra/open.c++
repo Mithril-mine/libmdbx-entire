@@ -64,7 +64,7 @@ bool case1() {
   {
     mdbx::env::operate_parameters operateParameters(100, 10);
     mdbx::env_managed::create_parameters createParameters;
-    createParameters.geometry.make_dynamic(21 * mdbx::env::geometry::MiB, mdbx::env::geometry::GiB / 2);
+    createParameters.geometry.make_dynamic(21 * mdbx::env::geometry::MiB, mdbx::env::geometry::GiB / 4);
     mdbx::env_managed env(db_pathname, createParameters, operateParameters);
   }
 
