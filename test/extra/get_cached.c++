@@ -349,9 +349,9 @@ struct track_context {
   std::map<mdbx::map_handle, history> tables;
   using table_ref = decltype(tables)::value_type;
   std::vector<table_ref *> tables_vector;
-  const get_cached_t get_cached;
+  const get_cached_t impl;
 
-  track_context(get_cached_t get_cached) : get_cached(get_cached) {}
+  track_context(get_cached_t get_cached) : impl(get_cached) {}
 
   struct entry {
     table_ref *ref;
@@ -451,7 +451,7 @@ struct track_context {
 
     for (auto &entry : result) {
       const auto check_value = txn.get(entry.ref->first, entry.key, mdbx::slice::invalid());
-      const auto cache_result = get_cached(txn, entry.ref->first, &entry.key.slice(), entry.value, &entry.cache);
+      const auto cache_result = impl(txn, entry.ref->first, &entry.key.slice(), entry.value, &entry.cache);
       if (check_value.is_valid()) {
         if (cache_result.errcode != MDBX_SUCCESS)
           unexpected(__LINE__);
@@ -508,11 +508,11 @@ struct track_context {
 
       const auto check_value = to.get(entry.ref->first, entry.key, mdbx::slice::invalid());
       auto copy = entry.cache;
-      const auto cache_result = get_cached(to, entry.ref->first, &entry.key.slice(), &entry.value, &entry.cache);
+      const auto cache_result = impl(to, entry.ref->first, &entry.key.slice(), &entry.value, &entry.cache);
       if (check_value.is_valid()) {
         if (cache_result.errcode != MDBX_SUCCESS) {
           // debug
-          get_cached(to, entry.ref->first, &entry.key.slice(), &entry.value, &copy);
+          impl(to, entry.ref->first, &entry.key.slice(), &entry.value, &copy);
           to.get(entry.ref->first, entry.key, mdbx::slice::invalid());
           return failed(__LINE__);
         }
@@ -534,7 +534,7 @@ struct track_context {
       } else {
         if (cache_result.errcode != MDBX_NOTFOUND) {
           // debug
-          get_cached(to, entry.ref->first, &entry.key.slice(), &entry.value, &copy);
+          impl(to, entry.ref->first, &entry.key.slice(), &entry.value, &copy);
           to.get(entry.ref->first, entry.key, mdbx::slice::invalid());
           return failed(__LINE__);
         }
@@ -578,7 +578,7 @@ struct track_context {
           return failed(__LINE__);
         if (from_mvcc != entry.cache.trunk_txnid && from_point->changed_or_dirtied != entry.cache.trunk_txnid) {
           // debug
-          get_cached(to, entry.ref->first, &entry.key.slice(), &entry.value, &copy);
+          impl(to, entry.ref->first, &entry.key.slice(), &entry.value, &copy);
           return failed(__LINE__);
         }
         if (to_mvcc != entry.cache.last_confirmed_txnid && to.id() != entry.cache.last_confirmed_txnid)
@@ -722,7 +722,7 @@ bool case1_stairway_pass(track_context &ctx, mdbx::env env, prng &rnd, generator
   /* --------------------------------------------------------------------------------
    * Теперь есть набор MVCC-снимком и читающих их транзакций, а также история изменений в контексте.
    *
-   * Проверяем работы кэша стохастически выбирая транзакции в истории. */
+   * Проверяем работу кэша стохастически выбирая транзакции в истории. */
   struct coverage_step {
     mdbx::txnid from_mvcc;
     mdbx::txnid to_mvcc;
