@@ -205,28 +205,31 @@ bool case0_trivia_sticky_threads(const mdbx::path &path, bool nested = false) {
   std::thread t([&]() {
     s.wait();
 #if MDBX_TXN_CHECKOWNER
-    err = mdbx_txn_reset(c_txn);
-    assert(err == MDBX_THREAD_MISMATCH);
-    ok = ok && err == MDBX_THREAD_MISMATCH;
-    err = mdbx_txn_break(c_txn);
-    assert(err == MDBX_THREAD_MISMATCH);
-    ok = ok && err == MDBX_THREAD_MISMATCH;
-    err = mdbx_txn_commit(c_txn);
-    assert(err == MDBX_THREAD_MISMATCH);
-    ok = ok && err == MDBX_THREAD_MISMATCH;
-    err = mdbx_txn_abort(c_txn);
-    assert(err == MDBX_THREAD_MISMATCH);
-    ok = ok && err == MDBX_THREAD_MISMATCH;
+    bool local_ok = true;
+    int local_err = mdbx_txn_reset(c_txn);
+    assert(local_err == MDBX_THREAD_MISMATCH);
+    local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
+    local_err = mdbx_txn_break(c_txn);
+    assert(local_err == MDBX_THREAD_MISMATCH);
+    local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
+    local_err = mdbx_txn_commit(c_txn);
+    assert(local_err == MDBX_THREAD_MISMATCH);
+    local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
+    local_err = mdbx_txn_abort(c_txn);
+    assert(local_err == MDBX_THREAD_MISMATCH);
+    local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
 #endif /* MDBX_TXN_CHECKOWNER */
 
-    err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
+    local_err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
 #if MDBX_TXN_CHECKOWNER
-    assert(err == MDBX_THREAD_MISMATCH);
-    ok = ok && err == MDBX_THREAD_MISMATCH;
+    assert(local_err == MDBX_THREAD_MISMATCH);
+    local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
 #else
-    assert(err == MDBX_BAD_TXN);
-    ok = ok && err == MDBX_BAD_TXN;
+    assert(local_err == MDBX_BAD_TXN);
+    local_ok = local_ok && local_err == MDBX_BAD_TXN;
 #endif /* MDBX_TXN_CHECKOWNER */
+    if (!local_ok)
+      ok = false;
   });
 
   s.count_down();
@@ -345,37 +348,40 @@ bool case1_trivia_NO_sticky_threads(const mdbx::path &path, bool nested = true) 
 
   std::thread t([&]() {
     s1.wait();
-    err = mdbx_txn_break(c_txn);
-    assert(err == MDBX_SUCCESS);
-    ok = ok && err == MDBX_SUCCESS;
-    err = mdbx_txn_reset(c_txn);
-    assert(err == MDBX_SUCCESS);
-    ok = ok && err == MDBX_SUCCESS;
+    int local_err = mdbx_txn_break(c_txn);
+    bool local_ok = true;
+    assert(local_err == MDBX_SUCCESS);
+    local_ok = local_ok && local_err == MDBX_SUCCESS;
+    local_err = mdbx_txn_reset(c_txn);
+    assert(local_err == MDBX_SUCCESS);
+    local_ok = local_ok && local_err == MDBX_SUCCESS;
     txn.renew_reading();
     s2.count_down();
 
     s3.wait();
     if (env.is_nested_transactions_available()) {
-      err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
-      assert(err == MDBX_SUCCESS);
-      ok = ok && err == MDBX_SUCCESS;
-      err = mdbx_txn_commit(c_txn);
-      assert(err == MDBX_SUCCESS);
-      ok = ok && err == MDBX_SUCCESS;
+      local_err = mdbx_txn_begin(env, txn, MDBX_TXN_READWRITE, &c_txn);
+      assert(local_err == MDBX_SUCCESS);
+      local_ok = local_ok && local_err == MDBX_SUCCESS;
+      local_err = mdbx_txn_commit(c_txn);
+      assert(local_err == MDBX_SUCCESS);
+      local_ok = local_ok && local_err == MDBX_SUCCESS;
       c_txn = txn;
-      err = mdbx_txn_commit(c_txn);
-      assert(err == MDBX_THREAD_MISMATCH);
-      ok = ok && err == MDBX_THREAD_MISMATCH;
-      err = mdbx_txn_abort(c_txn);
-      assert(err == MDBX_THREAD_MISMATCH);
-      ok = ok && err == MDBX_THREAD_MISMATCH;
-      err = mdbx_txn_break(c_txn);
-      assert(err == MDBX_SUCCESS);
-      ok = ok && err == MDBX_SUCCESS;
-      err = mdbx_txn_reset(c_txn);
-      assert(err == MDBX_EINVAL);
-      ok = ok && err == MDBX_EINVAL;
+      local_err = mdbx_txn_commit(c_txn);
+      assert(local_err == MDBX_THREAD_MISMATCH);
+      local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
+      local_err = mdbx_txn_abort(c_txn);
+      assert(local_err == MDBX_THREAD_MISMATCH);
+      local_ok = local_ok && local_err == MDBX_THREAD_MISMATCH;
+      local_err = mdbx_txn_break(c_txn);
+      assert(local_err == MDBX_SUCCESS);
+      local_ok = local_ok && local_err == MDBX_SUCCESS;
+      local_err = mdbx_txn_reset(c_txn);
+      assert(local_err == MDBX_EINVAL);
+      local_ok = local_ok && local_err == MDBX_EINVAL;
     }
+    if (!local_ok)
+      ok = false;
   });
 
   s1.count_down();
@@ -426,9 +432,10 @@ bool case3_fresh_reads(const mdbx::path &path, bool no_sticky_threads) {
   std::latch s0(N + 1), s1(N + 1), s2(N + 1);
   std::vector<std::thread> l;
 
-  volatile bool ok = true;
+  bool ok = true;
   for (size_t n = 0; n < N; ++n)
     l.push_back(std::thread([&]() {
+      bool local_ok = true;
       try {
         s0.arrive_and_wait();
         {
@@ -436,7 +443,7 @@ bool case3_fresh_reads(const mdbx::path &path, bool no_sticky_threads) {
           mdbx::slice value;
           int err = mdbx_get(txn, 1, pair.key, &value);
           if (err != MDBX_NOTFOUND) {
-            ok = false;
+            local_ok = false;
             std::cerr << "Unexpected error " << err << "\n";
           }
         }
@@ -446,12 +453,14 @@ bool case3_fresh_reads(const mdbx::path &path, bool no_sticky_threads) {
         {
           auto txn = env.start_read();
           if (txn.get(1, pair.key) != pair.value)
-            ok = false;
+            local_ok = false;
         }
       } catch (const std::exception &ex) {
         std::cerr << "Exception: " << ex.what() << "\n";
-        ok = false;
+        local_ok = false;
       }
+      if (!local_ok)
+        ok = false;
     }));
 
   s0.arrive_and_wait();
@@ -473,41 +482,44 @@ static bool probe_cloning(const mdbx::txn_managed &txn, const mdbx::map_handle &
   bool ok = true;
   for (auto i = 0; i < 1; ++i)
     threads.push_back(std::thread([&]() {
+      bool local_ok = true;
       auto clone = txn.clone();
       std::thread onemore([&]() {
         auto clone_of_clone = txn.clone();
         auto clone_txn_info = clone_of_clone.get_info();
         if (mdbx::memcmp(&clone_txn_info, &txn_info, sizeof(txn_info)))
-          ok = false;
+          local_ok = false;
         auto clone_handle_info = clone_of_clone.get_map_flags(table);
         if (clone_handle_info.state != MDBX_DBI_STALE ||
             mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)) == 0)
-          ok = false;
+          local_ok = false;
         clone_of_clone.renew_reading();
         auto clone_map_stat = clone_of_clone.get_map_stat(table);
         if (mdbx::memcmp(&clone_map_stat, &map_stat, sizeof(map_stat)))
-          ok = false;
+          local_ok = false;
         clone_handle_info = clone_of_clone.get_map_flags(table);
         if (mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)))
-          ok = false;
+          local_ok = false;
         clone_of_clone.reset_reading();
       });
       auto clone_txn_info = clone.get_info();
       if (mdbx::memcmp(&clone_txn_info, &txn_info, sizeof(txn_info)))
-        ok = false;
+        local_ok = false;
       clone.renew_reading();
       onemore.join();
       auto clone_map_stat = clone.get_map_stat(table);
       if (mdbx::memcmp(&clone_map_stat, &map_stat, sizeof(map_stat)))
-        ok = false;
+        local_ok = false;
       auto clone_handle_info = clone.get_map_flags(table);
       if (mdbx::memcmp(&clone_handle_info, &handle_info, sizeof(handle_info)))
-        ok = false;
+        local_ok = false;
       clone_txn_info = clone.get_info();
       clone_txn_info.txn_pget = txn_info.txn_pget;
       if (mdbx::memcmp(&clone_txn_info, &txn_info, sizeof(txn_info)))
-        ok = false;
+        local_ok = false;
       clone.reset_reading();
+      if (!local_ok)
+        ok = false;
     }));
 
   for (auto &t : threads)
