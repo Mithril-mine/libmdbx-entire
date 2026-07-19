@@ -27,7 +27,9 @@ class testcase_copy : public testcase {
 
 public:
   testcase_copy(const actor_config &config, const mdbx_pid_t pid)
-      : testcase(config, pid), copy_pathname(config.params.pathname_db + "-copy") { assert(!config.params.pathname_db.empty()); }
+      : testcase(config, pid), copy_pathname(config.params.pathname_db + "-copy") {
+    assert(!config.params.pathname_db.empty());
+  }
   bool run() override;
 };
 REGISTER_TESTCASE(copy);
@@ -47,8 +49,7 @@ void testcase_copy::copy_db(const bool with_compaction) {
                         (with_compaction ? MDBX_CP_COMPACT : MDBX_CP_DEFAULTS) |
                             (overwrite ? MDBX_CP_OVERWRITE : MDBX_CP_DEFAULTS));
     log_verbose("mdbx_env_copy(%s, with_compaction=%s, overwrite=%s), err %d", copy_pathname.c_str(),
-                with_compaction ? "true" : "false",
-                overwrite ? "true" : "false", err);
+                with_compaction ? "true" : "false", overwrite ? "true" : "false", err);
     if (unlikely(err != MDBX_SUCCESS))
       failure_perror(with_compaction ? "mdbx_env_copy(MDBX_CP_COMPACT)" : "mdbx_env_copy(MDBX_CP_ASIS)", err);
   } else {
