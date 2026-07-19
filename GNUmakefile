@@ -459,7 +459,7 @@ define uname2titer
 endef
 
 DIST_EXTRA := LICENSE NOTICE COPYRIGHT README.md TODO.md CMakeLists.txt GNUmakefile Makefile ChangeLog.md VERSION.json config.h.in ntdll.def \
-	$(addprefix man1/, $(MANPAGES)) cmake/compiler.cmake cmake/profile.cmake cmake/utils.cmake windows-safeseh.asm valgrind_suppress.txt conanfile.py \
+	$(addprefix man1/, $(MANPAGES)) cmake/compiler.cmake cmake/profile.cmake cmake/utils.cmake windows-safeseh.asm valgrind_suppress.supp conanfile.py \
 	$(addprefix ut_and_examples/, CMakeLists.txt example-mdbx.c++ example-mdbx.c pcrf/pcrf_simulator.c README.md)
 
 DIST_SRC   := mdbx.h mdbx.h++ mdbx.c mdbx.c++ $(addsuffix .c, $(MDBX_TOOLS)) mdbx-internals.h mdbx-wingetopt.h
@@ -561,7 +561,7 @@ test-singleprocess: build-stochastic
 	$(QUIET)test/stochastic.sh --dont-check-ram-size --single --loops 2 --db-upto-mb 256 --skip-make --taillog >$(TEST_LOG) || (cat $(TEST_LOG) && false)
 
 memcheck: smoke-memcheck
-smoke-memcheck: VALGRIND=valgrind --trace-children=yes --log-file=valgrind-%p.log --leak-check=full --track-origins=yes --read-var-info=yes --error-exitcode=42 --suppressions=valgrind_suppress.txt
+smoke-memcheck: VALGRIND=valgrind --trace-children=yes --log-file=valgrind-%p.log --leak-check=full --track-origins=yes --read-var-info=yes --error-exitcode=42 --suppressions=valgrind_suppress.supp
 smoke-memcheck: CFLAGS_EXTRA=-Ofast -DENABLE_MEMCHECK
 smoke-memcheck: build-stochastic
 	@echo "  SMOKE \`mdbx_test basic\` under Valgrind's memcheck..."
