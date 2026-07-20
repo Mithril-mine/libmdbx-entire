@@ -47,13 +47,13 @@ function provide_toolchain {
 	set -euxo pipefail
 }
 
-function default_test {
+function default_cmake_test {
 	GTEST_SHUFFLE=1 GTEST_RUNTIME_LIMIT=99 MALLOC_CHECK_=7 MALLOC_PERTURB_=42 \
 	ctest --output-on-failure --parallel 3 --schedule-random --no-tests=error \
 	"${test_args[@]+"${test_args[@]}"}"
 }
 
-function default_build {
+function default_cmake_build {
 	local cmake_use_ninja=""
 	if "${CMAKE}" --help | grep -iq ninja && [ -n "$(which ninja 2>/dev/null)" ] && echo " ${config_args[@]+"${config_args[@]}"}" | grep -qv -e ' -[GTA] '; then
 		echo "NINJA: $(which ninja 2>/dev/null) => $(ninja --version | head -1)"
@@ -68,7 +68,7 @@ function default_ci {
 	local ok=true
 	if [ -e CMakeLists.txt -a $CMAKE_VERSION -ge 30002 ]; then
 		skipped=false
-		mkdir @ci-cmake-build && (cd @ci-cmake-build && default_build && default_test && echo "Done (cmake)") || ok=false
+		mkdir @ci-cmake-build && (cd @ci-cmake-build && "${CI_CMAKE_BUILD_COMMAND=default_cmake_build}" && "${CI_CMAKE_TEST_COMMAND=default_cmake_test}" && echo "Done (cmake)") || ok=false
 	fi
 	if [ -n "$CC" -a -n "${CI_MAKE_TARGET=test}" ] && [ -e GNUmakefile -o -e Makefile -o -e makefile ]; then
 		skipped=false
