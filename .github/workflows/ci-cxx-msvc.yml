@@ -15,6 +15,9 @@ on:
   repository_dispatch:
     types: [dispatch-event]
 
+permissions:
+  contents: read
+
 jobs:
   ci-job:
     strategy:
