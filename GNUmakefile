@@ -141,7 +141,7 @@ endef
 SO_SUFFIX  := $(shell $(uname2sosuffix))
 HEADERS    := mdbx.h mdbx.h++
 #> dist-cutoff-begin
-HEADERS	   += $(wildcard mdbx++/*.h++)
+HEADERS	   += $(wildcard src/*.h) $(wildcard mdbx++/*.h++)
 #< dist-cutoff-end
 LIBRARIES  := libmdbx.a libmdbx.$(SO_SUFFIX)
 TOOLS      := chk copy defrag drop dump load stat
@@ -474,9 +474,9 @@ TEST_DB    ?= $(shell [ -d /dev/shm ] && echo /dev/shm || echo /tmp)/mdbx-test.d
 TEST_LOG   ?= $(shell [ -d /dev/shm ] && echo /dev/shm || echo /tmp)/mdbx-test.log
 TEST_OSAL  := $(shell $(uname2osal))
 TEST_ITER  := $(shell $(uname2titer))
-TEST_SRC   := tests/framework/osal-$(TEST_OSAL).c++ $(filter-out $(wildcard tests/framework/osal-*.c++),$(wildcard tests/framework/*.c++)) $(call select_by,MDBX_BUILD_CXX,,src/mdbx.c++)
+TEST_SRC   := tests/framework/osal-$(TEST_OSAL).c++ $(filter-out $(wildcard tests/framework/osal-*.c++),$(wildcard tests/framework/*.c++))
 TEST_INC   := $(wildcard tests/framework/*.h++)
-TEST_OBJ   := $(patsubst %.c++,%.o,$(TEST_SRC))
+TEST_OBJ   := $(patsubst %.c++,%.o,$(TEST_SRC)) $(call select_by,MDBX_BUILD_CXX,,tests/mdbx.c++.o)
 ifndef SED
 SED        := $(shell which gnu-sed 2>&- || echo sed)
 endif
@@ -611,9 +611,15 @@ mdbx_$(1).static-lto: src/tools/$(1).c src/config-gnumake.h src/version.c src/al
 endef
 $(foreach file,$(TOOLS),$(eval $(call tool-rule,$(file))))
 
-mdbx_test: $(TEST_OBJ) libmdbx.$(SO_SUFFIX)
+tests/mdbx.c++.o: src/mdbx.c++ $(HEADERS) $(lastword $(MAKEFILE_LIST))
+	@echo '  CC $@'
+	$(QUIET)$(CXX) $(CXXFLAGS) $(MDBX_BUILD_OPTIONS) -DMDBX_BUILD_CXX=1 -DMDBX_WITHOUT_MSVC_CRT=0 -c src/mdbx.c++ -o $@
+
+comma:= ,
+
+mdbx_test: $(TEST_OBJ) $(call select_by,MDBX_BUILD_CXX,libmdbx.$(SO_SUFFIX),libmdbx.a)
 	@echo '  LD $@'
-	$(QUIET)$(CXX) $(CXXFLAGS) $(TEST_OBJ) -Wl,-rpath . -L . -l mdbx $(EXE_LDFLAGS) $(LIBS) -lm -o $@
+	$(QUIET)$(CXX) $(CXXFLAGS) $(TEST_OBJ) -Wl,-rpath . -L . $(call select_by,MDBX_BUILD_CXX,-l mdbx,-Wl$(comma)--push-state$(comma)-Bstatic -l mdbx -Wl$(comma)--pop-state) $(EXE_LDFLAGS) $(LIBS) -lm -o $@
 
 $(MDBX_GIT_DIR)/HEAD $(MDBX_GIT_DIR)/index $(MDBX_GIT_DIR)/refs/tags:
 	@echo '*** ' >&2
