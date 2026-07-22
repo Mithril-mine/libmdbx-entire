@@ -16,7 +16,11 @@
 #if defined(__cplusplus)
 #define MDBX_HAVE_C11ATOMICS
 #include <atomic>
-#if !defined(__STDC_NO_ATOMICS__)
+#if !defined(__STDC_NO_ATOMICS__) && !defined(__CODEGEARC__)
+/* Embarcadero: Clang falls back to a broken Dinkumware <stdatomic.h>/<cstdatomic>
+ * when pulled into a C++ TU (undeclared _Atomic_flag_t/_Bool/memory_order/_Uint1_t).
+ * The bare (non-std::) C11 atomic_* names are never used from C++ in this codebase
+ * (only under "#ifndef __cplusplus" below), so skip the include; std::atomic suffices. */
 #if defined(__cpp_lib_stdatomic_h)
 #include <stdatomic.h>
 #elif __has_include(<cstdatomic>)
@@ -26,7 +30,7 @@
 #endif /* __cplusplus */
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L || __has_extension(c_atomic)) &&                         \
-    !defined(__STDC_NO_ATOMICS__) &&                                                                                   \
+    !defined(__STDC_NO_ATOMICS__) && !defined(__cplusplus) &&                                                          \
     (__GNUC_PREREQ(4, 9) || __CLANG_PREREQ(3, 8) || !(defined(__GNUC__) || defined(__clang__)))
 #include <stdatomic.h>
 #if defined(__CODEGEARC__)

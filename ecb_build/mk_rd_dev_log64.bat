@@ -1,0 +1,1 @@
+mk_rd_dev64.bat > build64.log 2>&1

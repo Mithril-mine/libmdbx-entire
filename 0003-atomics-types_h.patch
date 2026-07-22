@@ -1,0 +1,57 @@
+From 46d3c42a2268f328a51f3047407d6a5d70606937 Mon Sep 17 00:00:00 2001
+From: stslam <dev@example.com>
+Date: Wed, 22 Jul 2026 08:58:42 +0000
+Subject: [PATCH] atomics-types: avoid pulling broken Dinkumware <stdatomic.h>
+ in C++ TUs on Embarcadero
+
+Embarcadero's Clang-based bcc64x/bcc32c falls back to a broken
+Dinkumware <stdatomic.h>/<cstdatomic> (undeclared _Atomic_flag_t,
+_Bool, memory_order, _Uint1_t, ...) when that header is pulled into
+a C++ translation unit. The bare (non-std::) C11 atomic_* names and
+memory_order_* enumerators are never used from C++ anywhere in this
+codebase -- they only appear under the "#ifndef __cplusplus" guard
+in atomics-ops.h -- so std::atomic alone is sufficient for C++ and
+the extra include can simply be skipped for __CODEGEARC__.
+
+Additionally, restrict the C11-atomics detection branch (the one
+that also patches up atomic_is_lock_free/store_explicit/etc. for
+Embarcadero) to strictly non-C++ compilation. On this toolchain
+__STDC_VERSION__ can leak into C++ mode, letting that C-only branch
+fire a second time inside a C++ TU and re-pull the same broken
+header / re-patch macros that are already unused there.
+
+No functional change for any other compiler: __STDC_VERSION__ is not
+defined in C++ mode elsewhere, and __CODEGEARC__ is Embarcadero-only.
+---
+ src/atomics-types.h | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/atomics-types.h b/src/atomics-types.h
+index 904081b..cb6d6a1 100644
+--- a/src/atomics-types.h
++++ b/src/atomics-types.h
+@@ -16,7 +16,11 @@
+ #if defined(__cplusplus)
+ #define MDBX_HAVE_C11ATOMICS
+ #include <atomic>
+-#if !defined(__STDC_NO_ATOMICS__)
++#if !defined(__STDC_NO_ATOMICS__) && !defined(__CODEGEARC__)
++/* Embarcadero: Clang falls back to a broken Dinkumware <stdatomic.h>/<cstdatomic>
++ * when pulled into a C++ TU (undeclared _Atomic_flag_t/_Bool/memory_order/_Uint1_t).
++ * The bare (non-std::) C11 atomic_* names are never used from C++ in this codebase
++ * (only under "#ifndef __cplusplus" below), so skip the include; std::atomic suffices. */
+ #if defined(__cpp_lib_stdatomic_h)
+ #include <stdatomic.h>
+ #elif __has_include(<cstdatomic>)
+@@ -26,7 +30,7 @@
+ #endif /* __cplusplus */
+ 
+ #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L || __has_extension(c_atomic)) &&                         \
+-    !defined(__STDC_NO_ATOMICS__) &&                                                                                   \
++    !defined(__STDC_NO_ATOMICS__) && !defined(__cplusplus) &&                                                          \
+     (__GNUC_PREREQ(4, 9) || __CLANG_PREREQ(3, 8) || !(defined(__GNUC__) || defined(__clang__)))
+ #include <stdatomic.h>
+ #if defined(__CODEGEARC__)
+-- 
+2.43.0
+

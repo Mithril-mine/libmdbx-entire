@@ -408,7 +408,7 @@ __extern_C key_t ftok(const char *, int);
 #include <io.h>
 #include <tlhelp32.h>
 
-#if defined(__CODEGEARC__) && IS_WINDOWS && !defined(_WIN64) && !defined(YieldProcessor)
+#if defined(__CODEGEARC__) && IS_WINDOWS && !defined(YieldProcessor)
 /* Embarcadero intrin.h does not define YieldProcessor; provide it via inline asm */
 #define YieldProcessor() __asm__ __volatile__("pause")
 #endif /* __CODEGEARC__ */

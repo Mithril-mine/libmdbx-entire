@@ -1,0 +1,1 @@
+mk_rd_dev.bat > build.log 2>&1
