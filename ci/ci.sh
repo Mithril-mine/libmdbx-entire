@@ -72,7 +72,7 @@ function default_ci {
 	fi
 	if [ -n "$CC" -a -n "${CI_MAKE_TARGET=test}" ] && [ -e GNUmakefile -o -e Makefile -o -e makefile ]; then
 		skipped=false
-		make -j2 all && make ${CI_MAKE_TARGET} && echo "Done (make)" || ok=false
+		make V=1 -j2 all && make V=1 ${CI_MAKE_TARGET} && echo "Done (make)" || ok=false
 	fi
 	if [ $skipped = "true" ]; then
 		echo "Skipped since CMAKE_VERSION ($CMAKE_VERSION) < 3.0.2 and no Makefile"
