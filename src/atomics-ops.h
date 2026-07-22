@@ -315,10 +315,17 @@ MDBX_MAYBE_UNUSED static __always_inline void safe64_write(mdbx_atomic_uint64_t 
   atomic_store32(&p->low, (uint32_t)v, mo_Relaxed);
   ASSERT(p->weak >= SAFE64_INVALID_THRESHOLD);
   jitter4testing(true);
+  ASSERT(p->weak >= SAFE64_INVALID_THRESHOLD);
   /* update high-part from SAFE64_INVALID_THRESHOLD to actual value */
   atomic_store32(&p->high, (uint32_t)(v >> 32), mo_AcquireRelease);
 #endif /* MDBX_64BIT_ATOMIC */
-  ASSERT(p->weak == v);
+
+  if (CHECKS0_ENABLED() && /* In the non-ancient versions, this is became a dangerous extra check, as there are
+                              scenarios of contention parallel updates */
+      0) {
+    uint64_t snap = atomic_load64(p, mo_AcquireRelease);
+    ASSERT(snap == v || snap >= SAFE64_INVALID_THRESHOLD);
+  }
   jitter4testing(true);
 }
 

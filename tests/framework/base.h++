@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "../src/essentials.h"
+#include "../../src/essentials.h"
 
 #ifdef _MSC_VER
 #pragma warning(push, 1)
@@ -65,7 +65,7 @@
 #include <unistd.h>
 #endif
 
-#ifdef _BSD_SOURCE
+#if defined(_BSD_SOURCE) || __has_include(<endian.h>)
 #include <endian.h>
 #endif
 
@@ -86,10 +86,10 @@
 
 #define MDBX_INTERNAL
 #define xMDBX_TOOLS /* Avoid using internal ASSERT() */
-#include "../mdbx.h++"
-#include "../src/osal.h"
+#include "../../mdbx.h++"
+#include "../../src/osal.h"
 
-#include "../src/options.h"
+#include "../../src/options.h"
 
 #ifdef _MSC_VER
 #pragma warning(pop)
