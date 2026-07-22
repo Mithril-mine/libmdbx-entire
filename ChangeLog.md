@@ -46,6 +46,8 @@ The supporting release of a stable branch with bug fixes.
  - On Windows platform the Windows-10 API is now used by default.
    Previous versions are still supported, but now they should be explicitly requested during library build by defining `_WIN32_WINNT`.
 
+ - Restructured project directories, renamed `ut_and_examples` into `examples`, etc.
+
 ### Improvements:
 
  - Deferred invalidation of the dbi-handles of dropped tables has been implemented until the corresponding transactions are committed.
@@ -71,6 +73,10 @@ The supporting release of a stable branch with bug fixes.
 
  - For Windows, the `MDBX_WITHOUT_MSVC_CRT=ON` build mode has been significantly improved using ntdll functions to eliminate dependence on MSVC CRT.
    Among other things, now there is a replacement for the __try/__except/__finally operators, support for Structural Exception Handling in the `SAFESEH` mode, simple substitution of _load_config_used, etc.
+
+ - Provided CI on SourceCraft and GitHub.
+
+ - Refined handling `MDBX_BUILD_OPTIONS` in the `GNUmakefile` to avoid redefinitions/overriding.
 
 ### Fixes:
 
@@ -114,6 +120,8 @@ The supporting release of a stable branch with bug fixes.
  - Fixed loss of `mincore()` cache due erase/overwrite on insert.
 
  - Fixed missing headroom reservation in several `mdbx::buffer<>` methods.
+
+ - Fixed extra assertion/check inside atomic `safe64_write()`.
 
 
 --------------------------------------------------------------------------------
