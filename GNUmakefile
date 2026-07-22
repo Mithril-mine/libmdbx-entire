@@ -53,14 +53,16 @@ CXX     ?= g++
 CFLAGS_EXTRA ?=
 LD      ?= ld
 CMAKE	?= "$(shell which cmake 2>&-)"
-CMAKE_OPT ?=
+CMAKE_OPT ?= $(MDBX_BUILD_OPTIONS)
 CTEST	?= ctest
 CTEST_OPT ?=
 # target directory for `make dist`
 DIST_DIR ?= dist
 
 # build options
-MDBX_BUILD_OPTIONS   ?=
+MDBX_DEBUG           ?=
+MDBX_CHECKING        ?=
+MDBX_BUILD_OPTIONS   ?=$(if $(MDBX_DEBUG),-DMDBX_DEBUG=$(MDBX_DEBUG) ,)$(if $(MDBX_CHECKING),-DMDBX_CHECKING=$(MDBX_CHECKING) ,)
 MDBX_BUILD_TIMESTAMP ?=$(if $(SOURCE_DATE_EPOCH),$(SOURCE_DATE_EPOCH),$(shell date +%Y-%m-%dT%H:%M:%S%z))
 MDBX_BUILD_CXX       ?=YES
 MDBX_BUILD_METADATA  ?=
@@ -303,9 +305,9 @@ lib-shared libmdbx.$(SO_SUFFIX): mdbx-dylib.o $(call select_by,MDBX_BUILD_CXX,md
 	@echo '  LD $@'
 	$(QUIET)$(call select_by,MDBX_BUILD_CXX,$(CXX) $(CXXFLAGS),$(CC) $(CFLAGS)) $^ -pthread -shared $(LDFLAGS) $(call select_by,MDBX_BUILD_CXX,$(LIB_STDCXXFS)) $(LIBS) -o $@
 
-ninja-assertions: CMAKE_OPT += -DMDBX_CHECKING=2 $(MDBX_BUILD_OPTIONS)
+ninja-assertions: MDBX_CHECKING=2
 ninja-assertions: cmake-build
-ninja-debug: CMAKE_OPT += -DCMAKE_BUILD_TYPE=Debug $(MDBX_BUILD_OPTIONS)
+ninja-debug: CMAKE_OPT += -DCMAKE_BUILD_TYPE=Debug
 ninja-debug: cmake-build
 ninja: cmake-build
 cmake-build:
@@ -337,26 +339,28 @@ build-test: $(TEST_BUILD_TARGETS)
 
 test-valgrind: test-memcheck
 smoke-valgrind: smoke-memcheck
-smoke-memcheck test-memcheck: CFLAGS_EXTRA += -Ofast -DENABLE_MEMCHECK -DMDBX_CHECKING=1
-smoke-memcheck test-memcheck: CMAKE_OPT += -DENABLE_UBSAN:BOOL=OFF -DENABLE_ASAN:BOOL=OFF -DENABLE_MEMCHECK:BOOL=ON -DMDBX_CHECKING=1
+smoke-memcheck test-memcheck: CFLAGS_EXTRA += -Ofast -DENABLE_MEMCHECK
+smoke-memcheck test-memcheck: MDBX_CHECKING=1
+smoke-memcheck test-memcheck: CMAKE_OPT += -DENABLE_UBSAN:BOOL=OFF -DENABLE_ASAN:BOOL=OFF -DENABLE_MEMCHECK:BOOL=ON
 smoke-memcheck test-memcheck: CTEST_OPT += -T memcheck
 test-memcheck: build-test build-stochastic ctest
 	@echo '  RUNNING `tests/stochastic.sh --with-valgrind --loops 2`...'
 	$(QUIET)tests/stochastic.sh --with-valgrind --loops 2 --db-upto-mb 256 --skip-make >$(TEST_LOG) || (cat $(TEST_LOG) && false)
 smoke-memcheck: smoke
 
-smoke-assertion test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
-smoke-assertion test-assertion: CMAKE_OPT += -DMDBX_CHECKING=2
+smoke-assertion test-assertion: MDBX_CHECKING=2
 test-assertion: test
 smoke-assertion: smoke
 
-smoke-ubsan test-ubsan: CFLAGS_EXTRA += -DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error -DMDBX_CHECKING=2
-smoke-ubsan test-ubsan: CMAKE_OPT += -DENABLE_UBSAN:BOOL=ON -DENABLE_ASAN:BOOL=OFF -DENABLE_MEMCHECK:BOOL=OFF -DMDBX_CHECKING=2
+smoke-ubsan test-ubsan: CFLAGS_EXTRA += -DENABLE_UBSAN -Ofast -fsanitize=undefined -fsanitize-undefined-trap-on-error
+smoke-ubsan test-ubsan: CMAKE_OPT += -DENABLE_UBSAN:BOOL=ON -DENABLE_ASAN:BOOL=OFF -DENABLE_MEMCHECK:BOOL=OFF
+smoke-ubsan test-ubsan: MDBX_CHECKING=2
 test-ubsan: test
 smoke-ubsan: smoke
 
-smoke-asan test-asan: CFLAGS_EXTRA += -Os -fsanitize=address -DMDBX_CHECKING=2
-smoke-asan test-asan: CMAKE_OPT += -DENABLE_UBSAN:BOOL=OFF -DENABLE_ASAN:BOOL=ON -DENABLE_MEMCHECK:BOOL=OFF -DMDBX_CHECKING=2
+smoke-asan test-asan: CFLAGS_EXTRA += -Os -fsanitize=address
+smoke-asan test-asan: CMAKE_OPT += -DENABLE_UBSAN:BOOL=OFF -DENABLE_ASAN:BOOL=ON -DENABLE_MEMCHECK:BOOL=OFF
+smoke-asan test-asan: MDBX_CHECKING=2
 test-asan: test
 smoke-asan: smoke
 
@@ -507,9 +511,9 @@ MDBX_SMOKE_EXTRA ?=
 check: DESTDIR = $(shell pwd)/@check-install
 check: CMAKE_OPT += -Werror=dev
 check: clean | smoke-assertion ninja-assertions dist install test ctest
-smoke-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
+smoke-assertion: MDBX_CHECKING=2
 smoke-assertion: smoke
-long-test-assertion: MDBX_BUILD_OPTIONS += -DMDBX_CHECKING=2
+long-test-assertion: MDBX_CHECKING=2
 long-test-assertion: smoke
 
 .PHONY: check-posix-locking-sysv check-posix-locking-1988 check-posix-locking-2001 check-posix-locking-2008
